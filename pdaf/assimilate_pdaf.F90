@@ -10,11 +10,11 @@
 
 SUBROUTINE assimilate_pdaf(istep)
 
-  USE pdaf_interfaces_module, &   ! Interface definitions to PDAF core routines
-       ONLY: PDAFomi_assimilate_local, PDAFomi_assimilate_global, &
-       PDAFomi_assimilate_lenkf, PDAFomi_generate_obs, PDAF_get_localfilter
-  USE PDAF_mod_filter, &
-       ONLY: cnt_steps, assim_flag
+!   USE pdaf_interfaces_module, &   ! Interface definitions to PDAF core routines
+!        ONLY: PDAFomi_assimilate_local, PDAFomi_assimilate_global, &
+!        PDAFomi_assimilate_lenkf, PDAFomi_generate_obs, PDAF_get_localfilter
+  USE PDAF, &
+       ONLY: PDAF_get_localfilter, PDAF3_assimilate_local, PDAF_get_assim_flag
   USE mod_parallel_pdaf, &        ! Parallelization variables
        ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
        COMM_COUPLE, filterpe
@@ -23,7 +23,7 @@ SUBROUTINE assimilate_pdaf(istep)
        dim_state_p, delt_obs_ocn, dim_ens, timemean_s, &
        monthly_state_sm, monthly_state_m, &
        compute_monthly_mm, compute_monthly_sm
-  USE mod_nc_out_variables, &
+  USE output_config, &
        ONLY: w_mm, w_sm, w_dayensm, w_monensm
   USE mod_nc_out_routines, &
        ONLY: netCDF_out
@@ -48,6 +48,7 @@ SUBROUTINE assimilate_pdaf(istep)
   INTEGER :: mpierror
   real :: invdim_ens                 ! Inverse ensemble size
   real :: weights
+  INTEGER            :: assim_flag
   
   logical :: IsLastStepDay
   logical :: IsLastStepMonth
@@ -90,10 +91,11 @@ SUBROUTINE assimilate_pdaf(istep)
 
   ! Call assimilate routine for global or local filter
   IF (localfilter==1) THEN
-     CALL PDAFomi_assimilate_local(collect_state_pdaf, distribute_state_pdaf, &
-          init_dim_obs_pdafomi, obs_op_pdafomi, prepoststep_pdaf, init_n_domains_pdaf, &
-          init_dim_l_pdaf, init_dim_obs_l_pdafomi, g2l_state_pdaf, l2g_state_pdaf, &
-          next_observation_pdaf, status_pdaf)
+     CALL PDAF3_assimilate_local(collect_state_pdaf, distribute_state_pdaf, &
+          init_dim_obs_pdafomi, obs_op_pdafomi, &
+          init_n_domains_pdaf, init_dim_l_pdaf, init_dim_obs_l_pdafomi, &
+          g2l_state_pdaf, l2g_state_pdaf, &
+          prepoststep_pdaf, next_observation_pdaf, status_pdaf)
   ELSE
      IF (filtertype==11) THEN
 !~         ! Observation generation has its own OMI interface routine
@@ -102,9 +104,9 @@ SUBROUTINE assimilate_pdaf(istep)
 !~              prepoststep_pdaf, next_observation_pdaf, status_pdaf)
      ELSE
         ! All global filters except LEnKF
-        CALL PDAFomi_assimilate_global(collect_state_pdaf, distribute_state_pdaf, &
-             init_dim_obs_pdafomi, obs_op_pdafomi, prepoststep_pdaf, &
-             next_observation_pdaf, status_pdaf)
+!         CALL PDAFomi_assimilate_global(collect_state_pdaf, distribute_state_pdaf, &
+!              init_dim_obs_pdafomi, obs_op_pdafomi, prepoststep_pdaf, &
+!              next_observation_pdaf, status_pdaf)
      END IF
   END IF
 
@@ -129,6 +131,8 @@ SUBROUTINE assimilate_pdaf(istep)
      IF ( .not. ALLOCATED(state_p))            ALLOCATE(state_p(dim_state_p))
      IF ( .not. ALLOCATED(ensm_p ))            ALLOCATE(ensm_p (dim_state_p))
      IF ( .not. ALLOCATED(stdev_p) .and. w_sm) ALLOCATE(stdev_p(dim_state_p))
+
+     CALL PDAF_get_assim_flag(assim_flag)
      
      ! *** in between assimilation steps, add forecast steps to m-fields ***
      ! note: assimilation step is at first time step of day

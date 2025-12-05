@@ -21,14 +21,14 @@ SUBROUTINE l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
 
   USE mod_assim_pdaf, &           ! Variables for assimilation
        ONLY: id_lstate_in_pstate, ens_member_debug, &
-             nfields, dim_fields_l, offset_l, &
+             dim_fields_l, offset_l, &
              isweep, cda_bio, cda_phy, type_sweep, &
              step_null, delt_obs_ocn
+  USE statevector_pdaf, &
+       only: nfields, sfields
   USE mod_parallel_pdaf, &
        ONLY: mype_filter, mype_model
-  USE mod_nc_out_variables, &
-       ONLY: sfields
-  USE PDAFomi, &
+  USE PDAF, &
        ONLY: PDAFomi_set_debug_flag
 
   IMPLICIT NONE

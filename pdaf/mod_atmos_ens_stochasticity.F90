@@ -327,6 +327,8 @@ END SUBROUTINE
 
 SUBROUTINE add_atmos_ens_stochasticity(istep)
 
+USE PDAF, &
+     ONLY: PDAF_seik_omega
 USE mod_assim_pdaf, &
     ONLY: this_is_pdaf_restart, start_from_ENS_spinup
 

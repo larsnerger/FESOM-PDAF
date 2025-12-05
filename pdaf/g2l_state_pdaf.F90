@@ -22,8 +22,8 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
        ONLY: id_lstate_in_pstate, ens_member_debug
   USE mod_parallel_pdaf, &
        ONLY: mype_filter, mype_model
-  USE PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!   USE PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
 
   IMPLICIT NONE
 

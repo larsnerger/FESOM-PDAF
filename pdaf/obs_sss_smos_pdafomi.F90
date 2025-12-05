@@ -51,7 +51,7 @@ MODULE obs_sss_smos_pdafomi
 
   USE mod_parallel_pdaf, &
        ONLY: mype_filter     ! Rank of filter process
-  USE PDAFomi, &
+  USE PDAF, &
        ONLY: obs_f, obs_l, & ! Declaration of observation data types
        PDAFomi_set_debug_flag
 
@@ -173,13 +173,13 @@ CONTAINS
 !!
   SUBROUTINE init_dim_obs_sss(step, dim_obs)
 
-    USE PDAFomi, &
+    USE PDAF, &
          ONLY: PDAFomi_gather_obs
     USE mod_assim_pdaf, &
-         ONLY: offset, twin_experiment, use_global_obs, id, mesh_fesom, nlmax, &
-         local_range, srange
-    USE mod_assim_pdaf, &
-         ONLY: delt_obs_ocn
+         ONLY: offset, twin_experiment, use_global_obs, mesh_fesom, nlmax, &
+         cradius, sradius, delt_obs_ocn
+    USE statevector_pdaf, &
+         ONLY: id
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
@@ -244,8 +244,8 @@ CONTAINS
     thisobs%use_global_obs = use_global_obs
 
     ! set localization radius
-    lradius_sss = local_range
-    sradius_sss = srange
+    lradius_sss = cradius
+    sradius_sss = sradius
     IF (.NOT.ALLOCATED(loc_radius_sss)) ALLOCATE(loc_radius_sss(mydim_nod2d))
     loc_radius_sss(:) = lradius_sss
 
@@ -525,7 +525,7 @@ CONTAINS
 !!
   SUBROUTINE obs_op_sss(dim_p, dim_obs, state_p, ostate)
 
-    USE PDAFomi, &
+    USE PDAF, &
          ONLY: PDAFomi_obs_op_gridpoint
 
     IMPLICIT NONE
@@ -568,7 +568,7 @@ CONTAINS
   SUBROUTINE init_dim_obs_l_sss(domain_p, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
-    USE PDAFomi, ONLY: PDAFomi_init_dim_obs_l
+    USE PDAF, ONLY: PDAFomi_init_dim_obs_l
     USE g_parsup, ONLY: myDim_nod2D
 
     ! Include localization radius and local coordinates

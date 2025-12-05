@@ -9,15 +9,15 @@ MODULE mod_nc_out_routines
 !      + netCDF_openfile
 
 ! USES:
-USE mod_nc_out_variables
+USE output_config
 USE mod_assim_pdaf, &
-   ONLY: nfields, id, mesh_fesom, nlmax, DAoutput_path, dim_ens, dim_state, &
-         dim_state_p, offset, phymin, phymax, bgcmin, bgcmax, &
-         topography3D_g
+   ONLY: mesh_fesom, nlmax, DAoutput_path, dim_ens, dim_state, &
+         dim_state_p, offset, &
+         topography3D_g, pi
+USE statevector_pdaf, &
+     only: id, sfields, nfields, phymin, phymax, bgcmin, bgcmax
 USE mod_parallel_pdaf, &
    ONLY: abort_parallel, writepe
-USE mod_obs_f_pdaf, &
-   ONLY: pi
 USE g_config, &
    ONLY: runid
 USE g_clock, &

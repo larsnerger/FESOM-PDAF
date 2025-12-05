@@ -659,9 +659,7 @@ END SUBROUTINE check
 SUBROUTINE init_carbonfluxes_diags_out()
       
       USE mod_assim_pdaf, &
-         ONLY: mesh_fesom, nlmax, DAoutput_path
-      USE mod_obs_f_pdaf, &
-         ONLY: pi
+         ONLY: mesh_fesom, nlmax, DAoutput_path, pi
       USE g_config, &
          ONLY: runid
       USE recom_config, &

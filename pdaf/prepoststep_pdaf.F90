@@ -18,6 +18,9 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! 2022    - Frauke       - Adapted for FESOM2.0
 !
 ! !USES:
+  USE mpi
+  USE PDAF, &                        ! PDAF interface definitions
+       ONLY: PDAF_reset_forget
   USE mod_parallel_pdaf, &
        ONLY: mype_filter, npes_filter, COMM_filter, writepe, mype_world
   USE mod_assim_pdaf, & ! Variables for assimilation
@@ -27,7 +30,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        monthly_state_sf, monthly_state_sa, monthly_state_sm, &
        endday_of_month_in_year, startday_of_month_in_year, &
        depth_excl, depth_excl_no, this_is_pdaf_restart, mesh_fesom, nlmax, &
-       dim_fields, dim_fields_glob, offset, offset_glob, nfields, id, &
+       dim_fields, dim_fields_glob, offset, offset_glob, &
        timemean, timemean_s, delt_obs_ocn, &
        days_since_DAstart, forget, &
        stdev_SSH_f_p, &
@@ -39,11 +42,12 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        compute_monthly_sa, compute_monthly_sf, &
        compute_monthly_mm, compute_monthly_sm, &
        resetforget
+  USE statevector_pdaf, &
+       only: id, nfields, sfields, nfields_3D, ids_3D
   USE mod_atmos_ens_stochasticity, &
       ONLY: stable_rmse
   USE g_PARSUP, &
-       ONLY: MPI_DOUBLE_PRECISION, MPI_SUM, MPIerr, MPI_STATUS_SIZE, &
-       MPI_INTEGER, MPI_MAX, MPI_MIN, mydim_nod2d, MPI_COMM_FESOM, &
+       ONLY:  MPIerr, mydim_nod2d, MPI_COMM_FESOM, &
        myList_edge2D, myDim_edge2D, myList_nod2D
   USE o_ARRAYS, ONLY: hnode_new
   USE g_comm_auto, ONLY: gather_nod
@@ -52,9 +56,8 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        NCmax_d, SiCmax, Redfield, SecondsPerDay
   USE mod_nc_out_routines, &
        ONLY: netCDF_out
-  USE mod_nc_out_variables, &
-       ONLY: sfields, nfields_3D, ids_3D, &
-       w_dayensm, w_daymemb, w_monensm, w_monmemb, w_mm, w_sm, &
+  USE output_config, &
+       ONLY: w_dayensm, w_daymemb, w_monensm, w_monmemb, w_mm, w_sm, &
        mm, aa, ff, ii, sa, sf, si, sm, oo, dd, ee
   ! mean state forecast for observation exclusion criteria
   USE obs_TSprof_EN4_pdafomi, &

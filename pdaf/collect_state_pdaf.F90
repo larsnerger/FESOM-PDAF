@@ -25,10 +25,10 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
   USE mod_parallel_pdaf, &
        ONLY: mype_world, writepe
   USE mod_assim_pdaf, &
-       ONLY: offset, mesh_fesom, nlmax, id, dim_fields, dim_state_p, &
+       ONLY: offset, mesh_fesom, nlmax, dim_fields, dim_state_p, &
        topography_p
-  USE mod_nc_out_variables, &
-       ONLY: sfields, ids_tr3D, nfields_tr3D
+  USE statevector_pdaf, &
+       ONLY: id, sfields, ids_tr3D, nfields_tr3D
   USE g_PARSUP, &
        ONLY: mydim_nod2d, myDim_elem2D
   USE o_arrays, &
@@ -42,8 +42,8 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
        ONLY: task_id, mype_model
   USE g_clock, &
        ONLY: daynew, timenew
-  USE PDAF_mod_filter, &
-       ONLY: assim_flag
+  USE PDAF, &
+       ONLY: PDAF_get_assim_flag
 
 
   IMPLICIT NONE
@@ -66,8 +66,11 @@ SUBROUTINE collect_state_pdaf(dim_p, state_p)
   CHARACTER(len=5)   :: mype_string
   CHARACTER(len=3)   :: day_string
   CHARACTER(len=5)   :: tim_string
+  INTEGER            :: assim_flag
   
   ! Set debug output
+  CALL PDAF_get_assim_flag(assim_flag)
+
   debugmode    = .false.
   IF (.not. debugmode) THEN
      write_debug = .false.

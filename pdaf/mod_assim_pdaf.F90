@@ -1,31 +1,33 @@
-! PDAF in AWI-CM2 / Fesom 2.0
-
+!>  Module for assimilation variables
+!!
+!! This module provides variables needed for the 
+!! assimilation within the routines of the dummy model.
+!! For simplicity, all assimilation-related variables
+!! are stored here, even if they are only used in
+!! the main program for the filter initialization.
+!! Most variables can be specified as a command line 
+!! argument.
+!!
+!! Implementation for the 2D online example
+!! with or without parallelization.
+!!
+!! __Revision history:__
+!! * 2013-02 - Lars Nerger  - Initial code
+!! * 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
+!! * 2022-03 - Frauke       - Removed sea ice, added ocean velocities for FESOM2.1
+!! * 2025-12 - Lars Nerger  - update for PDAF3
+!!
 MODULE mod_assim_pdaf
 
-! DESCRIPTION:
-! This module provides variables needed for the 
-! assimilation within the routines of the dummy model.
-! For simplicity, all assimilation-related variables
-! are stored here, even if they are only used in
-! the main program for the filter initialization.
-! Most variables can be specified as a command line 
-! argument.
-!
-!
-!
-! REVISION HISTORY:
-! 2013-02 - Lars Nerger  - Initial code
-! 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
-! 2022-03 - Frauke       - Removed sea ice, added ocean velocities for FESOM2.1
-!
-! USES:
-USE MOD_MESH
-IMPLICIT NONE
-SAVE
-! *** Below are the generic variables used for configuring PDAF ***
-! *** Their values are set in init_PDAF                         ***
+!  USE statevector_pdaf
+  USE fesom_pdaf
 
-! PUBLIC MEMBER FUNCTIONS:
+  IMPLICIT NONE
+  SAVE
+
+! *** Variables specific for FESOM-PDAF ***
+
+  CHARACTER(len=100) :: nmlfile ='namelist.fesom.pdaf'    ! name of namelist file
 
 ! Variables for time stepping:
 INTEGER :: step_null = 0          ! at initialization of PDAF, specify which time step we have, to assimilate the time-corresponding observations:
@@ -47,147 +49,46 @@ INTEGER :: proffiles_o      ! (0) don't generate profile observation files;
 INTEGER :: start_year_o, &  ! Which years to generate profile files
            end_year_o
 INTEGER :: use_global_obs
-LOGICAL :: twin_experiment = .false.   ! Whether to perform a twin experiment with synthetic observations
 INTEGER :: dim_obs_max      ! Expect max. number of observations for synthetic obs.
 
-! General control of PDAF - available as command line options
-INTEGER :: screen       ! Control verbosity of PDAF
-                        ! (0) no outputs, (1) progess info, (2) add timings
-                        ! (3) debugging output
-INTEGER :: dim_ens      ! Size of ensemble for SEIK/LSEIK/EnKF/ETKF
-                        ! Number of EOFs to be used for SEEK
-INTEGER :: filtertype   ! Select filter algorithm:
-                        ! SEEK (0), SEIK (1), EnKF (2), LSEIK (3), ETKF (4), LETKF (5)
-INTEGER :: subtype      ! Subtype of filter algorithm
-                        !   SEIK:
-                        !     (0) ensemble forecast; new formulation
-                        !     (1) ensemble forecast; old formulation
-                        !     (2) fixed error space basis
-                        !     (3) fixed state covariance matrix
-                        !     (4) SEIK with ensemble transformation
-                        !   LSEIK:
-                        !     (0) ensemble forecast;
-                        !     (2) fixed error space basis
-                        !     (3) fixed state covariance matrix
-                        !     (4) LSEIK with ensemble transformation
-                        !   ETKF:
-                        !     (0) ETKF using T-matrix like SEIK
-                        !     (1) ETKF following Hunt et al. (2007)
-                        !       There are no fixed basis/covariance cases, as
-                        !       these are equivalent to SEIK subtypes 2/3
-                        !   LETKF:
-                        !     (0) ETKF using T-matrix like SEIK
-                        !     (1) LETKF following Hunt et al. (2007)
-                        !       There are no fixed basis/covariance cases, as
-                        !       these are equivalent to LSEIK subtypes 2/3
-INTEGER :: incremental  ! Perform incremental updating in LSEIK
-INTEGER :: dim_lag      ! Number of time instances for smoother
 INTEGER :: DA_couple_type ! (0) for weakly-coupled, (1) for strongly-coupled assimilation
-! Filter settings - available as command line options
-! General
-INTEGER :: type_forget  ! Type of forgetting factor
-REAL    :: forget       ! Forgetting factor for filter analysis
+
 LOGICAL :: resetforget  ! Whether to reset forgetting factor after initial phase
-INTEGER :: dim_bias     ! dimension of bias vector
-! SEIK/ETKF/LSEIK/ETKFS
-INTEGER :: type_trans    ! Type of ensemble transformation
-                         ! SEIK/LSEIK:
-                         ! (0) use deterministic omega
-                         ! (1) use random orthonormal omega orthogonal to (1,...,1)^T
-                         ! (2) use product of (0) with random orthonormal matrix with
-                         !     eigenvector (1,...,1)^T
-                         ! ETKF/LETKF with subtype=4:
-                         ! (0) use deterministic symmetric transformation
-                         ! (2) use product of (0) with random orthonormal matrix with
-                         !     eigenvector (1,...,1)^T
-! SEIK-subtype4/LSEIK-subtype4/ESTKF/LESTKF
-INTEGER :: type_sqrt     ! Type of the transform matrix square-root 
-                         !   (0) symmetric square root, (1) Cholesky decomposition
-! Localization - LSEIK/LETKF/LESTKF
-REAL    :: local_range   ! Range for local observation domain
-INTEGER :: locweight     ! Type of localizing weighting of observations
-                  !   (0) constant weight of 1
-                  !   (1) exponentially decreasing with SRANGE
-                  !   (2) use 5th-order polynomial
-                  !   (3) regulated localization of R with mean error variance
-                  !   (4) regulated localization of R with single-point error variance
-REAL    :: srange        ! Support range for 5th order polynomial
-                         !   or radius for 1/e for exponential weighting
-! Specific for FESOM
-INTEGER :: dim_state              ! Global size of model state
-INTEGER :: dim_state_p            ! PE-local size of model state
 
 
-! Declare Fortran type holding the indices of model fields in the state vector
-TYPE field_ids
-   INTEGER :: ssh        ! physics
-   INTEGER :: u 
-   INTEGER :: v 
-   INTEGER :: w 
-   INTEGER :: temp 
-   INTEGER :: salt
-   INTEGER :: a_ice
-   INTEGER :: MLD1
-   INTEGER :: MLD2
-   INTEGER :: PhyChl     ! chlorophyll
-   INTEGER :: DiaChl
-   INTEGER :: DIC        ! dissolved tracers
-   INTEGER :: DOC
-   INTEGER :: Alk
-   INTEGER :: DIN
-   INTEGER :: DON
-   INTEGER :: O2
-   INTEGER :: pCO2s      ! surface carbon diagnostics
-   INTEGER :: CO2f
-   INTEGER :: alphaCO2
-   INTEGER :: PistonVel
-   INTEGER :: PhyN       ! small phyto
-   INTEGER :: PhyC
-   INTEGER :: PhyCalc
-   INTEGER :: DiaN       ! diatoms
-   INTEGER :: DiaC
-   INTEGER :: DiaSi
-   INTEGER :: Zo1C       ! zooplankton
-   INTEGER :: Zo1N
-   INTEGER :: Zo2C
-   INTEGER :: Zo2N
-   INTEGER :: DetC       ! detritus
-   INTEGER :: DetCalc
-   INTEGER :: DetSi
-   INTEGER :: DetN
-   INTEGER :: Det2C
-   INTEGER :: Det2Calc
-   INTEGER :: Det2Si
-   INTEGER :: Det2N
-   INTEGER :: PAR        ! diags
-   INTEGER :: NPPn
-   INTEGER :: NPPd
-   INTEGER :: export
-   INTEGER :: sigma
-   !   INTEGER :: TChl   ! Total chlorophyll = PhyChl + DiaChl
-   !   INTEGER :: TDN    ! Total dissolved N = DIN + DON
-   !   INTEGER :: TOC    ! Total organic carbon: PhyC + DiaC + DetC + DOC + HetC
-END TYPE field_ids
+! which fields to perturb
+  LOGICAL :: perturb_ssh   = .TRUE.
+  LOGICAL :: perturb_u     = .TRUE.
+  LOGICAL :: perturb_v     = .TRUE.
+  LOGICAL :: perturb_temp  = .TRUE.
+  LOGICAL :: perturb_salt  = .TRUE.
+  LOGICAL :: perturb_DIC   = .TRUE.
+  LOGICAL :: perturb_Alk   = .TRUE.
+  LOGICAL :: perturb_DIN   = .TRUE.
+  LOGICAL :: perturb_O2    = .TRUE.
+
+  CHARACTER(len=150) :: path_atm_cov
+
+
 
 ! Type variable holding field IDs in state vector
-TYPE(field_ids) :: id
-INTEGER :: nfields          ! Number of fields in state vector
-INTEGER :: phymin, phymax   ! First and last physics field in state vector
-INTEGER :: bgcmin, bgcmax   ! First and last biogeochemistry field in state vector
+!TYPE(field_ids) :: id
+!INTEGER :: nfields          ! Number of fields in state vector
+! INTEGER :: phymin, phymax   ! First and last physics field in state vector
+! INTEGER :: bgcmin, bgcmax   ! First and last biogeochemistry field in state vector
 
 ! Specific for local filters
-INTEGER, ALLOCATABLE :: id_lobs_in_fobs(:)     ! Indices of local observations in full obs. vector
 INTEGER, ALLOCATABLE :: id_lstate_in_pstate(:) ! Indices of local state vector in PE-local global state vector
-REAL, ALLOCATABLE    :: ivariance_obs_l(:)     ! Local inverse variance of observations
-REAL, ALLOCATABLE :: distance(:)               ! Distances of local observations
+!REAL, ALLOCATABLE :: distance(:)               ! Distances of local observations
 
 ! Variables for adaptive localization radius
 REAL, ALLOCATABLE :: eff_dim_obs(:)            ! Effective observation dimension
 REAL, ALLOCATABLE :: loc_radius(:)             ! Effective observation dimension
 INTEGER :: loctype       ! Type of localization
-                         !   (0) Fixed radius defined by local_range
+                         !   (0) Fixed radius defined by cradius
                          !   (1) Variable radius for constant effective observation dimension
-REAL :: loc_ratio        ! Choose local_range so the effective observation dim. is loc_ratio times dim_ens
+REAL :: loc_ratio        ! Choose cradius so the effective observation dim. is loc_ratio times dim_ens
+
 INTEGER, ALLOCATABLE :: id_nod2D_ice(:)        ! IDs of nodes with ice
 INTEGER :: depth_excl_no
 INTEGER, ALLOCATABLE :: depth_excl(:)          ! nodes excluded in each pe
@@ -208,18 +109,6 @@ LOGICAL :: ASIM_START_USE_CLIM_STATE = .true.
 
 ! Initial ensemble covariance
 REAL    :: varscale=1.0           ! scaling factor for initial ensemble variance
-! which fields to perturb
-LOGICAL :: perturb_ssh   = .true.
-LOGICAL :: perturb_u     = .true.
-LOGICAL :: perturb_v     = .true.
-LOGICAL :: perturb_temp  = .true.
-LOGICAL :: perturb_salt  = .true.
-LOGICAL :: perturb_DIC   = .true.
-LOGICAL :: perturb_Alk   = .true.
-LOGICAL :: perturb_DIN   = .true.
-LOGICAL :: perturb_O2    = .true.
-
-CHARACTER(len=150) :: path_atm_cov
 
 ! Restart information - set in slurm-job-script:
 LOGICAL :: this_is_pdaf_restart = .false.            ! init_pdaf:        - at every start, initialize PDAF-netCDF-output
@@ -237,7 +126,6 @@ LOGICAL :: assimilateBGC = .false. ! whether to do a BGC assimilation step
 LOGICAL :: assimilatePHY = .false. ! whether to do a physics assimilation step
 
 ! Other variables - NOT available as command line options / in the namelist:
-REAL                 :: time               ! model time
 INTEGER, ALLOCATABLE :: offset(:)          ! PE-local offsets of fields in state vector
 INTEGER, ALLOCATABLE :: dim_fields(:)      ! PE-local dimensions of fields in state vector
 INTEGER, ALLOCATABLE :: offset_glob(:)     ! Global offsets of fields in state vector
@@ -274,16 +162,6 @@ LOGICAL :: compute_monthly_sm
 ! Julian-Gregorian date transformation of EN4 raw data 
 INTEGER :: num_day_in_month(0:1,12), endday_of_month_in_year(0:1,12), startday_of_month_in_year(0:1,12)
 
-! FESOM mesh:
-type(t_mesh), pointer, save :: mesh_fesom
-INTEGER, PARAMETER :: nlmax = 46            ! CORE2 mesh: deepest wet cells at mesh_fesom%nl-2
-REAL, ALLOCATABLE :: topography3D(:,:)      ! topography: 1 for wet nodes and 0 for dry nodes (array shape as in model)
-REAL, ALLOCATABLE :: topography_p(:)        ! """                                             (array shape as state_p)
-REAL, ALLOCATABLE :: topography3D_g(:,:)    ! """                                             (array shape as in model globally)
-REAL :: area_surf_glob(nlmax)               ! ocean area and standard volume to calculate area-/volume weighted means
-REAL :: inv_area_surf_glob(nlmax)
-REAL :: volo_full_glob, inv_volo_full_glob
-REAL, ALLOCATABLE :: cellvol(:,:)           ! standard volume of cells, NOT considering time-varying ALE layerwidth
 
 
 ! For weak coupling:
@@ -326,5 +204,211 @@ INTEGER :: mype_debug = 18
 INTEGER :: node_debug = 1167
 ! DIC debugging: Have_obs on mype_debug=18; node_debug=1167 on 2010-01-05.
 ! Alk debugging: Have_obs on mype_debug=65; node_debug=915 .OR. 885 .OR. 268 on 2010-01-08.
+
+
+
+
+! -----------------------------------------------------------------
+! *** Below are the generic variables used for configuring PDAF ***
+! *** Their values are set in init_PDAF                         ***
+
+! Settings for state vector size
+  INTEGER :: dim_state         !< Global model state dimension
+  INTEGER :: dim_state_p       !< Model state dimension for PE-local domain
+
+! Settings for time stepping - available as command line options
+  LOGICAL :: model_error       !< Control application of model error
+  REAL    :: model_err_amp     !< Amplitude for model error
+
+! Settings for observations - available as command line options
+  INTEGER :: delt_obs          !< time step interval between assimilation steps
+  LOGICAL :: twin_experiment   !< Whether to run an twin experiment with synthetic observations
+  INTEGER :: observe_ens=0     !< (0) apply H also to ensemble mean; (1) apply H only to ensemble states
+  INTEGER :: type_obs_init=1   !< init obs. (0) before or (1) after call to prepostsstep
+  LOGICAL :: do_omi_obsstats=.false. !< Whether to let OMI compute observation statistics
+
+! General control of PDAF - available as command line options
+  INTEGER :: screen       !< Control verbosity of PDAF
+                          !< * (0) no outputs
+                          !< * (1) progress info
+                          !< * (2) add timings
+                          !< * (3) debugging output
+  INTEGER :: dim_ens      !< Size of ensemble
+  INTEGER :: filtertype   !< Select filter algorithm:
+                          !<   * SEIK (1), EnKF (2), LSEIK (3), ETKF (4)
+                          !<   LETKF (5), ESTKF (6), LESTKF (7), NETF (9), LNETF (10)
+                          !<   LKNETF (11), PF (12), GENOBS (100), 3DVAR (200)
+  INTEGER :: subtype      !< Subtype of filter algorithm
+                          !<   * SEIK:
+                          !<     (0) ensemble forecast; new formulation
+                          !<     (1) ensemble forecast; old formulation
+                          !<     (2) SEIK with ensemble transformation
+                          !<     (10) fixed error space basis
+                          !<     (11) fixed state covariance matrix
+                          !<   * LSEIK:
+                          !<     (0) ensemble forecast;
+                          !<     (2) LSEIK with ensemble transformation
+                          !<     (10) fixed error space basis
+                          !<     (11) fixed state covariance matrix
+                          !<   * ETKF:
+                          !<     (0) ETKF using T-matrix like SEIK
+                          !<     (1) ETKF following Hunt et al. (2007)
+                          !<       There are no fixed basis/covariance cases, as
+                          !<       these are equivalent to SEIK subtypes 2/3
+                          !<   * LETKF:
+                          !<     (0) LETKF using T-matrix like SEIK
+                          !<     (1) LETKF following Hunt et al. (2007)
+                          !<       There are no fixed basis/covariance cases, as
+                          !<       these are equivalent to LSEIK subtypes 2/3
+                          !<   * EnKF:
+                          !<     (0) analysis for large observation dimension
+                          !<     (1) analysis for small observation dimension
+                          !<   * LEnKF:
+                          !<     (0) standard analysis
+                          !<   * ESTKF:
+                          !<     (0) standard ESTKF 
+                          !<       There are no fixed basis/covariance cases, as
+                          !<       these are equivalent to SEIK subtypes 2/3
+                          !<   * LESTKF:
+                          !<     (0) standard LESTKF 
+                          !<       There are no fixed basis/covariance cases, as
+                          !<       these are equivalent to LSEIK subtypes 2/3
+                          !<   * NETF:
+                          !<     (0) standard NETF 
+                          !<   * LNETF:
+                          !<     (0) standard LNETF 
+                          !<   * LKNETF:
+                          !<     (0) HNK: 2-step LKNETF with NETF before LETKF
+                          !<     (1) HKN: 2-step LKNETF with LETKF before NETF
+                          !<     (2) HSync: LKNETF synchronous
+                          !<   * PF:
+                          !<     (0) standard PF 
+                          !<   * ENSRF/EAKF:
+                          !<     (0) ENSRF with serial observation processing
+                          !<     (1) EAKF with loca least square regression
+                          !<   * 3D-Var:
+                          !<     (0) parameterized 3D-Var
+                          !<     (1) 3D Ensemble Var using LESTKF for ensemble update
+                          !<     (2) 3D Ensemble Var using ESTKF for ensemble update
+                          !<     (3) hybrid 3D-Var using LESTKF for ensemble update
+                          !<     (4) hybrid 3D-Var using ESTKF for ensemble update
+  INTEGER :: type_iau     !< Type of incremental updating:
+                          !<     (0) no IAU
+                          !<     (1) constant IAU weight
+                          !<     (2) linear increase/decrease with maimum in middle of period
+                          !<     (3) Null IAU: initialize increments arrays, but do not add increment
+  INTEGER :: steps_iau    !< Number of time steps over which IAU is applied
+  INTEGER :: dim_lag      !< Number of time instances for smoother
+
+! Filter settings - available as command line options
+!    ! General
+  INTEGER :: type_forget  !< Type of forgetting factor
+                          !<  SEIK/LSEIK/ETKF/LETKF/ESTKF/LESTKF
+                          !<   (0) fixed
+                          !<   (1) global adaptive
+                          !<   (2) local adaptive for LSEIK/LETKF/LESTKF
+                          !<  NETF/LNETF/PF
+                          !<   (0) apply inflation on forecast ensemble
+                          !<   (2) apply inflation on analysis ensemble
+  REAL    :: forget       !< Forgetting factor for filter analysis
+  INTEGER :: dim_bias     !< dimension of bias vector
+!    ! All localized filters
+  REAL    :: cradius       !< Cut-off radius for local observation domain
+  INTEGER :: locweight     !< * Type of localizing weighting of observations
+                           !<   (0) constant weight of 1
+                           !<   (1) exponentially decreasing with SRADIUS
+                           !<   (2) use 5th-order polynomial
+                           !<   (3) regulated localization of R with mean error variance
+                           !<   (4) regulated localization of R with single-point error variance
+  REAL    :: sradius       !< Support radius for 5th order polynomial
+                           !<   or radius for 1/e for exponential weighting
+!    ! ENKF
+  INTEGER :: rank_ana_enkf !< Rank to be considered for inversion of HPH in analysis of EnKF
+                           !<  (0) for analysis w/o eigendecomposition
+!    ! SEIK/ETKF/ESTKF/LSEIK/LETKF/LESTKF/NETF/LNETF/LKNETF
+  INTEGER :: type_trans    !< Type of ensemble transformation 
+                           !< * SEIK/LSEIK: 
+                           !< (0) use deterministic omega
+                           !< (1) use random orthonormal omega orthogonal to (1,...,1)^T
+                           !< (2) use product of (0) with random orthonormal matrix with
+                           !<     eigenvector (1,...,1)^T 
+                           !< * ETKF/LETKF with subtype=4: 
+                           !< (0) use deterministic symmetric transformation
+                           !< (2) use product of (0) with random orthonormal matrix with
+                           !<     eigenvector (1,...,1)^T 
+                           !< * ESTKF/LESTKF:
+                           !< (0) use deterministic omega
+                           !< (1) use random orthonormal omega orthogonal to (1,...,1)^T
+                           !< (2) use product of (0) with random orthonormal matrix with
+                           !<     eigenvector (1,...,1)^T
+                           !< * NETF/LNETF:
+                           !< (0) use random orthonormal transformation orthogonal to (1,...,1)^T
+                           !< (1) use identity transformation
+                           !< * LKNETF:
+                           !< (0) use random orthonormal transformation orthogonal to (1,...,1)^T
+                           !< (1) use identity transformation
+!    ! SEIK-subtype4/LSEIK-subtype4/ESTKF/LESTKF
+  INTEGER :: type_sqrt     !< * Type of the transform matrix square-root 
+                           !<   (0) symmetric square root
+                           !<   (1) Cholesky decomposition
+!    ! NETF/LNETF/PF
+  INTEGER :: type_winf     !< Set weights inflation: 
+                           !<   (0) no weights inflation
+                           !<   (1) use N_eff/N>limit_winf
+  REAL    :: limit_winf    !< Limit for weights inflation: N_eff/N>limit_winf
+!    ! hybrid LKNETF
+  INTEGER :: type_hyb      !< * Type of hybrid weight:
+                           !<   (0) use fixed hybrid weight hyb_gamma
+                           !<   (1) use gamma_lin: (1 - N_eff/N_e)*hyb_gamma
+                           !<   (2) use gamma_alpha: hybrid weight from N_eff/N>=hyb_gamma
+                           !<   (3) use gamma_ska: 1 - min(s,k)/sqrt(hyb_kappa) with N_eff/N>=hyb_gamma
+                           !<   (4) use gamma_sklin: 1 - min(s,k)/sqrt(hyb_kappa) >= 1-N_eff/N>=hyb_gamma
+  REAL    :: hyb_gamma     !< Hybrid filter weight for state (1.0: LETKF, 0.0 LNETF)
+  REAL    :: hyb_kappa     !< Hybrid norm for using skewness and kurtosis
+!    ! Particle filter
+  INTEGER :: pf_res_type   !< * Resampling type for PF
+                           !<   (1) probabilistic resampling
+                           !<   (2) stochastic universal resampling
+                           !<   (3) residual resampling        
+  INTEGER :: pf_noise_type !< * Resampling type for PF
+                           !<   (0) no perturbations, (1) constant stddev, 
+                           !<   (2) amplitude of stddev relative of ensemble variance
+  REAL :: pf_noise_amp     !< Noise amplitude (>=0.0, only used if pf_noise_type>0)
+
+!    ! 3D-Var
+  INTEGER :: type_opt      !< * Type of minimizer for 3DVar
+                           !<   (1) LBFGS (default)
+                           !<   (2) CG+
+                           !<   (3) plain CG
+                           !<   (12) CG+ parallelized
+                           !<   (13) plain CG parallelized
+  INTEGER :: dim_cvec = 0  !< Size of control vector (parameterized part; for subtypes 0,1)
+  INTEGER :: dim_cvec_ens = 0   !< Size of control vector (ensemble part; for subtypes 1,2)
+  INTEGER :: mcols_cvec_ens = 1 !< Multiplication factor for number of columns for ensemble control vector
+  REAL :: beta_3dvar = 0.5 !< Hybrid weight for hybrid 3D-Var
+  INTEGER :: solver_iparam1 = 2 !< Solver specific parameter
+                                !<  LBFGS: parameter m (default=5)
+                                !<       Number of corrections used in limited memory matrix; 3<=m<=20
+                                !<  CG+: parameter method (default=2)
+                                !<       (1) Fletcher-Reeves, (2) Polak-Ribiere, (3) positive Polak-Ribiere
+                                !<  CG: maximum number of iterations (default=200)
+  INTEGER :: solver_iparam2 = 1 !< Solver specific parameter
+                                !<  LBFGS: - not used - 
+                                !<  CG+: parameter irest (default=1)
+                                !<       (0) no restarts; (n>0) restart every n steps
+                                !<  CG: - not used -
+  REAL :: solver_rparam1 = 1.0e-6 !< Solver specific parameter
+                                !<  LBFGS: limit for stopping iterations 'pgtol' (default=1.0e-5)
+                                !<  CG+: convergence parameter 'eps' (default=1.0e-5)
+                                !<  CG: conpergence parameter 'eps' (default=1.0e-6)
+  REAL :: solver_rparam2 = 1.0e+7 !< Solver specific parameter
+                                !<  LBFGS: tolerance in termination test 'factr' (default=1.0e+7) 
+                                !<  CG+: - not used -
+                                !<  CG: - not used -
+
+!    ! Other variables - _NOT_ available as command line options!
+  REAL    :: time               !< model time
+  REAL, ALLOCATABLE :: coords_p(:,:)    !< Coordinates of process-local state vector entries
+                                        !< needed to intiialize localization for LEnKF/ENSRF
 
 END MODULE mod_assim_pdaf

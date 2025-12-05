@@ -29,10 +29,10 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
        COMM_model, MPIerr, mype_filter, writepe
   USE mod_assim_pdaf, &
        ONLY: offset, loc_radius,this_is_pdaf_restart, mesh_fesom, nlmax, &
-       dim_fields, id, istep_asml, step_null, start_from_ENS_spinup, &
+       dim_fields, istep_asml, step_null, start_from_ENS_spinup, &
        topography_p
-  USE mod_nc_out_variables, &
-       ONLY: sfields, nfields_tr3D, ids_tr3D
+  USE statevector_pdaf, &
+       only: id, sfields, nfields_tr3D, ids_tr3D
   USE g_PARSUP, &
        ONLY: myDim_nod2D, myDim_elem2D, &
              eDim_nod2D, eDim_elem2D 

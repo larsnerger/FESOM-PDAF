@@ -50,7 +50,7 @@ MODULE obs_chl_cci_pdafomi
 
   USE mod_parallel_pdaf, &
        ONLY: mype_filter, writepe
-  USE PDAFomi, &
+  USE PDAF, &
        ONLY: obs_f, obs_l, & ! Declaration of observation data types
        PDAFomi_set_debug_flag
   USE mod_assim_pdaf, &
@@ -180,13 +180,13 @@ CONTAINS
 !!
   SUBROUTINE init_dim_obs_chl_cci(step, dim_obs)
 
-    USE PDAFomi, &
+    USE PDAF, &
          ONLY: PDAFomi_gather_obs
     USE mod_assim_pdaf, &
-         ONLY: offset, twin_experiment, use_global_obs, id, mesh_fesom, &
-         local_range, srange, nlmax
-    USE mod_assim_pdaf, &
-         ONLY: delt_obs_ocn
+         ONLY: offset, twin_experiment, use_global_obs, mesh_fesom, &
+         cradius, sradius, nlmax, delt_obs_ocn
+    USE statevector_pdaf, &
+         ONLY: id
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
@@ -254,8 +254,8 @@ CONTAINS
     thisobs%use_global_obs = use_global_obs
 
     ! set localization radius
-    lradius_chl_cci = local_range
-    sradius_chl_cci = srange
+    lradius_chl_cci = cradius
+    sradius_chl_cci = sradius
     if (allocated(loc_radius_chl_cci)) deallocate(loc_radius_chl_cci)
     allocate(loc_radius_chl_cci(mydim_nod2d))
     loc_radius_chl_cci(:) = lradius_chl_cci
@@ -603,7 +603,7 @@ CONTAINS
 !!
   SUBROUTINE obs_op_chl_cci(dim_p, dim_obs, state_p, ostate)
 
-    USE PDAFomi, &
+    USE PDAF, &
          ONLY: PDAFomi_gather_obsstate
 
     IMPLICIT NONE
@@ -671,7 +671,7 @@ CONTAINS
   SUBROUTINE init_dim_obs_l_chl_cci(domain_p, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
-    USE PDAFomi, ONLY: PDAFomi_init_dim_obs_l
+    USE PDAF, ONLY: PDAFomi_init_dim_obs_l
     ! Include localization radius and local coordinates
     USE mod_assim_pdaf, ONLY: coords_l, locweight, loctype, &
                               mype_debug, node_debug

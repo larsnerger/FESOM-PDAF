@@ -19,8 +19,8 @@ SUBROUTINE read_config_pdaf()
        offset, screen, filtertype, subtype, &
        delt_obs_ocn, &
        dim_bias, DA_couple_type, &
-       incremental, type_forget, &
-       forget, locweight, local_range, srange, &
+       type_forget, &
+       forget, locweight, cradius, sradius, &
        type_trans, type_sqrt, step_null, &
        eff_dim_obs, loc_radius, loctype, loc_ratio, &
        path_init, file_init, file_inistate, read_inistate, &
@@ -35,11 +35,9 @@ SUBROUTINE read_config_pdaf()
        ! Temp-Salt-Profiles:
        path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix, &
        proffiles_o, start_year_o, end_year_o
-       ! output
-  USE mod_nc_out_variables, &
+  USE output_config, &       ! Output
        ONLY: setoutput
-       ! postprocessing
-  USE mod_postprocess, &
+  USE mod_postprocess, &     ! Postprocessing
        ONLY: isPP, yearPP, pathsim
        ! clock
   USE g_clock, &
@@ -125,8 +123,8 @@ SUBROUTINE read_config_pdaf()
   
        
   NAMELIST /pdaf/ filtertype, subtype, screen, &
-       incremental, type_forget, forget, resetforget, dim_bias, &
-       local_range, locweight, srange, DA_couple_type, &
+       type_forget, forget, resetforget, dim_bias, &
+       cradius, locweight, sradius, DA_couple_type, &
        n_modeltasks, use_global_obs, &
        path_init, file_init, step_null, printconfig, &
        file_inistate, read_inistate, &
@@ -295,16 +293,15 @@ file_chl_cci_prefix = 'CCI_OC_'//TRIM(year_string)//'_dist72_'
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'step_null   ',         step_null
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'days_since_DAstart',   days_since_DAstart
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'screen      ',         screen
-     WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'incremental ',         incremental
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'type_forget ',         type_forget
      WRITE (*,'(a,5x,a20,1x,f10.4)') 'FESOM-PDAF',   'forget      ',         forget
      WRITE (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'resetforget ',         resetforget
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'dim_bias    ',         dim_bias
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'type_trans  ',         type_trans
-     WRITE (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'local_range ',         local_range
+     WRITE (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'cradius     ',         cradius
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'locweight   ',         locweight
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'loctype     ',         loctype
-     WRITE (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'srange      ',         srange
+     WRITE (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'sradius     ',         sradius
      WRITE (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'loc_ratio   ',         loc_ratio
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'use_global_obs',       use_global_obs
      WRITE (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'dim_lag     ',         dim_lag

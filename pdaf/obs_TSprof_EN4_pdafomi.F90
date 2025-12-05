@@ -52,7 +52,7 @@ MODULE obs_TSprof_EN4_pdafomi
 
   USE mod_parallel_pdaf, &
        ONLY: mype_filter          ! Rank of filter process
-  USE PDAFomi, &
+  USE PDAF, &
        ONLY: obs_f, obs_l         ! Declaration of observation data types
   USE mod_assim_pdaf, &
        ONLY: n_sweeps             ! Variables for coupled data assimilation
@@ -175,12 +175,14 @@ CONTAINS
 !!
   SUBROUTINE init_dim_obs_prof(step, dim_obs)
 
-    USE PDAFomi, &
+    USE PDAF, &
          ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
     USE mod_assim_pdaf, &
-         ONLY: offset, twin_experiment, use_global_obs, id, &
+         ONLY: offset, twin_experiment, use_global_obs, &
                delt_obs_ocn, mesh_fesom, &
-               local_range, srange, nlmax
+               cradius, sradius, nlmax
+    USE statevector_pdaf, &
+         ONLY: id
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
@@ -259,8 +261,8 @@ CONTAINS
     thisobs%use_global_obs = use_global_obs
 
     ! set localization radius
-    lradius_prof = local_range
-    sradius_prof = srange
+    lradius_prof = cradius
+    sradius_prof = sradius
     
     IF (allocated(loc_radius_prof)) deallocate(loc_radius_prof)
     ALLOCATE(loc_radius_prof(mydim_nod2d))
@@ -706,7 +708,7 @@ CONTAINS
 !!
   SUBROUTINE obs_op_prof(dim_p, dim_obs, state_p, ostate)
 
-    USE PDAFomi, &
+    USE PDAF, &
          ONLY: PDAFomi_obs_op_gridavg, &
                PDAFomi_set_debug_flag
 
@@ -753,8 +755,9 @@ CONTAINS
   SUBROUTINE init_dim_obs_l_prof(domain_p, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
-    USE PDAFomi, ONLY: PDAFomi_init_dim_obs_l,&
-                       PDAFomi_set_debug_flag
+    USE PDAF, &
+         ONLY: PDAFomi_init_dim_obs_l,&
+         PDAFomi_set_debug_flag
     ! Include localization radius and local coordinates
     USE mod_assim_pdaf, ONLY: coords_l, locweight, loctype
     ! Number of domains per sweep:
@@ -768,12 +771,6 @@ CONTAINS
     INTEGER, INTENT(in)  :: dim_obs      !< Full dimension of observation vector
     INTEGER, INTENT(inout) :: dim_obs_l  !< Local dimension of observation vector
 
-! *** OMI-Debug:
-!~   IF (mype_filter==64 .AND. domain_p==776) THEN
-!~     CALL PDAFomi_set_debug_flag(domain_p)
-!~   ELSE
-!~     CALL PDAFomi_set_debug_flag(0)
-!~   ENDIF
 
     IF (thisobs%doassim == 1) THEN
     

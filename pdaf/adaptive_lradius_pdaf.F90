@@ -12,6 +12,8 @@
 !!
 SUBROUTINE get_adaptive_lradius_pdaf(domain_p, lradius, loc_radius)
 
+  USE PDAF, &
+       ONLY: PDAF_local_weight
   USE mod_assim_pdaf, &           ! Variables for assimilation
        ONLY: locweight, loctype, loc_ratio, dim_ens, eff_dim_obs, pi, &
        mesh_fesom
@@ -52,7 +54,7 @@ SUBROUTINE get_adaptive_lradius_pdaf(domain_p, lradius, loc_radius)
   LOGICAL, SAVE :: firstround = .true.   ! Flag for first analysis time
   REAL :: l_ranges(2)           ! Minimum and maximum allowed localization radii
   REAL :: l_step                ! Step size for search of localization radius
-
+  REAL :: matA(1,1)             ! Temporary array for calling PDAF_local_weight
 
 ! *** Variable localization radius for fixed effective observation dimension ***
 
@@ -114,7 +116,7 @@ SUBROUTINE get_adaptive_lradius_pdaf(domain_p, lradius, loc_radius)
            ! If distance below limit increment effective observation dimension
            IF (dist <= l_range) THEN
               CALL PDAF_local_weight(wtype, rtype, l_range, l_range, dist, &
-                   1, 1, 1.0, 1.0, weight, 0)
+                   1, 1, matA, 1.0, weight, 0)
 
               eff_dim_obs(domain_p) = eff_dim_obs(domain_p) + weight
            END IF

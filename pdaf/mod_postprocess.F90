@@ -1,11 +1,12 @@
 MODULE mod_postprocess
 
 use mod_assim_pdaf, &
-    only: nlmax, id, mesh_fesom, dim_state_p, offset, &
+    only: nlmax, mesh_fesom, dim_state_p, offset, &
     DAoutput_path, dim_fields
+USE statevector_pdaf, &
+     only: id, sfields
 use mod_parallel_pdaf, &
     only: writepe, COMM_filter, MPIerr, mype_filter
-use mod_nc_out_variables
 use mod_nc_out_routines, &
     only: check
 use obs_o2_comf_pdafomi, &
@@ -16,6 +17,10 @@ use obs_o2_merged_pdafomi, &
     only: assim_o_o2_merged
 use obs_n_merged_pdafomi, &
     only: assim_o_n_merged
+use obs_n_comf_pdafomi, &
+    only: assim_o_n_comf
+use obs_n_argo_pdafomi, &
+    only: assim_o_n_argo
 
 use g_config, &
     only: dt
@@ -431,12 +436,12 @@ SUBROUTINE PP_DIC_GLODAP()
        only: init_dim_obs_DIC_glodap, &
        obs_op_DIC_glodap, DIC_glodap_exclude_diff, &
        thisobs, thisobs_PP, thisobs_PP_f
-   use PDAFomi_obs_f, &
+   use PDAF, &
        only: PDAFomi_gather_obs_f_flex
-   use PDAFomi_obs_l, &
-       only: PDAFomi_deallocate_obs
-  USE PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!    use PDAFomi_obs_l, &
+!        only: PDAFomi_deallocate_obs
+!   USE PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
        
    ! init observation data
    call init_dim_obs_DIC_glodap(-1, dim_obs_f)
@@ -513,7 +518,7 @@ SUBROUTINE PP_DIC_GLODAP()
    endif haveobs
 
    ! clean up after init_dim_obs
-   call PDAFomi_deallocate_obs(thisobs)
+!   call PDAFomi_deallocate_obs(thisobs)
    deallocate(thisobs_PP%isExclObs,thisobs_PP%nod1_g, &
               thisobs_PP%nod2_g,thisobs_PP%nod3_g, &
               thisobs_PP%elem_g,thisobs_PP%lon, &
@@ -531,12 +536,12 @@ SUBROUTINE PP_Alk_GLODAP()
        only: init_dim_obs_Alk_glodap, &
        obs_op_Alk_glodap, Alk_glodap_exclude_diff, &
        thisobs, thisobs_PP, thisobs_PP_f
-   use PDAFomi_obs_f, &
+   use PDAF, &
        only: PDAFomi_gather_obs_f_flex
-   use PDAFomi_obs_l, &
-       only: PDAFomi_deallocate_obs
-  USE PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!    use PDAFomi_obs_l, &
+!        only: PDAFomi_deallocate_obs
+!   USE PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
        
    ! init observation data
    call init_dim_obs_Alk_glodap(-1, dim_obs_f)
@@ -613,7 +618,7 @@ SUBROUTINE PP_Alk_GLODAP()
    endif haveobs
 
    ! clean up after init_dim_obs
-   call PDAFomi_deallocate_obs(thisobs)
+!    call PDAFomi_deallocate_obs(thisobs)
    deallocate(thisobs_PP%isExclObs,thisobs_PP%nod1_g, &
               thisobs_PP%nod2_g,thisobs_PP%nod3_g, &
               thisobs_PP%elem_g,thisobs_PP%lon, &
@@ -632,12 +637,12 @@ SUBROUTINE PP_O2_COMFORT()
        obs_op_O2_COMF, &
        thisobs, thisobs_PP, thisobs_PP_f, &
        o2_comf_exclude_diff
-   use PDAFomi_obs_f, &
+   use PDAF, &
        only: PDAFomi_gather_obs_f_flex
-   use PDAFomi_obs_l, &
-       only: PDAFomi_deallocate_obs
-  USE PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!    use PDAFomi_obs_l, &
+!        only: PDAFomi_deallocate_obs
+!   USE PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
        
    ! init observation data
    call init_dim_obs_O2_COMF(-1, dim_obs_f)
@@ -717,7 +722,7 @@ SUBROUTINE PP_O2_COMFORT()
    endif haveobs
 
    ! clean up after init_dim_obs
-   call PDAFomi_deallocate_obs(thisobs)
+!   call PDAFomi_deallocate_obs(thisobs)
    deallocate(thisobs_PP%isExclObs,thisobs_PP%nod1_g, &
               thisobs_PP%nod2_g,thisobs_PP%nod3_g, &
               thisobs_PP%elem_g,thisobs_PP%lon, &
@@ -736,12 +741,12 @@ SUBROUTINE PP_PCO2_SOCAT()
        only: init_dim_obs_pCO2_SOCAT, &
        obs_op_pCO2_SOCAT, pCO2_SOCAT_exclude_diff, &
        thisobs, thisobs_PP, thisobs_PP_f
-   use PDAFomi_obs_f, &
+   use PDAF, &
        only: PDAFomi_gather_obs_f_flex
-   use PDAFomi_obs_l, &
-       only: PDAFomi_deallocate_obs
-  USE PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!    use PDAFomi_obs_l, &
+!        only: PDAFomi_deallocate_obs
+!   USE PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
        
    ! init observation data
    call init_dim_obs_pCO2_SOCAT(-1, dim_obs_f)
@@ -817,7 +822,7 @@ SUBROUTINE PP_PCO2_SOCAT()
    endif haveobs
 
    ! clean up after init_dim_obs
-   call PDAFomi_deallocate_obs(thisobs)
+!   call PDAFomi_deallocate_obs(thisobs)
    deallocate(thisobs_PP%isExclObs,thisobs_PP%nod1_g, &
               thisobs_PP%nod2_g,thisobs_PP%nod3_g, &
               thisobs_PP%elem_g,thisobs_PP%lon, &
@@ -836,12 +841,12 @@ SUBROUTINE PP_DIN_COMFORT()
        only: init_dim_obs_n_comf, &
        obs_op_n_comf, &
        thisobs, thisobs_PP, thisobs_PP_f
-   use PDAFomi_obs_f, &
+   use PDAF, &
        only: PDAFomi_gather_obs_f_flex
-   use PDAFomi_obs_l, &
-       only: PDAFomi_deallocate_obs
-  USE PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!    use PDAFomi_obs_l, &
+!        only: PDAFomi_deallocate_obs
+!   USE PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
        
    ! init observation data
    call init_dim_obs_n_comf(-1, dim_obs_f)
@@ -911,7 +916,7 @@ SUBROUTINE PP_DIN_COMFORT()
    endif haveobs
 
    ! clean up after init_dim_obs
-   call PDAFomi_deallocate_obs(thisobs)
+!    call PDAFomi_deallocate_obs(thisobs)
    deallocate(thisobs_PP%isExclObs,thisobs_PP%nod1_g, &
               thisobs_PP%nod2_g,thisobs_PP%nod3_g, &
               thisobs_PP%elem_g,thisobs_PP%lon, &
@@ -929,12 +934,12 @@ SUBROUTINE PP_DIN_ARGO()
        only: init_dim_obs_n_argo, &
        obs_op_n_argo, &
        thisobs, thisobs_PP, thisobs_PP_f
-   use PDAFomi_obs_f, &
+   use PDAF, &
        only: PDAFomi_gather_obs_f_flex
-   use PDAFomi_obs_l, &
-       only: PDAFomi_deallocate_obs
-  USE PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!    use PDAFomi_obs_l, &
+!        only: PDAFomi_deallocate_obs
+!   USE PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
        
    ! init observation data
    call init_dim_obs_n_argo(-1, dim_obs_f)
@@ -1004,7 +1009,7 @@ SUBROUTINE PP_DIN_ARGO()
    endif haveobs
 
    ! clean up after init_dim_obs
-   call PDAFomi_deallocate_obs(thisobs)
+!    call PDAFomi_deallocate_obs(thisobs)
    deallocate(thisobs_PP%isExclObs,thisobs_PP%nod1_g, &
               thisobs_PP%nod2_g,thisobs_PP%nod3_g, &
               thisobs_PP%elem_g,thisobs_PP%lon, &
@@ -1023,12 +1028,12 @@ SUBROUTINE PP_O2_ARGO()
        only: init_dim_obs_o2_argo, &
        obs_op_o2_argo, &
        thisobs, thisobs_PP, thisobs_PP_f
-   use PDAFomi_obs_f, &
+   use PDAF, &
        only: PDAFomi_gather_obs_f_flex
-   use PDAFomi_obs_l, &
-       only: PDAFomi_deallocate_obs
-  USE PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!    use PDAFomi_obs_l, &
+!        only: PDAFomi_deallocate_obs
+!   USE PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
        
    ! init observation data
    call init_dim_obs_o2_argo(-1, dim_obs_f)
@@ -1098,7 +1103,7 @@ SUBROUTINE PP_O2_ARGO()
    endif haveobs
 
    ! clean up after init_dim_obs
-   call PDAFomi_deallocate_obs(thisobs)
+!    call PDAFomi_deallocate_obs(thisobs)
    deallocate(thisobs_PP%isExclObs,thisobs_PP%nod1_g, &
               thisobs_PP%nod2_g,thisobs_PP%nod3_g, &
               thisobs_PP%elem_g,thisobs_PP%lon, &
@@ -1118,12 +1123,12 @@ SUBROUTINE PP_DIN_MERGED()
        obs_op_n_merged, &
        thisobs, thisobs_PP, thisobs_PP_f, &
        mean_n_p
-   use PDAFomi_obs_f, &
+   use PDAF, &
        only: PDAFomi_gather_obs_f_flex
-   use PDAFomi_obs_l, &
-       only: PDAFomi_deallocate_obs
-   use PDAFomi, &
-       only: PDAFomi_set_debug_flag
+!    use PDAFomi_obs_l, &
+!        only: PDAFomi_deallocate_obs
+!    use PDAFomi, &
+!        only: PDAFomi_set_debug_flag
        
    implicit none
    REAL :: excl_relative_upper, excl_relative_lower ! relative upper and lower limits for exclusion
@@ -1220,7 +1225,7 @@ SUBROUTINE PP_DIN_MERGED()
    endif haveobs
 
    ! clean up after init_dim_obs
-   call PDAFomi_deallocate_obs(thisobs)
+!    call PDAFomi_deallocate_obs(thisobs)
    deallocate(thisobs_PP%isExclObs,thisobs_PP%nod1_g, &
               thisobs_PP%nod2_g,thisobs_PP%nod3_g, &
               thisobs_PP%elem_g,thisobs_PP%lon, &
@@ -1240,12 +1245,12 @@ SUBROUTINE PP_O2_MERGED()
        obs_op_o2_merged, &
        thisobs, thisobs_PP, thisobs_PP_f, &
        mean_o2_p
-   use PDAFomi_obs_f, &
+   use PDAF, &
        only: PDAFomi_gather_obs_f_flex
-   use PDAFomi_obs_l, &
-       only: PDAFomi_deallocate_obs
-   use PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!    use PDAFomi_obs_l, &
+!        only: PDAFomi_deallocate_obs
+!    use PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
        
    implicit none
    REAL :: excl_relative_upper, excl_relative_lower ! relative upper and lower limits for exclusion
@@ -1342,7 +1347,7 @@ SUBROUTINE PP_O2_MERGED()
    endif haveobs
 
    ! clean up after init_dim_obs
-   call PDAFomi_deallocate_obs(thisobs)
+!    call PDAFomi_deallocate_obs(thisobs)
    deallocate(thisobs_PP%isExclObs,thisobs_PP%nod1_g, &
               thisobs_PP%nod2_g,thisobs_PP%nod3_g, &
               thisobs_PP%elem_g,thisobs_PP%lon, &
@@ -1360,7 +1365,7 @@ SUBROUTINE write_ncfile(fid,self_offset_day,self_thisobs,self_thisobsPP, &
                         self_ostate,self_diff,self_impr,self_diffAF)
 
    USE recom_config,   ONLY: SecondsPerDay
-   USE PDAFomi,        ONLY: obs_f          ! Type variable for thisobs
+   USE PDAF   ,        ONLY: obs_f          ! Type variable for thisobs
    USE mod_assim_pdaf, ONLY: obs_PP         ! Type variable for thisobs_PP
 
    integer, intent(in) :: fid               ! file ID

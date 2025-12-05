@@ -68,8 +68,8 @@ SUBROUTINE init_dim_obs_pdafomi(step, dim_obs)
   USE obs_n_merged_pdafomi, &
        ONLY: assim_o_n_merged, init_dim_obs_n_merged
               
-  USE PDAFomi, &
-       ONLY: PDAFomi_set_debug_flag
+!   USE PDAFomi, &
+!        ONLY: PDAFomi_set_debug_flag
 
   IMPLICIT NONE
 
@@ -193,7 +193,7 @@ SUBROUTINE obs_op_pdafomi(step, dim_p, dim_obs, state_p, ostate)
   
   USE mod_parallel_pdaf, ONLY: mype_filter
   USE mod_assim_pdaf, ONLY: mype_debug, node_debug
-  USE PDAFomi, ONLY: PDAFomi_set_debug_flag
+!  USE PDAFomi, ONLY: PDAFomi_set_debug_flag
 
   IMPLICIT NONE
 
@@ -259,7 +259,7 @@ SUBROUTINE init_dim_obs_l_pdafomi(domain_p, step, dim_obs, dim_obs_l)
   USE obs_n_merged_pdafomi, ONLY: init_dim_obs_l_n_merged
 
   ! General modules:
-  USE PDAFomi, ONLY: PDAFomi_set_debug_flag
+!  USE PDAFomi, ONLY: PDAFomi_set_debug_flag
   USE mod_parallel_pdaf, ONLY: mype_filter
   USE g_parsup, ONLY: myList_nod2D, myDim_nod2D
   USE mod_assim_pdaf, ONLY: debug_id_nod2, mype_debug, node_debug

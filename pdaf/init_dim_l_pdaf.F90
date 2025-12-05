@@ -20,28 +20,17 @@ SUBROUTINE init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
 
   USE mod_assim_pdaf, &                    ! Variables for assimilation
        ONLY: id_lstate_in_pstate, &        ! Indices of local state vector in PE-local global state vector
-             offset, &                     ! PE-local offsets of fields in state vector
-             id, &                         ! Field IDs in state vector
-             coords_l, &                   ! Coordinates of local analysis domain
-             mesh_fesom, nlmax, &                 
-             nfields, bgcmin, bgcmax, phymin, phymax, &
-                                          ! mesh_fesom % coord_nod2D, & ! vertex coordinates in radian measure
-                                          ! mesh_fesom % nlevels, &     ! number of levels at (below) elem     considering bottom topography
-                                          ! mesh_fesom % nlevels_nod2D  ! number of levels at (below) vertices considering bottom topography
-                                          ! mesh_fesom % nl             ! number of levels not considering bottom topography
-             dim_fields_l, offset_l, &    ! Domain local (water column at one node) field dimensions
-             isweep
-    USE PDAFomi, &
-        ONLY: PDAFomi_set_debug_flag
+       offset, &                     ! PE-local offsets of fields in state vector
+       coords_l, &                   ! Coordinates of local analysis domain
+       mesh_fesom, nlmax, &                 
+       dim_fields_l, offset_l, &    ! Domain local (water column at one node) field dimensions
+       isweep
+  USE statevector_pdaf, &
+       only: id, nfields, sfields, bgcmin, bgcmax, phymin, phymax
     USE mod_parallel_pdaf, &
         ONLY: mype_filter, abort_parallel
-    USE PDAF_mod_filter, &
-        ONLY: state
-    USE mod_nc_out_variables, &
-        ONLY: sfields
-    USE g_parsup, &
-      ONLY: myDim_nod2D, &      ! Process-local number of vertices
-            myDim_elem2D        ! Process-local number of elements 
+    USE fesom_pdaf, &
+         ONLY: myDim_nod2D, myDim_elem2D, myList_nod2D
     USE g_rotate_grid, &
        ONLY: r2g                           ! Transform from the mesh (rotated) coordinates 
                                            ! to geographical coordinates  
@@ -50,8 +39,6 @@ SUBROUTINE init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
        
   USE mod_assim_pdaf, &
        ONLY: debug_id_nod2
-  USE g_parsup, &
-       ONLY: myList_nod2D
 
   IMPLICIT NONE
 

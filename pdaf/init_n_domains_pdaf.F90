@@ -22,8 +22,8 @@ SUBROUTINE init_n_domains_pdaf(step, n_domains_p)
             myDim_elem2D        ! Process-local number of elements
   USE mod_parallel_pdaf, &
       ONLY: mype_filter
-  USE PDAFomi, &
-      ONLY: PDAFomi_set_debug_flag
+!   USE PDAFomi, &
+!       ONLY: PDAFomi_set_debug_flag
   USE mod_assim_pdaf, &
       ONLY: n_sweeps
 
