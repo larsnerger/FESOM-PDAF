@@ -20,16 +20,10 @@
 SUBROUTINE l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
 
   USE mod_assim_pdaf, &           ! Variables for assimilation
-       ONLY: id_lstate_in_pstate, ens_member_debug, &
-             dim_fields_l, offset_l, &
-             isweep, cda_bio, cda_phy, type_sweep, &
-             step_null, delt_obs_ocn
+       ONLY: id_lstate_in_pstate, isweep, &
+             cda_bio, cda_phy, type_sweep
   USE statevector_pdaf, &
-       only: nfields, sfields
-  USE mod_parallel_pdaf, &
-       ONLY: mype_filter, mype_model
-  USE PDAF, &
-       ONLY: PDAFomi_set_debug_flag
+       ONLY: nfields, sfields, sfields_l
 
   IMPLICIT NONE
 
@@ -44,8 +38,6 @@ SUBROUTINE l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
 ! *** Local variables *** 
   INTEGER :: i, ifield            !< Counters
   LOGICAL :: update_cda           !< Whether to perform DA update
-  INTEGER :: memberid             !< Ensemble member
-  CHARACTER(LEN=17) :: filename   !< Filename for debugging output
   
   
 ! **************************************************
@@ -56,46 +48,31 @@ SUBROUTINE l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
   
      ! Determine whether to apply update according to coupled data assimilation settings
      
-     ! Physics field and physics sweep:
-     if ( .not. (sfields(ifield)%bgc) .and. (trim(type_sweep(isweep))=='phy')) then
-     update_cda = .true.
-     ! BGC field and BGC sweep:
-     elseif (   sfields(ifield)%bgc   .and. (trim(type_sweep(isweep))=='bio')) then
-     update_cda = .true.
-     
-     else
+     IF (.NOT.(sfields(ifield)%bgc) .AND. (TRIM(type_sweep(isweep))=='phy')) THEN
+        ! Physics field and physics sweep:
+        update_cda = .TRUE.
+     ELSEIF (sfields(ifield)%bgc .AND. (TRIM(type_sweep(isweep))=='bio')) THEN
+        ! BGC field and BGC sweep:
+        update_cda = .TRUE.
+     ELSE
         ! Strongly coupled DA configuration:
-        if (type_sweep(isweep)=='phy' .and. trim(cda_phy)=='strong') then
-           update_cda = .true.
-        elseif (type_sweep(isweep)=='bio' .and. trim(cda_bio)=='strong') then
-           update_cda = .true.
-        else
-        ! Weak coupling and unequal type of field and sweep:
-           update_cda = .false.
-        end if
-     end if
-     
-!~      if ((mype_filter==0) .and. (step==step_null+delt_obs_ocn)) &
-!~                   write (*,'(a,4x,a,1x,a,a,1x,a,1x,L)') 'FESOM-PDAF', &
-!~                    '--- l2g_state:',type_sweep(isweep),'-sweep, updating', sfields(ifield)%variable, update_cda
+        IF (type_sweep(isweep)=='phy' .AND. TRIM(cda_phy)=='strong') THEN
+           update_cda = .TRUE.
+        ELSEIF (type_sweep(isweep)=='bio' .AND. TRIM(cda_bio)=='strong') THEN
+           update_cda = .TRUE.
+        ELSE
+           ! Weak coupling and unequal type of field and sweep:
+           update_cda = .FALSE.
+        END IF
+     END IF
   
-     if (update_cda) then
-     ! update field in global state vector from local state
-     DO i = offset_l(ifield)+1, offset_l(ifield)+dim_fields_l(ifield)
-       state_p(id_lstate_in_pstate(i)) = state_l(i)
-     END DO
-     endif
+     IF (update_cda) THEN
+        ! update field in global state vector from local state
+        DO i = sfields_l(ifield)%off + 1, sfields_l(ifield)%off + sfields_l(ifield)%dim
+           state_p(id_lstate_in_pstate(i)) = state_l(i)
+        END DO
+     ENDIF
      
   END DO
-  
-!~   IF ((mype_model==55) .AND. (domain==669)) THEN
-!~         ens_member_debug = ens_member_debug + 1
-!~         CALL PDAF_get_memberid(memberid)
-!~         write (*,*) 'l2g Frauke-debug', memberid
-!~         write (filename, "(A11,I2,A4)") "l2g_state_l", ens_member_debug, ".dat"
-!~         open (20+ens_member_debug, file = TRIM(filename))
-!~         write(20+ens_member_debug,*) state_l
-!~         close(20+ens_member_debug) 
-!~   END IF
 
 END SUBROUTINE l2g_state_pdaf

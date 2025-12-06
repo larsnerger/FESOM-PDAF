@@ -35,112 +35,119 @@
 !! __Revision history:__
 !! * 2004-11 - Lars Nerger - Initial code
 !! * 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
+!! * 2025-12 - Lars Nerger - Revision for PDAF3
 !!
-SUBROUTINE init_parallel_pdaf(dim_ens_in, screen)
+subroutine init_parallel_pdaf(dim_ens_in, screen2)
 
-  USE mpi                         ! MPI
-  USE PDAF, &                     ! PDAF routines
-       ONLY: PDAF3_set_parallel
-  USE mod_parallel_pdaf, &        ! PDAF parallelization variables
-       ONLY: mype_world, npes_world, mype_model, npes_model, &
+  use mpi                         ! MPI
+  use timer, only: timeit
+  use PDAF, &                     ! PDAF routines
+       only: PDAF3_set_parallel
+  use mod_parallel_pdaf, &        ! PDAF parallelization variables
+       only: mype_world, npes_world, mype_model, npes_model, &
        COMM_model, mype_filter, npes_filter, COMM_filter, filterpe, &
        n_modeltasks, local_npes_model, task_id, COMM_couple, MPIerr, &
        COMM_ensemble, mype_ens, npes_ens, pairs, abort_parallel
-  USE mod_assim_pdaf, &
-       ONLY: dim_ens
+  use mod_assim_pdaf, &
+       only: dim_ens
 #if defined(__oasis)
-  USE mod_oasis_data, &
-       ONLY: comm_cplmod, cplmodid, strcplmodid ! For AWI-CM
+  use mod_oasis_data, &
+       only: comm_cplmod, cplmodid, strcplmodid ! For AWI-CM
 #endif
-  USE g_PARSUP, &
-       ONLY: MPI_COMM_FESOM, npes, mype
+  use g_PARSUP, &
+       only: MPI_COMM_FESOM, npes, mype
 
-  IMPLICIT NONE
+  implicit none
   
 ! *** Arguments ***
-  INTEGER, INTENT(inout) :: dim_ens_in   !< Ensemble size
+  integer, intent(inout) :: dim_ens_in   !< Ensemble size
   !< Often the routine is called with dim_ens=0, because the real ensemble size
   !< is initialized later in the program. For dim_ens=0 no consistency check
   !< for the ensemble size with the number of model tasks is performed.
-  INTEGER, INTENT(in)    :: screen       !< Whether screen information is shown
+  integer, intent(in)    :: screen2       !< Whether screen information is shown (replced by namelist)
 
 ! *** Local variables ***
-  INTEGER :: i, j                     ! Counters
-  INTEGER :: mype_couple, npes_couple ! Rank and size in COMM_couple
-  INTEGER :: pe_index                 ! Index of PE
-  INTEGER :: my_color, color_couple   ! Variables for communicator-splitting 
-  LOGICAL :: iniflag                  ! Flag whether MPI is initialized
-  INTEGER :: flag                     ! Status flag
-  CHARACTER(len=32) :: handle         ! handle for command line parser
+  integer :: i, j                     ! Counters
+  integer :: mype_couple, npes_couple ! Rank and size in COMM_couple
+  integer :: pe_index                 ! Index of PE
+  integer :: my_color, color_couple   ! Variables for communicator-splitting 
+  logical :: iniflag                  ! Flag whether MPI is initialized
+  integer :: flag                     ! Status flag
+  character(len=32) :: handle         ! handle for command line parser
+  integer :: screen=0                 ! Whether information is shown o the screen
   
   integer provided_mpi_thread_support_level
   character(:), allocatable :: provided_mpi_thread_support_level_name
 
 #if defined(__oasis)  
-  INTEGER :: ncpus_atm          ! number of processes for each atmosphere task
-  INTEGER :: ncpus_ocn          ! number of processes for each ocean task
+  integer :: ncpus_atm          ! number of processes for each atmosphere task
+  integer :: ncpus_ocn          ! number of processes for each ocean task
 #endif
   
+  call timeit(7, 'ini')
+  call timeit(1, 'new')
+  call timeit(2, 'new')
+
   ! *** Initialize MPI if not yet initialized ***
-  CALL MPI_Initialized(iniflag, MPIerr)
-  IF (.not.iniflag) THEN
-     CALL MPI_Init(MPIerr)
-  END IF
+  call MPI_Initialized(iniflag, MPIerr)
+  if (.not.iniflag) then
+     call MPI_Init(MPIerr)
+  end if
 
   ! *** Initialize PE information on COMM_world ***
-  CALL MPI_Comm_size(MPI_COMM_WORLD, npes_world, MPIerr)
-  CALL MPI_Comm_rank(MPI_COMM_WORLD, mype_world, MPIerr)
+  call MPI_Comm_size(MPI_COMM_WORLD, npes_world, MPIerr)
+  call MPI_Comm_rank(MPI_COMM_WORLD, mype_world, MPIerr)
   
 #if defined(__oasis)
-  namelist /pdaf_parallel/ dim_ens, ncpus_atm, ncpus_ocn, pairs
-  IF (mype_world == 0) THEN
-	WRITE(*,*) 'init_parallel_pdaf: oasis defined (i.e. fesom coupling for Awi-Cm ON).'
-  END IF
+  namelist /pdaf_parallel/ dim_ens, ncpus_atm, ncpus_ocn, pairs, screen
+  if (mype_world == 0) then
+	write(*,*) 'init_parallel_pdaf: oasis defined (i.e. fesom coupling for Awi-Cm ON).'
+  end if
 #endif
 #if !defined(__oasis)
   namelist /pdaf_parallel/ dim_ens
-  IF (mype_world == 0) THEN
-	WRITE(*,*) 'init_parallel_pdaf: oasis NOT defined (i.e. fesom coupling for Awi-Cm OFF).'
-  END IF
+  if (mype_world == 0) then
+	write(*,*) 'init_parallel_pdaf: oasis NOT defined (i.e. fesom coupling for Awi-Cm OFF).'
+  end if
 #endif
 
   ! *** Get parallelization information for ensemble runs ***
-  OPEN (10, file='namelist.fesom.pdaf')
-  READ (10, NML=pdaf_parallel)
-  CLOSE (10)
+  open (10, file='namelist.fesom.pdaf')
+  read (10, NML=pdaf_parallel)
+  close (10)
   
   n_modeltasks = dim_ens
 
 #if defined(__oasis)
   ! *** Initialize communicators for ensemble evaluations ***
-  IF (mype_world == 0) &
-       WRITE (*, '(/1x, a)') 'FESOM-PDAF: Initialize communicators for assimilation with PDAF'
+  if (mype_world == 0) &
+       write (*, '(/1x, a)') 'FESOM-PDAF: Initialize communicators for assimilation with PDAF'
 
-  IF (mype_world == 0) THEN
-     WRITE (*,'(a,3x,a,i6)') 'FESOM-PDAF', 'model tasks: ', n_modeltasks
-     WRITE (*,'(a,3x,a,i6)') 'FESOM-PDAF', 'CPUs per ocean task:      ', ncpus_ocn
-     WRITE (*,'(a,3x,a,i6)') 'FESOM-PDAF', 'CPUs per atmosphere task: ', ncpus_atm
-     WRITE (*,'(a,3x,a,i6)') 'FESOM-PDAF', 'CPUs per runoff mappertask: ', 1 
-  END IF
+  if (mype_world == 0) then
+     write (*,'(a,3x,a,i6)') 'FESOM-PDAF', 'model tasks: ', n_modeltasks
+     write (*,'(a,3x,a,i6)') 'FESOM-PDAF', 'CPUs per ocean task:      ', ncpus_ocn
+     write (*,'(a,3x,a,i6)') 'FESOM-PDAF', 'CPUs per atmosphere task: ', ncpus_atm
+     write (*,'(a,3x,a,i6)') 'FESOM-PDAF', 'CPUs per runoff mappertask: ', 1 
+  end if
 #endif
 
 
   ! *** Check consistency of number of parallel ensemble tasks ***
-  consist1: IF (n_modeltasks > npes_world) THEN
+  consist1: if (n_modeltasks > npes_world) then
      ! *** # parallel tasks is set larger than available PEs ***
      n_modeltasks = npes_world
-     IF (mype_world == 0) WRITE (*, '(3x, a)') &
+     if (mype_world == 0) write (*, '(3x, a)') &
           '!!! Resetting number of parallel ensemble tasks to total number of PEs!'
-  END IF consist1
-  IF (dim_ens > 0) THEN
+  end if consist1
+  if (dim_ens > 0) then
      ! Check consistency with ensemble size
-     consist2: IF (n_modeltasks > dim_ens) THEN
+     consist2: if (n_modeltasks > dim_ens) then
         ! # parallel ensemble tasks is set larger than ensemble size
         n_modeltasks = dim_ens
-        IF (mype_world == 0) WRITE (*, '(5x, a)') &
+        if (mype_world == 0) write (*, '(5x, a)') &
              '!!! Resetting number of parallel ensemble tasks to number of ensemble states!'
-     END IF consist2
-  END IF
+     end if consist2
+  end if
 
   ! ***              COMM_ENSEMBLE                ***
   ! *** Generate communicator for ensemble runs   ***
@@ -154,47 +161,47 @@ SUBROUTINE init_parallel_pdaf(dim_ens_in, screen)
   ! *** Store # PEs per ensemble                 ***
   ! *** used for info on PE 0 and for generation ***
   ! *** of model communicators on other Pes      ***
-  ALLOCATE(local_npes_model(n_modeltasks))
+  allocate(local_npes_model(n_modeltasks))
   
 #if defined(__oasis)
-  IF (pairs) THEN
+  if (pairs) then
     local_npes_model = ncpus_ocn + 1 + ncpus_atm
-  ELSE
+  else
     local_npes_model = ncpus_ocn
-  END IF  
-  IF (n_modeltasks*(ncpus_ocn+1+ncpus_atm) /= npes_world) THEN
-     WRITE (*,*) 'ERROR: Inconsistent setting of processes for ensemble integrations - check namelist.fesom.pdaf.'
+  end if  
+  if (n_modeltasks*(ncpus_ocn+1+ncpus_atm) /= npes_world) then
+     write (*,*) 'ERROR: Inconsistent setting of processes for ensemble integrations - check namelist.fesom.pdaf.'
      call abort_parallel()
-  END IF
+  end if
 #endif
 
 #if !defined(__oasis)
-  local_npes_model = FLOOR(REAL(npes_world) / REAL(n_modeltasks))
-  DO i = 1, (npes_world - n_modeltasks * local_npes_model(1))
+  local_npes_model = floor(real(npes_world) / real(n_modeltasks))
+  do i = 1, (npes_world - n_modeltasks * local_npes_model(1))
      local_npes_model(i) = local_npes_model(i) + 1
-  END DO
+  end do
 #endif
 
   ! ***              COMM_MODEL               ***
   ! *** Generate communicators for model runs ***
   ! *** (Split COMM_ENSEMBLE)                 ***
   pe_index = 0
-  doens1: DO i = 1, n_modeltasks
-     DO j = 1, local_npes_model(i)
-        IF (mype_ens == pe_index) THEN
+  doens1: do i = 1, n_modeltasks
+     do j = 1, local_npes_model(i)
+        if (mype_ens == pe_index) then
            task_id = i
-           EXIT doens1
-        END IF
+           exit doens1
+        end if
         pe_index = pe_index + 1
-     END DO
-  END DO doens1
-  CALL MPI_Comm_split(COMM_ensemble, task_id, mype_ens, &
+     end do
+  end do doens1
+  call MPI_Comm_split(COMM_ensemble, task_id, mype_ens, &
        COMM_model, MPIerr)
   
   ! *** Re-initialize PE informations   ***
   ! *** according to model communicator ***
-  CALL MPI_Comm_Size(COMM_model, npes_model, MPIerr)
-  CALL MPI_Comm_Rank(COMM_model, mype_model, MPIerr)
+  call MPI_Comm_Size(COMM_model, npes_model, MPIerr)
+  call MPI_Comm_Rank(COMM_model, mype_model, MPIerr)
   if (screen > 1) then
     write (*,'(a,i5,a,i5,a,i5,a,i5)') 'FESOM-PDAF: mype(w)= ', mype_world, &
          '; model task: ', task_id, '; mype(m)= ', mype_model, '; npes(m)= ', npes_model
@@ -202,30 +209,30 @@ SUBROUTINE init_parallel_pdaf(dim_ens_in, screen)
 
 
   ! Init flag FILTERPE (all PEs of model task 1)
-  IF (task_id == 1) THEN
-     filterpe = .TRUE.
-  ELSE
-     filterpe = .FALSE.
-  END IF
+  if (task_id == 1) then
+     filterpe = .true.
+  else
+     filterpe = .false.
+  end if
 
   ! ***         COMM_FILTER                 ***
   ! *** Generate communicator for filter    ***
   ! *** For simplicity equal to COMM_couple ***
-  IF (filterpe) THEN
+  if (filterpe) then
      my_color = task_id
-  ELSE
+  else
      my_color = MPI_UNDEFINED
-  ENDIF
+  endif
 
-  CALL MPI_Comm_split(MPI_COMM_WORLD, my_color, mype_world, &
+  call MPI_Comm_split(MPI_COMM_WORLD, my_color, mype_world, &
        COMM_filter, MPIerr)
 
   ! *** Initialize PE informations         ***
   ! *** according to coupling communicator ***
-  IF (filterpe) THEN
-     CALL MPI_Comm_Size(COMM_filter, npes_filter, MPIerr)
-     CALL MPI_Comm_Rank(COMM_filter, mype_filter, MPIerr)
-  ENDIF
+  if (filterpe) then
+     call MPI_Comm_Size(COMM_filter, npes_filter, MPIerr)
+     call MPI_Comm_Rank(COMM_filter, mype_filter, MPIerr)
+  endif
 
 
   ! ***              COMM_COUPLE                 ***
@@ -235,46 +242,46 @@ SUBROUTINE init_parallel_pdaf(dim_ens_in, screen)
 
   color_couple = mype_model + 1
 
-  CALL MPI_Comm_split(MPI_COMM_WORLD, color_couple, mype_world, &
+  call MPI_Comm_split(MPI_COMM_WORLD, color_couple, mype_world, &
        COMM_couple, MPIerr)
 
   ! *** Initialize PE informations         ***
   ! *** according to coupling communicator ***
-  CALL MPI_Comm_Size(COMM_couple, npes_couple, MPIerr)
-  CALL MPI_Comm_Rank(COMM_couple, mype_couple, MPIerr)
+  call MPI_Comm_Size(COMM_couple, npes_couple, MPIerr)
+  call MPI_Comm_Rank(COMM_couple, mype_couple, MPIerr)
 
-  IF (screen > 0) THEN
-     IF (mype_world == 0) THEN
-        WRITE (*, '(/a, 18x,a)') 'FESOM-PDAF Pconf','PE configuration:'
-        WRITE (*, '(a, 2x, a6, a9, a10, a14, a13, /a, 2x, a5, a9, a7, a7, a7, a7, a7, /a, 2x, a)') &
+  if (screen > 0) then
+     if (mype_world == 0) then
+        write (*, '(/a, 18x,a)') 'FESOM-PDAF Pconf','PE configuration:'
+        write (*, '(a, 2x, a6, a9, a10, a14, a13, /a, 2x, a5, a9, a7, a7, a7, a7, a7, /a, 2x, a)') &
              'FESOM-PDAF Pconf', 'world', 'filter', 'model', 'couple', 'filterPE', &
              'FESOM-PDAF Pconf', 'rank', 'rank', 'task', 'rank', 'task', 'rank', 'T/F', &
              'FESOM-PDAF Pconf', '----------------------------------------------------------'
-     END IF
+     end if
 
-     CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
-     IF (task_id == 1) THEN
-        WRITE (*, '(a, 2x, i6, 3x, i4, 4x, i3, 4x, i3, 4x, i3, 4x, i3, 4x, l3)') &
+     call MPI_Barrier(MPI_COMM_WORLD, MPIerr)
+     if (task_id == 1) then
+        write (*, '(a, 2x, i6, 3x, i4, 4x, i3, 4x, i3, 4x, i3, 4x, i3, 4x, l3)') &
              'FESOM-PDAF Pconf', mype_world, mype_filter, task_id, mype_model, color_couple, &
              mype_couple, filterpe
-     ENDIF
-     IF (task_id > 1) THEN
-        WRITE (*,'(a, 2x, i6, 11x, i3, 4x, i3, 4x, i3, 4x, i3, 4x, l3)') &
+     endif
+     if (task_id > 1) then
+        write (*,'(a, 2x, i6, 11x, i3, 4x, i3, 4x, i3, 4x, i3, 4x, l3)') &
          'FESOM-PDAF Pconf', mype_world, task_id, mype_model, color_couple, mype_couple, filterpe
-     END IF
+     end if
      
-     CALL MPI_Barrier(MPI_COMM_WORLD, MPIerr)
+     call MPI_Barrier(MPI_COMM_WORLD, MPIerr)
 
-     IF (mype_world == 0) WRITE (*, '(/a)') ''
+     if (mype_world == 0) write (*, '(/a)') ''
 
-  END IF
+  end if
 
 
 ! ***************************************************
 ! *** Provide parallelization information to PDAF ***
 ! ***************************************************
 
-  CALL PDAF3_set_parallel(COMM_ensemble, COMM_model, COMM_filter, COMM_couple, &
+  call PDAF3_set_parallel(COMM_ensemble, COMM_model, COMM_filter, COMM_couple, &
        task_id, n_modeltasks, filterpe, flag)
 
 
@@ -288,28 +295,11 @@ SUBROUTINE init_parallel_pdaf(dim_ens_in, screen)
   write (strcplmodid,'(a1,i5.5)') '_',cplmodid ! Store string of coupled task ID
 #endif
   
-#if !defined(__oasis)
   MPI_COMM_FESOM = comm_model
   npes = npes_model
   mype = mype_model
-#endif
 
-  if(mype_world==0) then
-     call MPI_Query_thread(provided_mpi_thread_support_level, i)
-     if(provided_mpi_thread_support_level == MPI_THREAD_SINGLE) then
-        provided_mpi_thread_support_level_name = "MPI_THREAD_SINGLE"
-     else if(provided_mpi_thread_support_level == MPI_THREAD_FUNNELED) then
-        provided_mpi_thread_support_level_name = "MPI_THREAD_FUNNELED"
-     else if(provided_mpi_thread_support_level == MPI_THREAD_SERIALIZED) then
-        provided_mpi_thread_support_level_name = "MPI_THREAD_SERIALIZED"
-     else if(provided_mpi_thread_support_level == MPI_THREAD_MULTIPLE) then
-        provided_mpi_thread_support_level_name = "MPI_THREAD_MULTIPLE"
-     else
-        provided_mpi_thread_support_level_name = "unknown"
-     end if
-     write(*,*) 'init_parallel_pdaf:   MPI has been initialized, provided MPI thread support level: ', &
-          provided_mpi_thread_support_level_name,provided_mpi_thread_support_level
-     write(*, *) 'init_parallel_pdaf:  Running on ', npes, ' PEs (model)'
-  end if
+  call timeit(2,'old')
+  call timeit(3,'new')
 
-END SUBROUTINE init_parallel_pdaf
+end subroutine init_parallel_pdaf

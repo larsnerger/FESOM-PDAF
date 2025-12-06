@@ -9,13 +9,14 @@ MODULE mod_nc_out_routines
 !      + netCDF_openfile
 
 ! USES:
-USE output_config
-USE mod_assim_pdaf, &
-   ONLY: mesh_fesom, nlmax, DAoutput_path, dim_ens, dim_state, &
-         dim_state_p, offset, &
-         topography3D_g, pi
-USE statevector_pdaf, &
-     only: id, sfields, nfields, phymin, phymax, bgcmin, bgcmax
+  USE output_config_pdaf
+  USE mod_assim_pdaf, &
+       ONLY: DAoutput_path, dim_ens, dim_state, &
+       dim_state_p
+  USE fesom_pdaf, &
+       ONLY: mesh_fesom, nlmax, topography3D_g, pi
+  USE statevector_pdaf, &
+       only: id, sfields, nfields, phymin, phymax, bgcmin, bgcmax
 USE mod_parallel_pdaf, &
    ONLY: abort_parallel, writepe
 USE g_config, &
@@ -574,10 +575,10 @@ IF (writepe) THEN
          allocate(myData2(myDim_nod2d))
          DO n = 1, myDim_nod2D
            IF (writedaily) THEN
-              myData2(n) = state_p(n + offset(i))
+              myData2(n) = state_p(n + sfields(i)%off)
               writepos = daynew
            ELSE
-              myData2(n) = m_state_p(n + offset(i))
+              myData2(n) = m_state_p(n + sfields(i)%off)
               writepos = month
            ENDIF ! writedaily
          END DO ! n = 1, myDim_nod2D
@@ -610,10 +611,10 @@ IF (writepe) THEN
          DO n = 1, myDim_nod2D
          DO l = 1, nlmax
            IF (writedaily) THEN
-              myData3(l, n) = state_p((n-1) * nlmax + l + offset(i))
+              myData3(l, n) = state_p((n-1) * nlmax + l + sfields(i)%off)
               writepos = daynew
            ELSE
-              myData3(l, n) = m_state_p((n-1) * nlmax + l + offset(i))
+              myData3(l, n) = m_state_p((n-1) * nlmax + l + sfields(i)%off)
               writepos = month
            ENDIF ! writedaily
          END DO

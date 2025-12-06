@@ -179,11 +179,11 @@ CONTAINS
     USE PDAF, &
          ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
     USE mod_assim_pdaf, &
-         ONLY: offset, use_global_obs, &
-               mesh_fesom, nlmax, &
-               cradius, sradius
+         ONLY: use_global_obs, cradius, sradius
+    USE fesom_pdaf, &
+         only: mesh_fesom, nlmax
     USE statevector_pdaf, &
-         ONLY: id
+         ONLY: id, sfields
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
@@ -219,11 +219,11 @@ CONTAINS
     REAL, ALLOCATABLE :: lon_p_reps(:),lat_p_reps(:)  ! PE-local observed coords
     INTEGER, ALLOCATABLE :: nod1_p_reps(:), &
                             nod2_p_reps(:), &
-                            nod3_p_reps(:)            ! PE-local observed node/element indeces
+                            nod3_p_reps(:)            ! PE-local observed node/element indices
     INTEGER, ALLOCATABLE :: elem_p_reps(:)
     INTEGER, ALLOCATABLE :: nod1_g_reps(:), &
                             nod2_g_reps(:), &
-                            nod3_g_reps(:)            ! Global observed node/element indeces
+                            nod3_g_reps(:)            ! Global observed node/element indices
     INTEGER, ALLOCATABLE :: elem_g_reps(:)
     INTEGER, ALLOCATABLE :: nl_p_reps(:), &
                             depth_p_reps(:)
@@ -256,9 +256,9 @@ CONTAINS
     REAL, ALLOCATABLE :: ivariance_obs_p(:)   ! PE-local array of inverse observation errors
     INTEGER, ALLOCATABLE :: nod1_p(:), &
                             nod2_p(:), &
-                            nod3_p(:)         ! Array of observation pe-local indeces on FESOM grid
+                            nod3_p(:)         ! Array of observation pe-local indices on FESOM grid
     INTEGER, ALLOCATABLE :: elem_p(:)
-    INTEGER, ALLOCATABLE :: nl_p(:)           ! Array of observation layer indeces
+    INTEGER, ALLOCATABLE :: nl_p(:)           ! Array of observation layer indices
     
     INTEGER :: ncstat                         ! Status for NetCDF functions
     INTEGER :: ncid, dimid                    ! NetCDF IDs
@@ -658,9 +658,9 @@ CONTAINS
       ! 1 if observations are at grid points; >1 if interpolation is required
       allocate(thisobs%id_obs_p(3,dim_obs_p))
       DO i = 1, dim_obs_p
-        thisobs%id_obs_p(1,i) = (nlmax) * (nod1_p_sorted(i)-1) + nl_p_sorted(i) + offset(id%DIN)
-        thisobs%id_obs_p(2,i) = (nlmax) * (nod2_p_sorted(i)-1) + nl_p_sorted(i) + offset(id%DIN)
-        thisobs%id_obs_p(3,i) = (nlmax) * (nod3_p_sorted(i)-1) + nl_p_sorted(i) + offset(id%DIN)
+        thisobs%id_obs_p(1,i) = (nlmax) * (nod1_p_sorted(i)-1) + nl_p_sorted(i) + sfields(id%DIN)%off
+        thisobs%id_obs_p(2,i) = (nlmax) * (nod2_p_sorted(i)-1) + nl_p_sorted(i) + sfields(id%DIN)%off
+        thisobs%id_obs_p(3,i) = (nlmax) * (nod3_p_sorted(i)-1) + nl_p_sorted(i) + sfields(id%DIN)%off
         
       ! *** exclude observations at dry nodes ***
       ! number of layers at nodes considering bottom topography: mesh_fesom% nlevels_nod2D

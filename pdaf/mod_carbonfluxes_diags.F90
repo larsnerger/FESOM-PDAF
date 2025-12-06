@@ -1,6 +1,6 @@
 MODULE mod_carbon_fluxes_diags
 
-   use mod_assim_pdaf, only: nlmax
+   use fesom_pdaf, only: nlmax
 
    IMPLICIT NONE
 
@@ -346,7 +346,9 @@ SUBROUTINE carbonfluxes_diags_output_timemean(mstep)
       USE g_parsup, &
         ONLY: myDim_nod2D
       USE mod_assim_pdaf, &
-        ONLY: nlmax, dim_ens, mesh_fesom
+        ONLY: dim_ens
+      USE fesom_pdaf, &
+        ONLY: nlmax, mesh_fesom
       USE mod_parallel_pdaf, &
         ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
         COMM_COUPLE, filterpe, writepe, mype_model
@@ -546,10 +548,10 @@ SUBROUTINE carbonfluxes_diags_output_timemean_asml()
       USE g_events
       USE g_config, &
         ONLY: step_per_day
-      USE g_parsup, &
-        ONLY: myDim_nod2D
+      USE fesom_pdaf, &
+        ONLY: myDim_nod2D, nlmax, mesh_fesom
       USE mod_assim_pdaf, &
-        ONLY: nlmax, dim_ens, mesh_fesom, assim_time
+        ONLY: dim_ens, assim_time
       USE mod_parallel_pdaf, &
         ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
         COMM_COUPLE, filterpe, writepe
@@ -659,7 +661,9 @@ END SUBROUTINE check
 SUBROUTINE init_carbonfluxes_diags_out()
       
       USE mod_assim_pdaf, &
-         ONLY: mesh_fesom, nlmax, DAoutput_path, pi
+         ONLY: DAoutput_path
+      USE fesom_pdaf, &
+        ONLY: myDim_nod2D, nlmax, mesh_fesom, pi
       USE g_config, &
          ONLY: runid
       USE recom_config, &
@@ -667,8 +671,6 @@ SUBROUTINE init_carbonfluxes_diags_out()
       USE g_clock, &
          ONLY: cyearnew, num_day_in_month, fleapyear, &
          yearold, yearnew, month, daynew, timenew
-      USE g_parsup, &
-         ONLY: myDim_nod2D
       USE g_comm_auto, &
          ONLY: gather_nod
       USE mod_parallel_pdaf, &
@@ -804,9 +806,9 @@ USE g_clock, &
    ONLY: month, cyearnew, daynew, num_day_in_month, fleapyear
 USE recom_config, ONLY: SecondsPerDay
 USE mod_assim_pdaf, &
-   ONLY: nlmax, mesh_fesom, DAoutput_path
-USE g_parsup, &
-   ONLY: myDim_nod2D
+   ONLY: DAoutput_path
+USE fesom_pdaf, &
+     ONLY: myDim_nod2D, nlmax, mesh_fesom
 USE mod_parallel_pdaf, &
    ONLY: writepe
 USE g_comm_auto, &
@@ -926,9 +928,9 @@ USE g_clock, &
    ONLY: month, cyearnew, daynew, num_day_in_month, fleapyear
 USE recom_config, ONLY: SecondsPerDay
 USE mod_assim_pdaf, &
-   ONLY: nlmax, mesh_fesom, DAoutput_path
-USE g_parsup, &
-   ONLY: myDim_nod2D
+   ONLY: DAoutput_path
+USE fesom_pdaf, &
+     ONLY: myDim_nod2D, nlmax, mesh_fesom
 USE mod_parallel_pdaf, &
    ONLY: writepe
 USE g_comm_auto, &
@@ -999,7 +1001,7 @@ END SUBROUTINE write_carbonfluxes_diags_out_asml
 SUBROUTINE putvar(fileid,varname,data3_g,writepos)
    USE g_clock, &
       ONLY: month
-   USE mod_assim_pdaf, &
+   USE fesom_pdaf, &
       ONLY: nlmax, mesh_fesom
    USE netcdf
 
@@ -1028,8 +1030,8 @@ END SUBROUTINE putvar
 ! ***********************************************
 SUBROUTINE cfdiags_computetransport(tr_arr,Unode,wvel)
 
-USE mod_assim_pdaf, &
-   ONLY: nlmax, mesh_fesom
+   USE fesom_pdaf, &
+      ONLY: nlmax, mesh_fesom
 USE g_parsup, &
    ONLY: myDim_nod2D, eDim_nod2D
 USE o_param, &
@@ -1105,15 +1107,14 @@ END SUBROUTINE cfdiags_computetransport
 ! vertical fluxes
 
 SUBROUTINE debug_vert(varname,vardata)
-   USE g_parsup, &
-      ONLY: myDim_nod2D
    USE mod_parallel_pdaf, &
       ONLY: writepe
    USE g_comm_auto, &
       ONLY: gather_nod 
    USE mod_assim_pdaf, &
-      ONLY: istep_asml,nlmax, mesh_fesom, DAoutput_path
-      
+      ONLY: istep_asml, DAoutput_path
+   USE fesom_pdaf, &
+        ONLY: nlmax, mesh_fesom, myDim_nod2D
    implicit none
    
    character(len=100), intent(in) :: varname
@@ -1137,14 +1138,14 @@ END SUBROUTINE debug_vert
 ! horizontal fluxes
 
 SUBROUTINE debug_hor(varname,vardata)
-   USE g_parsup, &
-      ONLY: myDim_nod2D
    USE mod_parallel_pdaf, &
       ONLY: writepe
    USE g_comm_auto, &
       ONLY: gather_nod 
    USE mod_assim_pdaf, &
-      ONLY: istep_asml,nlmax, mesh_fesom, DAoutput_path
+      ONLY: istep_asml,DAoutput_path
+   USE fesom_pdaf, &
+        ONLY: nlmax, mesh_fesom, myDim_nod2D
       
    implicit none
    

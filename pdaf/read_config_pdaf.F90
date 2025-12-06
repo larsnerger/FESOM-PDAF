@@ -16,7 +16,7 @@ SUBROUTINE read_config_pdaf()
        ONLY: mype_model, n_modeltasks, task_id
   USE mod_assim_pdaf, &
        ONLY: dim_state, dim_state_p, dim_ens, dim_lag, &
-       offset, screen, filtertype, subtype, &
+       screen, filtertype, subtype, &
        delt_obs_ocn, &
        dim_bias, DA_couple_type, &
        type_forget, &
@@ -35,7 +35,7 @@ SUBROUTINE read_config_pdaf()
        ! Temp-Salt-Profiles:
        path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix, &
        proffiles_o, start_year_o, end_year_o
-  USE output_config, &       ! Output
+  USE output_config_pdaf, &       ! Output
        ONLY: setoutput
   USE mod_postprocess, &     ! Postprocessing
        ONLY: isPP, yearPP, pathsim

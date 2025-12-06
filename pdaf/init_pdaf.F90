@@ -11,126 +11,111 @@
 !! * 2025-12 - Lars Nerger  - Update for PDAF3
 !!
 
-  SUBROUTINE init_pdaf(nsteps)
+subroutine init_pdaf(nsteps, mesh)
 
-    USE mpi
-    USE PDAF                        ! PDAF interface definitions
-    USE statevector_pdaf, only: setup_statevector, sfields
-    USE mod_parallel_pdaf, &                                                ! Parallelization variables for assimilation
-         ONLY: n_modeltasks, task_id, COMM_filter, COMM_couple, filterpe, &
-         mype_world, COMM_model, abort_parallel, MPIerr, &
-         mype_model, mype_filter, npes_filter, writepe, mype_submodel
-    USE mod_assim_pdaf, &                                                   ! Variables for assimilation
-         ONLY: dim_state, dim_state_p, dim_ens, dim_lag, &
-         step_null, istep_asml, assim_time, offset, dim_fields, screen, filtertype, subtype, &
-         delt_obs_ocn, &
-         DA_couple_type, type_forget, &
-         forget, locweight, cradius, sradius, &
-         type_trans, type_sqrt, eff_dim_obs, loc_radius, loctype, &
-         twin_experiment, dim_obs_max, use_global_obs, mesh_fesom, nlmax, &
-         offset_glob, dim_fields_glob, &
-         path_atm_cov, this_is_pdaf_restart, start_from_ENS_spinup, timemean, timemean_s, &
-         topography3D, topography_p, topography3D_g, &
-         area_surf_glob, inv_area_surf_glob, volo_full_glob, inv_volo_full_glob, &
-         cellvol, resetforget, &
-         ! Domain-local:
-         offset_l, dim_fields_l, &
-         ! Debugging:
-         debug_id_depth, debug_id_nod2, ens_member_debug, &
-         ! EN4 profile data processing:
-         proffiles_o, path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix, &
-         ! Weak coupling of FESOM-REcoM:
-         n_sweeps, type_sweep, assimilateBGC, assimilatePHY, &
-         cda_phy, cda_bio, &
-         ! Initial state:
-         state_p_init, ens_p_init
-    USE statevector_pdaf, &
-         only: id, nfields, phymin, phymax, bgcmin, bgcmax
-    ! BGC parameter perturbation:
-    USE mod_perturbation_pdaf, &
-         ONLY: perturb_scale, perturb_params_bio, perturb_params_phy, &
-         perturb_lognormal, perturb_scaleD, &
-         do_perturb_param_bio, do_perturb_param_phy
-    USE obs_sss_smos_pdafomi, &
-         ONLY: assim_o_sss, rms_obs_sss, path_obs_sss, file_sss_prefix, file_sss_suffix, &
-         sss_exclude_ice, sss_exclude_diff, bias_obs_sss, sss_fixed_rmse
-    USE obs_sss_cci_pdafomi, &
-         ONLY: assim_o_sss_cci, rms_obs_sss_cci, path_obs_sss_cci, file_sss_cci_prefix, file_sss_cci_suffix, &
-         sss_cci_exclude_ice, sss_cci_exclude_diff, bias_obs_sss_cci, sss_cci_fixed_rmse
-    USE obs_ssh_cmems_pdafomi, &
-         ONLY: assim_o_ssh, rms_obs_ssh, path_obs_ssh, file_ssh_prefix, file_ssh_suffix, &
-         ssh_exclude_ice, ssh_exclude_diff, bias_obs_ssh, ssh_fixed_rmse
-    USE obs_sst_pdafomi, &
-         ONLY: assim_o_sst, rms_obs_sst, path_obs_sst, file_sst_prefix, file_sst_suffix, &
-         sst_exclude_ice, sst_exclude_diff, bias_obs_sst, sst_fixed_rmse
-    USE obs_TSprof_EN4_pdafomi, &
-         ONLY: assim_o_en4_s, assim_o_en4_t, &
-         rms_obs_S, rms_obs_T, &
-         path_obs_prof, file_prof_prefix, file_prof_suffix, &
-         bias_obs_prof, prof_exclude_diff
+  use mpi
+  use PDAF                        ! PDAF interface definitions
+  use statevector_pdaf, only: setup_statevector, sfields
+  use mod_parallel_pdaf, &                                                ! Parallelization variables for assimilation
+       only: n_modeltasks, task_id, COMM_filter, COMM_couple, filterpe, &
+       mype_world, COMM_model, abort_parallel, MPIerr, &
+       mype_model, mype_filter, npes_filter, writepe, mype_submodel
+  use mod_assim_pdaf, &                                                   ! Variables for assimilation
+       only: dim_state, dim_state_p, dim_ens, dim_lag, &
+       step_null, istep_asml, assim_time, screen, filtertype, subtype, &
+       delt_obs_ocn, &
+       DA_couple_type, type_forget, &
+       forget, locweight, cradius, sradius, &
+       type_trans, type_sqrt, eff_dim_obs, loc_radius, loctype, &
+       twin_experiment, dim_obs_max, use_global_obs,  &
+       path_atm_cov, this_is_pdaf_restart, start_from_ENS_spinup, timemean, timemean_s, &
+       resetforget, &
+       debug_id_depth, debug_id_nod2, ens_member_debug, &   ! Debugging:
+       proffiles_o, path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix, & ! EN4 profile data processing:
+       n_sweeps, type_sweep, assimilateBGC, assimilatePHY, & ! Weak coupling of FESOM-REcoM:
+       cda_phy, cda_bio, &
+       state_p_init, ens_p_init  ! Initial state:
+  use fesom_pdaf, &
+       only: mesh_fesom, topography_p, t_mesh, &
+       myDim_nod2D, MPI_COMM_FESOM, myList_edge2D, myDim_edge2D, myDim_elem2D, &
+       timeold, daynew, cyearold, yearnew, yearold
+  use statevector_pdaf, &
+       only: id, nfields, phymin, phymax, bgcmin, bgcmax
+  use mod_perturbation_pdaf, &           ! BGC parameter perturbation
+       only: perturb_scale, perturb_params_bio, perturb_params_phy, &
+       perturb_lognormal, perturb_scaleD, &
+       do_perturb_param_bio, do_perturb_param_phy
+  use obs_sss_smos_pdafomi, &
+       only: assim_o_sss, rms_obs_sss, path_obs_sss, file_sss_prefix, file_sss_suffix, &
+       sss_exclude_ice, sss_exclude_diff, bias_obs_sss, sss_fixed_rmse
+  use obs_sss_cci_pdafomi, &
+       only: assim_o_sss_cci, rms_obs_sss_cci, path_obs_sss_cci, file_sss_cci_prefix, file_sss_cci_suffix, &
+       sss_cci_exclude_ice, sss_cci_exclude_diff, bias_obs_sss_cci, sss_cci_fixed_rmse
+  use obs_ssh_cmems_pdafomi, &
+       only: assim_o_ssh, rms_obs_ssh, path_obs_ssh, file_ssh_prefix, file_ssh_suffix, &
+       ssh_exclude_ice, ssh_exclude_diff, bias_obs_ssh, ssh_fixed_rmse
+  use obs_sst_pdafomi, &
+       only: assim_o_sst, rms_obs_sst, path_obs_sst, file_sst_prefix, file_sst_suffix, &
+       sst_exclude_ice, sst_exclude_diff, bias_obs_sst, sst_fixed_rmse
+  use obs_TSprof_EN4_pdafomi, &
+       only: assim_o_en4_s, assim_o_en4_t, &
+       rms_obs_S, rms_obs_T, &
+       path_obs_prof, file_prof_prefix, file_prof_suffix, &
+       bias_obs_prof, prof_exclude_diff
 
-    USE mod_atmos_ens_stochasticity, &
-         ONLY: disturb_xwind, disturb_ywind, disturb_humi, &
-         disturb_qlw, disturb_qsr, disturb_tair, &
-         disturb_prec, disturb_snow, disturb_mslp, &
-         init_atmos_ens_stochasticity, init_atmos_stochasticity_output,&
-         atmos_stochasticity_ON
-    USE mod_postprocess, &
-         ONLY: isPP, doPP
-    USE g_PARSUP, &
-         ONLY: myDim_nod2D, MPI_COMM_FESOM, myList_edge2D, myDim_edge2D, myDim_elem2D, mype
-    USE MOD_MESH
-    USE g_clock, &
-         ONLY: timeold, daynew, cyearold, yearnew, yearold
-    USE g_rotate_grid, &
-         ONLY: r2g
-    USE g_comm_auto, &
-         ONLY: gather_nod
-    USE o_arrays, &
-         ONLY: zbar_n_bot, zbar_n_srf
+  use mod_atmos_ens_stochasticity, &
+       only: disturb_xwind, disturb_ywind, disturb_humi, &
+       disturb_qlw, disturb_qsr, disturb_tair, &
+       disturb_prec, disturb_snow, disturb_mslp, &
+       init_atmos_ens_stochasticity, init_atmos_stochasticity_output,&
+       atmos_stochasticity_ON
+  use mod_postprocess, &
+       only: isPP, doPP
+  use timer, only: timeit
+  use mod_nc_out_routines, &
+       only: netCDF_init
+  use output_config_pdaf, &
+       only: configure_output, setoutput
+  use mod_carbon_fluxes_diags, &
+       only: init_carbonfluxes_diags_out, init_carbonfluxes_diags_arrays
 
-    USE timer, only: timeit
-    USE mod_nc_out_routines, &
-         ONLY: netCDF_init
-    USE output_config, &
-         ONLY: configure_output, setoutput
-    USE mod_carbon_fluxes_diags, &
-         ONLY: init_carbonfluxes_diags_out, init_carbonfluxes_diags_arrays
+  implicit none
 
+! *** Arguments ***
+  integer, intent(inout) :: nsteps     ! number of model time steps
+  type(t_mesh), intent(in), target :: mesh
 
-    IMPLICIT NONE
-
-! Arguments:
-    INTEGER, intent(inout) :: nsteps     ! number of model time steps
-
-! Local variables
-    INTEGER :: i,b,memb,n,k,s,nz ! Counters
-    INTEGER :: filter_param_i(7) ! Integer parameter array for filter
-    REAL    :: filter_param_r(2) ! Real parameter array for filter
-    INTEGER :: status_pdaf       ! PDAF status flag
-    INTEGER :: doexit, steps     ! required arguments in call to PDAF; not defined here
-    REAL    :: timenow           ! required arguments in call to PDAF; not defined here
-    character(len=6) :: cdaval   ! Flag whether strongly-coupled DA is done
-    INTEGER, parameter :: int0=0 ! Zero
-    REAL, allocatable :: aux(:)  ! Temporary array
+! *** Local variables ***
+  integer :: i,b,memb,n,k,s,nz ! Counters
+  integer :: filter_param_i(7) ! Integer parameter array for filter
+  real    :: filter_param_r(2) ! Real parameter array for filter
+  integer :: status_pdaf       ! PDAF status flag
+  integer :: doexit, steps     ! required arguments in call to PDAF; not defined here
+  real    :: timenow           ! required arguments in call to PDAF; not defined here
+  character(len=6) :: cdaval   ! Flag whether strongly-coupled DA is done
+  integer, parameter :: int0=0 ! Zero
+  real, allocatable :: aux(:)  ! Temporary array
 
   ! External subroutines
-    EXTERNAL :: init_ens_pdaf            ! Ensemble initialization
-    EXTERNAL :: next_observation_pdaf, & ! Provide time step and model time  of next observation
-         distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
-         prepoststep_pdaf                ! User supplied pre/poststep routine
+  external :: init_ens_pdaf            ! Ensemble initialization
+  external :: next_observation_pdaf, & ! Provide time step and model time  of next observation
+       distribute_state_pdaf, &        ! Routine to distribute a state vector to model fields
+       prepoststep_pdaf                ! User supplied pre/poststep routine
 
 
 ! ***************************
 ! ***   Initialize PDAF   ***
 ! ***************************
 
-  ! Get process-ID in task of model compartment
-  CALL MPI_Comm_Rank(MPI_COMM_FESOM, mype_submodel, MPIerr)
+  call timeit(3, 'old')
+  call timeit(4, 'new')
 
-  IF (mype_submodel==0) THEN
-     WRITE (*,'(1x,a, i5)') 'FESOM-PDAF: INITIALIZE PDAF, task: ', task_id
-  END IF
+  ! Get process-ID in task of model compartment
+  call MPI_Comm_Rank(MPI_COMM_FESOM, mype_submodel, MPIerr)
+
+  if (mype_submodel==0) then
+     write (*,'(1x,a, i5)') 'FESOM-PDAF: INITIALIZE PDAF, task: ', task_id
+  end if
 
 
 ! **********************************************************
@@ -181,6 +166,9 @@
 ! *** Forecast length (time interval between analysis steps) ***
   delt_obs_ocn = 32   ! Number of time steps between analysis/assimilation steps
   assim_time   = 2700 ! Time-of-day for assimilation step in seconds
+  
+  step_null = 0 ! read from namelist: 0 at beginning of each year
+  istep_asml = step_null
 
 ! *** Set weakly- or strongly-coupled DA of FESOM (ocean) and atmospheric component
   DA_couple_type = 0 ! (0) for weakly- (1) for strongly-coupled DA
@@ -195,8 +183,6 @@
   assim_o_sss     = .false.
   assim_o_sss_cci = .false.
   assim_o_ssh     = .false.
-  
-  step_null = 0 ! read from namelist: 0 at beginning of each year
 
 ! *** specifications for observations ***
   ! This error is the standard deviation for the Gaussian distribution 
@@ -216,15 +202,9 @@
   dim_obs_max = 80000        ! Expected maximum number of observations for synthetic obs.
 
 ! *** Localization settings
-  locweight = 0     ! Type of localizating weighting
-                    !   (0) constant weight of 1
-                    !   (1) exponentially decreasing with SRADIUS
-                    !   (2) use 5th-order polynomial
-                    !   (3) regulated localization of R with mean error variance
-                    !   (4) regulated localization of R with single-point error variance
-  cradius = 0  ! Range in grid points for observation domain in local filters
-  sradius = cradius  ! Support range for 5th-order polynomial
-                    ! or range for 1/e for exponential weighting
+  locweight = 0     ! Type of localization weight
+  cradius = 0.0     ! Cut-off radius
+  sradius = cradius ! Support radius
   
 ! *** Configuration for atmospheric stochasticity:
   disturb_xwind=.true.
@@ -257,307 +237,123 @@
   setoutput(17)=.true.  ! if COMF-O2 assimilated: daily O2 forecast
 
 ! *** Read PDAF configuration from namelist ***
-  CALL read_config_pdaf()
-  
-  istep_asml = step_null
+  call read_config_pdaf()
+
 
 ! **************************************************************************
 ! *** Configuration for FESOM-REcom coupling: Define local analysis loop ***
 ! **************************************************************************
 
-    cda_phy = 'weak'  ! whether physics is updated from BGC assimilation
-    cda_bio = 'weak'  ! whether BGC is updated from physics assimilation
+  cda_phy = 'weak'  ! whether physics is updated from BGC assimilation
+  cda_bio = 'weak'  ! whether BGC is updated from physics assimilation
 
-    if ((assimilateBGC) .and. (assimilatePHY)) then
-       ! Observations of both physics and BGC are assimilated
-       n_sweeps = 2
-       type_sweep(1) = 'phy'
-       type_sweep(2) = 'bio'
-    else
-       ! Less than two observation categories
-       n_sweeps = 1
-       if (assimilatePHY) then
-          ! Only observations of physics are assimilated
-          type_sweep(1) = 'phy'
-       elseif (assimilateBGC) then
-          ! Only observations of BGC are assimilated
-          type_sweep(1) = 'bio'
-       else
-          ! No observation active (free run); set sweep to physics
-          type_sweep(1) = 'phy'
-       end if
-    end if
+  if ((assimilateBGC) .and. (assimilatePHY)) then
+     ! Observations of both physics and BGC are assimilated
+     n_sweeps = 2
+     type_sweep(1) = 'phy'
+     type_sweep(2) = 'bio'
+  else
+     ! Less than two observation categories
+     n_sweeps = 1
+     if (assimilatePHY) then
+        ! Only observations of physics are assimilated
+        type_sweep(1) = 'phy'
+     elseif (assimilateBGC) then
+        ! Only observations of BGC are assimilated
+        type_sweep(1) = 'bio'
+     else
+        ! No observation active (free run); set sweep to physics
+        type_sweep(1) = 'phy'
+     end if
+  end if
 
-    if (mype_world == 0) then
-       write (*,'(a,2x,a)') 'FESOM-PDAF', '*** Setup for coupled DA FESOM-REcoM ***'
-       write (*, '(a,4x,a,i5)') 'FESOM-PDAF', 'Number of local analysis sweeps', n_sweeps
-       write (*, '(a,4x,a)') 'FESOM-PDAF','Type of sweeps:'
-       do i = 1, n_sweeps
-          if (trim(type_sweep(i))=='phy') then
-             cdaval = cda_phy
-          else
-             cdaval = cda_bio
-          end if
-          write (*, '(a,8x,a,i3,3x,a,a,3x,a,a)') &
-               'FESOM-PDAF', 'sweep', i, ' observation type: ', trim(type_sweep(i)), 'CDA: ', trim(cdaval)
-       end do
-    end if
+  if (mype_world == 0) then
+     write (*,'(a,2x,a)') 'FESOM-PDAF', '*** Setup for coupled DA FESOM-REcoM ***'
+     write (*, '(a,4x,a,i5)') 'FESOM-PDAF', 'Number of local analysis sweeps', n_sweeps
+     write (*, '(a,4x,a)') 'FESOM-PDAF','Type of sweeps:'
+     do i = 1, n_sweeps
+        if (trim(type_sweep(i))=='phy') then
+           cdaval = cda_phy
+        else
+           cdaval = cda_bio
+        end if
+        write (*, '(a,8x,a,i3,3x,a,a,3x,a,a)') &
+             'FESOM-PDAF', 'sweep', i, ' observation type: ', trim(type_sweep(i)), 'CDA: ', trim(cdaval)
+     end do
+  end if
+
 
 ! ***********************************************************************************************
 ! ***   For weakly-coupled assimilation of FESOM and atmosphere re-define filter communicator ***
 ! ***********************************************************************************************
 
-  IF (DA_couple_type == 0) THEN
+  if (DA_couple_type == 0) then
 
      ! Set filter communicator to the communicator of FESOM
      COMM_filter = MPI_COMM_FESOM
 
-     IF (filterpe) THEN
-        CALL MPI_Comm_Size(COMM_filter, npes_filter, MPIerr)
-        CALL MPI_Comm_Rank(COMM_filter, mype_filter, MPIerr)
+     if (filterpe) then
+        call MPI_Comm_Size(COMM_filter, npes_filter, MPIerr)
+        call MPI_Comm_Rank(COMM_filter, mype_filter, MPIerr)
 
-        IF (mype_filter==0) THEN
-           WRITE (*,'(a)') 'FESOM-Atmos-PDAF: Initialize weakly-coupled data assimilation'
-        ENDIF
-     ENDIF
-  ELSE
-     IF (filterpe) THEN
-        IF (mype_filter==0) THEN
-           WRITE (*,'(a)') 'FESOM-Atmpos-PDAF: Initialize strongly-coupled data assimilation'
-        END IF
-     END IF
-  END IF
+        if (mype_filter==0) then
+           write (*,'(a)') 'FESOM-Atmos-PDAF: Initialize weakly-coupled data assimilation'
+        endif
+     endif
+  else
+     if (filterpe) then
+        if (mype_filter==0) then
+           write (*,'(a)') 'FESOM-Atmpos-PDAF: Initialize strongly-coupled data assimilation'
+        end if
+     end if
+  end if
   
-  writepe = .FALSE.
-  IF (filterpe) THEN
-     IF (mype_filter==0) writepe = .TRUE.
-  ENDIF
+  writepe = .false.
+  if (filterpe) then
+     if (mype_filter==0) writepe = .true.
+  endif
+
+
+! ******************************************
+! *** Set pointer to FESOM mesh variable ***
+! ******************************************
+
+  mesh_fesom => mesh
+
 
 ! ***************************
 ! *** Define state vector ***
 ! ***************************
 
-  CALL setup_statevector(dim_state, dim_state_p, screen)
+  call setup_statevector(dim_state, dim_state_p, screen)
 
-  CALL configure_output()
+  ! Set land mask and compute volumes
+  call init_topography(dim_state_p, dim_state)
 
-! *** Specify offset of fields in pe-local state vector ***
-
-
-  ALLOCATE(dim_fields(nfields))
-  dim_fields(id% ssh   )   = myDim_nod2D           ! 1 SSH
-  dim_fields(id% u     )   = myDim_nod2D*(nlmax)   ! 2 u (interpolated on nodes)
-  dim_fields(id% v     )   = myDim_nod2D*(nlmax)   ! 3 v (interpolated on nodes)
-  dim_fields(id% w     )   = myDim_nod2D*(nlmax)   ! 4 w
-  dim_fields(id% temp  )   = myDim_nod2D*(nlmax)   ! 5 temp
-  dim_fields(id% salt  )   = myDim_nod2D*(nlmax)   ! 6 salt
-  dim_fields(id% a_ice )   = myDim_nod2D           ! 7 a_ice
-  dim_fields(id% MLD1  )   = myDim_nod2D
-  dim_fields(id% MLD2  )   = myDim_nod2D
-  dim_fields(id% sigma )   = myDim_nod2D*(nlmax)
+  ! Set configuration fro file output
+  call configure_output()
   
-  ! dim_fields biogeochemistry:
-  do b=bgcmin,bgcmax
-    ! 3D fields:
-    if     (sfields(b)% ndims == 2) then
-      dim_fields(b) = myDim_nod2D*(nlmax)
-    ! surface fields:
-    elseif (sfields(b)% ndims == 1) then
-      dim_fields(b) = myDim_nod2D
-    endif
-  enddo
-
-  ALLOCATE(offset(nfields))
-  offset(id% ssh   )   = 0                                                ! 1 SSH
-  offset(id% u     )   = offset(id% u     -1) + dim_fields(id% u     -1)  ! 2 u
-  offset(id% v     )   = offset(id% v     -1) + dim_fields(id% v     -1)  ! 3 v
-  offset(id% w     )   = offset(id% w     -1) + dim_fields(id% w     -1)  ! 4 w
-  offset(id% temp  )   = offset(id% temp  -1) + dim_fields(id% temp  -1)  ! 5 temp
-  offset(id% salt  )   = offset(id% salt  -1) + dim_fields(id% salt  -1)  ! 6 salt
-  offset(id% a_ice )   = offset(id% a_ice -1) + dim_fields(id% a_ice -1)  ! 7 a_ice
-  offset(id% MLD1  )   = offset(id% MLD1  -1) + dim_fields(id% MLD1  -1)
-  offset(id% MLD2  )   = offset(id% MLD2  -1) + dim_fields(id% MLD2  -1)
-  offset(id% sigma )   = offset(id% sigma -1) + dim_fields(id% sigma -1)
-  
-  ! offset biogeochemistry
-  do b=bgcmin,bgcmax
-	offset(b)   = offset(b-1) + dim_fields(b-1)
-  enddo
-  
-  dim_state_p = sum(dim_fields)
-  
-! *** Domain/node-local dimensions ***
-    ALLOCATE(dim_fields_l(nfields)) ! Field dimensions for node-local domain; their value is set in init_dim_l_pdaf.
-    ALLOCATE(offset_l(nfields))     ! Field offsets for node-local domain; their value is set in init_dim_l_pdaf.
-    
-  if (mype_model==0 .and. task_id==1) then
-  do b=1,nfields
-      WRITE (*,'(1X,A30,1X,A5,1X,I7,1X,I7)') 'PE0-dim and offset of field ', &
-                                              trim(sfields(b)%variable), &
-                                              dim_fields(b), &
-                                              offset(b)
-  enddo
-  endif
-
-! *******************************************************
-! *** Specify offset of fields in global state vector ***
-! *******************************************************
-
-	ALLOCATE(dim_fields_glob(nfields))
-	dim_fields_glob(id% ssh   ) = mesh_fesom%nod2D              ! SSH
-	dim_fields_glob(id% u     ) = mesh_fesom%nod2D * (nlmax)    ! u (interpolated on nodes)
-	dim_fields_glob(id% v     ) = mesh_fesom%nod2D * (nlmax)    ! v (interpolated on nodes)
-	dim_fields_glob(id% w     ) = mesh_fesom%nod2D * (nlmax)    ! w
-	dim_fields_glob(id% temp  ) = mesh_fesom%nod2D * (nlmax)    ! temp
-	dim_fields_glob(id% salt  ) = mesh_fesom%nod2D * (nlmax)    ! salt
-	dim_fields_glob(id% a_ice ) = mesh_fesom%nod2D              ! a_ice
-	dim_fields_glob(id% MLD1  ) = mesh_fesom%nod2D
-	dim_fields_glob(id% MLD2  ) = mesh_fesom%nod2D
-	dim_fields_glob(id% sigma ) = mesh_fesom%nod2D * (nlmax)    
-	
-	! dim_fields biogeochemistry:
-    do b=bgcmin,bgcmax
-      ! 3D fields:
-      if     (sfields(b)% ndims == 2) then
-        dim_fields_glob(b) = mesh_fesom%nod2D * (nlmax)
-      ! surface fields:
-      elseif (sfields(b)% ndims == 1) then
-        dim_fields_glob(b) = mesh_fesom%nod2D
-      endif
-    enddo
-	
-	ALLOCATE(offset_glob(nfields))
-	offset_glob(id% ssh   ) = 0                                                                 ! SSH
-	offset_glob(id% u     ) = offset_glob(id% u     -1) + dim_fields_glob(id% u     -1)         ! u
-	offset_glob(id% v     ) = offset_glob(id% v     -1) + dim_fields_glob(id% v     -1)         ! v
-	offset_glob(id% w     ) = offset_glob(id% w     -1) + dim_fields_glob(id% w     -1)         ! w
-	offset_glob(id% temp  ) = offset_glob(id% temp  -1) + dim_fields_glob(id% temp  -1)         ! temp
-	offset_glob(id% salt  ) = offset_glob(id% salt  -1) + dim_fields_glob(id% salt  -1)         ! salt
-	offset_glob(id% a_ice ) = offset_glob(id% a_ice -1) + dim_fields_glob(id% a_ice -1)         ! a_ice
-	offset_glob(id% MLD1  ) = offset_glob(id% MLD1  -1) + dim_fields_glob(id% MLD1  -1)
-	offset_glob(id% MLD2  ) = offset_glob(id% MLD2  -1) + dim_fields_glob(id% MLD2  -1)
-	offset_glob(id% sigma ) = offset_glob(id% sigma -1) + dim_fields_glob(id% sigma -1)
-	
-	! offset_glob biogeochemistry
-    do b=bgcmin,bgcmax
-	  offset_glob(b)   = offset_glob(b-1) + dim_fields_glob(b-1)
-    enddo
-	
-	dim_state = sum(dim_fields_glob)
-
-    ! *****************************
-    ! ***    mesh topography    ***
-    ! *****************************
-    
-    ! create mask:
-    ! 1 -- valid model value
-    ! 0 -- invalid because of topography
-    
-    ! array dimensions as pe-local model tracer fields
-    allocate(topography3D(nlmax,myDim_nod2D))
-    DO i=1, nlmax
-      DO n=1, myDim_nod2D
-        IF (mesh_fesom%areasvol(i,n)>0) THEN
-          topography3D(i,n) = 1.0
-        ELSE
-          topography3D(i,n) = 0.0
-        ENDIF
-      ENDDO
-    ENDDO
-    
-    ! array dimensions as global model tracer fields
-    allocate(topography3D_g(nlmax,mesh_fesom% nod2D))
-    call gather_nod(topography3D,topography3D_g)
-    
-    ! array dimensions as pe-local state vector
-    allocate(topography_p(dim_state_p))
-    DO b=1,nfields
-      ! surface fields
-      IF (sfields(b)%ndims==1) THEN
-        topography_p(offset(b)+1:offset(b)+dim_fields(b)) = 1.0
-      ! 3D fields
-      ELSEIF (sfields(b)%ndims==2) THEN
-        DO i = 1, myDim_nod2D
-        DO k = 1, nlmax
-           s = (i-1) * nlmax + k
-           topography_p(s + offset(b)) = topography3D(k,i)
-        ENDDO ! (k=1,nlmax)
-        ENDDO ! (i=1,myDim_nod2D)
-      ENDIF
-    ENDDO ! (b=1,nfields)
-    
-    ! standard cell volume
-    allocate(cellvol(nlmax,myDim_nod2D))
-    cellvol=0.0
-    do n=1, myDim_nod2D
-       do nz=mesh_fesom%ulevels_nod2D(n), mesh_fesom%nlevels_nod2D(n)-1
-          if     (nz==mesh_fesom%ulevels_nod2D(n)) then
-                 ! surface
-                 cellvol(nz,n) = mesh_fesom%areasvol(nz,n) * abs(mesh_fesom%zbar(nz+1) - zbar_n_srf(n))
-          elseif (nz==mesh_fesom%nlevels_nod2D(n)-1) then
-                 ! bottom
-                 cellvol(nz,n) = mesh_fesom%areasvol(nz,n) * abs(zbar_n_bot(n) - mesh_fesom%zbar(nz))
-          else
-                 ! default
-                 cellvol(nz,n) = mesh_fesom%areasvol(nz,n) * abs(mesh_fesom%zbar(nz+1) - mesh_fesom%zbar(nz))
-          endif
-       enddo
-    enddo
-    
-    ! standard ocean volume
-    allocate(aux(1))
-    aux=0.0
-    aux = sum(cellvol)
-    call MPI_AllREDUCE(aux, volo_full_glob, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_FESOM, MPIerr)
-    inv_volo_full_glob = 1.0/volo_full_glob
-    deallocate(aux)
-    
-    ! ocean area
-    allocate(aux(nlmax))
-    do n=1, myDim_nod2D
-       do nz=1,nlmax
-          aux(nz)=aux(nz)+mesh_fesom%areasvol(nz,n)
-       enddo
-    enddo
-    call MPI_AllREDUCE(aux, area_surf_glob, nlmax, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_FESOM, MPIerr)
-    inv_area_surf_glob = 1.0/area_surf_glob
-    deallocate(aux)
-    
-    if (mype_world==0) THEN
-       write(*,*) 'FESOM-PDAF INIT - Standard ocean volume:    ', volo_full_glob
-       write(*,*) 'FESOM-PDAF INIT - Ocean area surface:       ', area_surf_glob(1)
-    endif
-  
-! *** Screen output dimensions ***
-  if (mype_world==0) THEN
-      WRITE(*,*) 'init_pdaf - myDim_elem2D:      ', myDim_elem2D
-	  WRITE(*,*) 'init_pdaf - mesh_fesom%elem2D: ', mesh_fesom%elem2D
-	  WRITE(*,*) 'init_pdaf - mesh_fesom%nl:     ', mesh_fesom%nl
-	  WRITE(*,*) 'init_pdaf - nlmax:             ', nlmax
-	  WRITE(*,*) 'init_pdaf - dim_state:         ', dim_state
-	  WRITE(*,*) 'init_pdaf - dim_state_p:       ', dim_state_p
-  endif
-
 ! *** Initial Screen output PDAF ***
 
-  IF (mype_model==0 .AND. task_id==1) CALL init_pdaf_info()
+  if (mype_model==0 .and. task_id==1) call init_pdaf_info()
 
 ! *** Check ensemble size
-  IF (dim_ens /= n_modeltasks) THEN
-     WRITE (*,*) 'ERROR: Ensemble size (',dim_ens, &
+  if (dim_ens /= n_modeltasks) then
+     write (*,*) 'ERROR: Ensemble size (',dim_ens, &
           ') needs to be identical to the number of model tasks (',n_modeltasks,')'
-     CALL abort_parallel()
-  END IF
+     call abort_parallel()
+  end if
   
 ! *** init m-fields and carbon diagnostic arrays
 
-  ALLOCATE(timemean(dim_state_p))
+  allocate(timemean(dim_state_p))
   timemean = 0.0
   
-  ALLOCATE(timemean_s(dim_state_p))
+  allocate(timemean_s(dim_state_p))
   timemean_s = 0.0
   
-  CALL init_carbonfluxes_diags_arrays()
+  call init_carbonfluxes_diags_arrays()
+
   
 ! *************************************************
 ! *** Perturb model parameters for ensemble run ***
@@ -589,42 +385,51 @@
 ! reminN, reminC            ! Remineralization of detritus
 ! calc_prod_ratio           ! How much of small phytoplankton are calcifiers
 
-IF (perturb_params_bio) THEN
-   IF (dim_ens <= 1) THEN
-        IF (mype_model==0 .and. task_id==1) WRITE(*,*) 'FESOM-PDAF', 'Ensemble Size 1: Not perturbing BGC parameters'
-   ELSEIF (dim_ens>1) THEN
-        IF (mype_model==0 .and. task_id==1) WRITE(*,*) 'FESOM-PDAF', 'Perturbing BGC parameters'
-        CALL do_perturb_param_bio()
-   ENDIF ! if (dim_ens>1)
-ENDIF ! if perturb_param
+  if (perturb_params_bio) then
+     if (dim_ens <= 1) then
+        if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Ensemble Size 1: Not perturbing BGC parameters'
+     elseif (dim_ens>1) then
+        if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Perturbing BGC parameters'
+        call do_perturb_param_bio()
+     endif
+  endif
 
-IF (perturb_params_phy) THEN
-   IF (dim_ens <= 1) THEN
-        IF (mype_model==0 .and. task_id==1) WRITE(*,*) 'FESOM-PDAF', 'Ensemble Size 1: Not perturbing PHY parameters'
-   ELSEIF (dim_ens>1) THEN
-        IF (mype_model==0 .and. task_id==1) WRITE(*,*) 'FESOM-PDAF', 'Perturbing PHY parameters'
-        CALL do_perturb_param_phy()
-   ENDIF ! if (dim_ens>1)
-ENDIF ! if perturb_param
+  if (perturb_params_phy) then
+     if (dim_ens <= 1) then
+        if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Ensemble Size 1: Not perturbing PHY parameters'
+     elseif (dim_ens>1) then
+        if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Perturbing PHY parameters'
+        call do_perturb_param_phy()
+     endif
+  endif
+
+
+! *********************************
+! *** Compute velocaty at nodes ***
+! *********************************
+
+  call compute_vel_nodes(mesh_fesom)
+
 
 ! ******************************************************
 ! *** Initialize state from model in case of restart ***
 ! ******************************************************
 
-IF (this_is_pdaf_restart .or. start_from_ENS_spinup) THEN
+  if (this_is_pdaf_restart .or. start_from_ENS_spinup) then
 
-   allocate(state_p_init(dim_state_p))
-   allocate(ens_p_init(dim_state_p,dim_ens))
+     allocate(state_p_init(dim_state_p))
+     allocate(ens_p_init(dim_state_p,dim_ens))
    
-   ! collect model initial fields
-   ! note: diagnostic fields, e.g. pCO2, not available: computed at the end model time step
-   CALL collect_state_pdaf(dim_state_p,state_p_init)
-   state_p_init = topography_p * state_p_init
+     ! collect model initial fields
+     ! note: diagnostic fields, e.g. pCO2, not available: computed at the end model time step
+     call collect_state_pdaf(dim_state_p,state_p_init)
+     state_p_init = topography_p * state_p_init
    
-   CALL MPI_GATHER(state_p_init, dim_state_p, MPI_DOUBLE_PRECISION, &   ! send
-                   ens_p_init,   dim_state_p, MPI_DOUBLE_PRECISION, &   ! receive
-                   0, COMM_COUPLE, mpierr)
-ENDIF
+     call MPI_GATHER(state_p_init, dim_state_p, MPI_DOUBLE_PRECISION, &   ! send
+          ens_p_init,   dim_state_p, MPI_DOUBLE_PRECISION, &   ! receive
+          0, COMM_COUPLE, mpierr)
+  endif
+
 
 ! *****************************************************
 ! *** Call PDAF initialization routine on all PEs.  ***
@@ -645,20 +450,21 @@ ENDIF
   filter_param_i(7) = type_sqrt   ! Type of transform square-root (SEIK-sub4/ESTKF)
   filter_param_r(1) = forget      ! Forgetting factor
      
-  CALL PDAF3_init(filtertype, subtype, step_null, &
+  call PDAF3_init(filtertype, subtype, step_null, &
        filter_param_i, 7,&
        filter_param_r, 1, &
        init_ens_pdaf, screen, status_pdaf)
        
-  IF (this_is_pdaf_restart .or. start_from_ENS_spinup) deallocate(state_p_init,ens_p_init)
+  if (this_is_pdaf_restart .or. start_from_ENS_spinup) deallocate(state_p_init,ens_p_init)
 
 ! *** Check whether initialization of PDAF was successful ***
-  IF (status_pdaf /= 0) THEN
-     WRITE (*,'(/1x,a6,i3,a43,i4,a1/)') &
+  if (status_pdaf /= 0) then
+     write (*,'(/1x,a6,i3,a43,i4,a1/)') &
           'ERROR ', status_pdaf, &
           ' in initialization of PDAF - stopping! (PE ', mype_world,')'
-     CALL abort_parallel()
-  END IF
+     call abort_parallel()
+  end if
+
   
 ! ***************************************
 ! *** Get domain limiting coordinates ***
@@ -667,7 +473,8 @@ ENDIF
 !~   IF (filterpe) CALL ignore_nod_pdaf() ! Seems to cause problems in FESOM2.0 (SigSegV)
                                           ! Not sure if needed
 
-    CALL PDAFomi_get_domain_limits_unstr(myDim_nod2d, mesh_fesom%geo_coord_nod2D)
+  call PDAFomi_get_domain_limits_unstr(myDim_nod2d, mesh_fesom%geo_coord_nod2D)
+
   
 ! *****************************
 ! *** Post processing setup ***
@@ -676,86 +483,87 @@ ENDIF
   if (isPP) then
      call doPP(nsteps)
   else
-  
+
+
 ! ******************************
 ! *** Initialize file output ***
 ! ******************************
 
-  ! Initialize PDAF netCDF output file:
-  !    - at beginning of each new year
-  !    - at start of assimililation experiment
-  IF ((.not. this_is_pdaf_restart) .or. (daynew==1)) THEN
-    CALL netCDF_init()
-  ENDIF
-
- ! carbon flux diagnostics
- CALL init_carbonfluxes_diags_out() ! if no file exists, file is created
+     ! Initialize PDAF netCDF output file:
+     !    - at beginning of each new year
+     !    - at start of assimililation experiment
+     if ((.not. this_is_pdaf_restart) .or. (daynew==1)) then
+        call netCDF_init()
+     endif
+     
+     ! carbon flux diagnostics
+     call init_carbonfluxes_diags_out() ! if no file exists, file is created
 
 
 ! **********************************
 ! *** Prepare ensemble forecasts ***
 ! **********************************
 
-  IF (mype_submodel==0) THEN
-     WRITE (*,'(1x,a,i5)') 'FESOM-PDAF: INITIALIZE PDAF before barrier, task: ', task_id
-  END IF
+     call MPI_BARRIER(MPI_COMM_WORLD, MPIerr)
 
-  call timeit(6, 'new')
-  CALL MPI_BARRIER(MPI_COMM_WORLD, MPIerr)
-  call timeit(6, 'old')
-
-  ! among others: initial call to prepoststep, distribution of initial ensemble to model, ...
-  CALL PDAF_init_forecast(next_observation_pdaf, distribute_state_pdaf, &
-       prepoststep_pdaf, status_pdaf)
+     ! Initialize ensmeble forecasting
+     call PDAF_init_forecast(next_observation_pdaf, distribute_state_pdaf, &
+          prepoststep_pdaf, status_pdaf)
 
 
 ! ***********************************************************************************
 ! *** Allocate arrays for effective observation dimension and localization radius ***
 ! ***********************************************************************************
   
-  ALLOCATE(eff_dim_obs(mydim_nod2d))
-  ALLOCATE(loc_radius(mydim_nod2d))
+     allocate(eff_dim_obs(mydim_nod2d))
+     allocate(loc_radius(mydim_nod2d))
+
 
 ! **************************************************
 ! *** Initialize file for synthetic observations ***
 ! **************************************************
 
-  IF (filtertype==100 .and. mype_world==0) THEN
-        WRITE(*,*) "Synthetic observations not yet implemented in this version - stopping!"
-        CALL abort_parallel
-  END IF
+     if (filtertype==100 .and. mype_world==0) then
+        write(*,*) "Synthetic observations not yet implemented in this version - stopping!"
+        call abort_parallel
+     end if
+
 
 ! ***********************************
 ! **** Atmospheric stochasticity  ***
 ! ***********************************
   
-  IF (atmos_stochasticity_ON) THEN
+     if (atmos_stochasticity_ON) then
   
-    ! initialize atmospheric stochasticity at (re)start
-    call init_atmos_ens_stochasticity()
-    
-    ! create stochasticity file
-    !    - at beginning of every new year
-    !    - at first start of assimilation experiment
-    IF ((.not. (this_is_pdaf_restart .or. start_from_ENS_spinup)) .or. (yearnew .ne. yearold)) THEN
-       call init_atmos_stochasticity_output()
-    ENDIF
-  ENDIF
+        ! initialize atmospheric stochasticity at (re)start
+        call init_atmos_ens_stochasticity()
+
+        ! create stochasticity file
+        !    - at beginning of every new year
+        !    - at first start of assimilation experiment
+        if ((.not. (this_is_pdaf_restart .or. start_from_ENS_spinup)) .or. (yearnew .ne. yearold)) then
+           call init_atmos_stochasticity_output()
+        endif
+     endif
   
-  ! resetforget scheme: in case of restart, reset forget to 0.99 or 1.00
-  ! note: at restarts, forgetting factor is saved and read with atmospheric stochasticity
-  IF (resetforget .and. (this_is_pdaf_restart .or. start_from_ENS_spinup)) THEN
-    CALL PDAF_reset_forget(forget)
-  ENDIF
+     ! resetforget scheme: in case of restart, reset forget to 0.99 or 1.00
+     ! note: at restarts, forgetting factor is saved and read with atmospheric stochasticity
+     if (resetforget .and. (this_is_pdaf_restart .or. start_from_ENS_spinup)) then
+        call PDAF_reset_forget(forget)
+     endif
     
 ! *****************
 ! *** Debugging ***
 ! *****************
 
 !   At this node and depth, we see a problem in the model output:
-    debug_id_depth = 1
-    debug_id_nod2  = 85615 !96487 !3833
-    ens_member_debug = 0
+     debug_id_depth = 1
+     debug_id_nod2  = 85615 !96487 !3833
+     ens_member_debug = 0
+   
+  endif ! isPP
 
-    endif ! isPP
-END SUBROUTINE init_pdaf
+  call timeit(4, 'old')
+  call timeit(5, 'new')
+
+end subroutine init_pdaf

@@ -178,11 +178,12 @@ CONTAINS
     USE PDAF, &
          ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
     USE mod_assim_pdaf, &
-         ONLY: offset, twin_experiment, use_global_obs, &
-               delt_obs_ocn, mesh_fesom, &
-               cradius, sradius, nlmax
+         ONLY: twin_experiment, use_global_obs, delt_obs_ocn, &
+               cradius, sradius
+    USE fesom_pdaf, &
+         only: mesh_fesom, nlmax
     USE statevector_pdaf, &
-         ONLY: id
+         ONLY: id, sfields
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
@@ -441,7 +442,7 @@ CONTAINS
           
           DO i = 1, cnt_temp
              DO k = 1, 3
-                thisobs%id_obs_p(k,i) = (nlmax) * (n2d_temp(k,i)-1) + nl1_temp(i) + offset(id%temp)
+                thisobs%id_obs_p(k,i) = (nlmax) * (n2d_temp(k,i)-1) + nl1_temp(i) + sfields(id%temp)%off
              END DO
           END DO
         
@@ -497,7 +498,7 @@ CONTAINS
           ! *** plus offset here instead of in obs_op_f_pdaf
           DO i = cnt_temp + 1, cnt_temp + cnt_sal
              DO k = 1, 3
-                thisobs%id_obs_p(k,i) = (nlmax) * (n2d_sal(k,i-cnt_temp)-1) + nl1_sal(i-cnt_temp) + offset(id%salt)
+                thisobs%id_obs_p(k,i) = (nlmax) * (n2d_sal(k,i-cnt_temp)-1) + nl1_sal(i-cnt_temp) + sfields(id%salt)%off
              END DO
           END DO
  

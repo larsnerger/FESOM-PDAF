@@ -178,11 +178,11 @@ CONTAINS
     USE PDAF, &
          ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
     USE mod_assim_pdaf, &
-         ONLY: offset, use_global_obs, &
-               mesh_fesom, &
-               cradius, sradius
+         ONLY: use_global_obs, cradius, sradius
+    USE fesom_pdaf, &
+         only: mesh_fesom, nlmax
     USE statevector_pdaf, &
-         ONLY: id
+         ONLY: id, sfields
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
@@ -215,12 +215,12 @@ CONTAINS
     REAL, ALLOCATABLE :: lon_p_reps(:),lat_p_reps(:)  ! PE-local observed coords
     INTEGER, ALLOCATABLE :: nod1_p_reps(:), &
                             nod2_p_reps(:), &
-                            nod3_p_reps(:)            ! PE-local observed node/element indeces
+                            nod3_p_reps(:)            ! PE-local observed node/element indices
     INTEGER, ALLOCATABLE :: elem_p_reps(:)
 
     INTEGER, ALLOCATABLE :: nod1_g_reps(:), &
                             nod2_g_reps(:), &
-                            nod3_g_reps(:)            ! Global observed node/element indeces
+                            nod3_g_reps(:)            ! Global observed node/element indices
     INTEGER, ALLOCATABLE :: elem_g_reps(:)
 
     LOGICAL :: is_unique
@@ -245,7 +245,7 @@ CONTAINS
     REAL, ALLOCATABLE :: lon_p(:),lat_p(:)
     INTEGER, ALLOCATABLE :: nod1_p(:), &
                             nod2_p(:), &
-                            nod3_p(:)         ! Array of observation pe-local indeces on FESOM grid
+                            nod3_p(:)         ! Array of observation pe-local indices on FESOM grid
     INTEGER, ALLOCATABLE :: elem_p(:)         
     REAL, ALLOCATABLE :: ivariance_obs_p(:)   ! PE-local array of observation errors
     
@@ -610,9 +610,9 @@ CONTAINS
       ! 1 if observations are at grid points; >1 if interpolation is required
       allocate(thisobs%id_obs_p(3,dim_obs_p))
       DO i = 1, dim_obs_p
-        thisobs%id_obs_p(1,i) = nod1_p_sorted(i) + offset(id%pCO2s)
-        thisobs%id_obs_p(2,i) = nod2_p_sorted(i) + offset(id%pCO2s)
-        thisobs%id_obs_p(3,i) = nod3_p_sorted(i) + offset(id%pCO2s)       
+        thisobs%id_obs_p(1,i) = nod1_p_sorted(i) + sfields(id%pCO2s)%off
+        thisobs%id_obs_p(2,i) = nod2_p_sorted(i) + sfields(id%pCO2s)%off
+        thisobs%id_obs_p(3,i) = nod3_p_sorted(i) + sfields(id%pCO2s)%off   
       END DO
       
       ! clean up

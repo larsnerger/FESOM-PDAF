@@ -193,11 +193,11 @@ CONTAINS
     USE PDAF, &
          ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
     USE mod_assim_pdaf, &
-         ONLY: offset, use_global_obs, &
-               mesh_fesom, nlmax, &
-               cradius, sradius
+         ONLY: use_global_obs, cradius, sradius
+    USE fesom_pdaf, &
+         only: mesh_fesom, nlmax
     USE statevector_pdaf, &
-         ONLY: id
+         ONLY: id, sfields
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER, MPI_MAX
     USE g_parsup, &
@@ -235,11 +235,11 @@ CONTAINS
     REAL, ALLOCATABLE :: lon_p_reps(:),lat_p_reps(:)  ! PE-local observed coords
     INTEGER, ALLOCATABLE :: nod1_p_reps(:), &
                             nod2_p_reps(:), &
-                            nod3_p_reps(:)            ! PE-local observed node/element indeces
+                            nod3_p_reps(:)            ! PE-local observed node/element indices
     INTEGER, ALLOCATABLE :: elem_p_reps(:)
     INTEGER, ALLOCATABLE :: nod1_g_reps(:), &
                             nod2_g_reps(:), &
-                            nod3_g_reps(:)            ! Global observed node/element indeces
+                            nod3_g_reps(:)            ! Global observed node/element indices
     INTEGER, ALLOCATABLE :: elem_g_reps(:)
     INTEGER, ALLOCATABLE :: nlay_p_reps(:)
     REAL, ALLOCATABLE    :: dep_p_reps(:)
@@ -257,7 +257,7 @@ CONTAINS
     REAL, ALLOCATABLE    :: avg_obs_p_sort1(:)
     INTEGER              :: dim_obs_p_sort1      ! PE-local number of observed elements
     INTEGER              :: dim_obs_sort1        ! Global number of observed elements
-        ! element indeces
+        ! element indices
     INTEGER, ALLOCATABLE :: nod1_p_sort1(:), &
                             nod2_p_sort1(:), &
                             nod3_p_sort1(:)
@@ -279,7 +279,7 @@ CONTAINS
     REAL, ALLOCATABLE    :: var_obs_p_sort2(:)
     REAL, ALLOCATABLE    :: avg_obs_p_sort2(:)
     INTEGER              :: dim_obs_p_sort2
-        ! element indeces
+        ! element indices
     INTEGER, ALLOCATABLE :: nod1_p_sort2(:), &
                             nod2_p_sort2(:), &
                             nod3_p_sort2(:)
@@ -301,7 +301,7 @@ CONTAINS
         ! observation statistics at element
     INTEGER, ALLOCATABLE :: num_obs_p_sortavg(:)
     REAL, ALLOCATABLE    :: var_obs_p_sortavg(:)
-        ! element indeces
+        ! element indices
     INTEGER, ALLOCATABLE :: nod1_p_sortavg(:), &
                             nod2_p_sortavg(:), &
                             nod3_p_sortavg(:)
@@ -323,13 +323,13 @@ CONTAINS
     REAL, ALLOCATABLE :: ivariance_obs_p(:)   ! PE-local array of inverse observation errors
     INTEGER, ALLOCATABLE :: nod1_p(:), &
                             nod2_p(:), &
-                            nod3_p(:)         ! Array of observation pe-local indeces on FESOM grid
+                            nod3_p(:)         ! Array of observation pe-local indices on FESOM grid
     INTEGER, ALLOCATABLE :: elem_p(:)
     INTEGER, ALLOCATABLE :: nod1_g(:), &
                             nod2_g(:), &
-                            nod3_g(:)         ! Array of observation global indeces on FESOM grid
+                            nod3_g(:)         ! Array of observation global indices on FESOM grid
     INTEGER, ALLOCATABLE :: elem_g(:)
-    INTEGER, ALLOCATABLE :: nlay_p(:)         ! Array of observation layer indeces
+    INTEGER, ALLOCATABLE :: nlay_p(:)         ! Array of observation layer indices
     
     ! netCDF handles
     INTEGER :: ncstat                         ! Status for NetCDF functions
@@ -796,7 +796,7 @@ CONTAINS
                z_p1 (e_new,1) = SIN(deg2rad*lat_p_reps(e_reps))
                
                if (isPP) then
-                  ! indeces
+                  ! indices
                   elem_g_sort1 (e_new) = elem_g_reps(e_reps)
                   nod1_g_sort1 (e_new) = nod1_g_reps(e_reps)
                   nod2_g_sort1 (e_new) = nod2_g_reps(e_reps)
@@ -1004,7 +1004,7 @@ CONTAINS
                      ! first observation at element
                        esa = esa+1
                        
-                       ! write indeces to arrays
+                       ! write indices to arrays
                        elem_p_sortavg (esa) = elem_p_sort2 (e2)
                        nlay_p_sortavg (esa) = nlay_p_sort2 (e2)
                        nod1_p_sortavg (esa) = nod1_p_sort2 (e2)
@@ -1089,7 +1089,7 @@ CONTAINS
                      ! first observation at element
                        esa = esa+1
                        
-                       ! write indeces to arrays
+                       ! write indices to arrays
                        elem_p_sortavg (esa) = elem_p_sort2 (e2)
                        nlay_p_sortavg (esa) = nlay_p_sort2 (e2)
                        nod1_p_sortavg (esa) = nod1_p_sort2 (e2)
@@ -1174,7 +1174,7 @@ CONTAINS
                      ! first observation at element
                        esa = esa+1
                        
-                       ! write indeces to arrays
+                       ! write indices to arrays
                        elem_p_sortavg (esa) = elem_p_sort2 (e2)
                        nlay_p_sortavg (esa) = nlay_p_sort2 (e2)
                        nod1_p_sortavg (esa) = nod1_p_sort2 (e2)
@@ -1246,7 +1246,7 @@ CONTAINS
            num_obs_p_sortavg(esa) = num_obs_p_sort2(e2)
            num_obs = num_obs_p_sortavg(esa)
            num_obs_inv = 1/REAL(num_obs)
-           ! write indeces to arrays
+           ! write indices to arrays
            elem_p_sortavg (esa) = elem_p_sort2 (e2)
            nlay_p_sortavg (esa) = nlay_p_sort2 (e2)
            nod1_p_sortavg (esa) = nod1_p_sort2 (e2)
@@ -1308,9 +1308,9 @@ CONTAINS
       allocate(obs_p(dim_obs_p))                                      ! PE-local observation values
       allocate(var_obs_p(dim_obs_p))                                  ! PE-local variance for observation error
       allocate(lon_p(dim_obs_p),lat_p(dim_obs_p))
-      allocate(nod1_p(dim_obs_p),nod2_p(dim_obs_p),nod3_p(dim_obs_p)) ! PE-local indeces on FESOM grid
+      allocate(nod1_p(dim_obs_p),nod2_p(dim_obs_p),nod3_p(dim_obs_p)) ! PE-local indices on FESOM grid
       allocate(elem_p(dim_obs_p))
-      allocate(nlay_p(dim_obs_p))                                     ! PE-local layer indeces
+      allocate(nlay_p(dim_obs_p))                                     ! PE-local layer indices
       
       obs_p(:)     = obs_p_sortavg    (1:dim_obs_p)
       var_obs_p(:) = var_obs_p_sortavg(1:dim_obs_p)
@@ -1392,13 +1392,13 @@ CONTAINS
       allocate(thisobs%id_obs_p(6,dim_obs_p))
       DO i = 1, dim_obs_p
         ! observed tracer
-        thisobs%id_obs_p(val1,i) = (nlmax) * (nod1_p(i)-1) + nlay_p(i) + offset(id%DIN)
-        thisobs%id_obs_p(val2,i) = (nlmax) * (nod2_p(i)-1) + nlay_p(i) + offset(id%DIN)
-        thisobs%id_obs_p(val3,i) = (nlmax) * (nod3_p(i)-1) + nlay_p(i) + offset(id%DIN)
+        thisobs%id_obs_p(val1,i) = (nlmax) * (nod1_p(i)-1) + nlay_p(i) + sfields(id%DIN)%off
+        thisobs%id_obs_p(val2,i) = (nlmax) * (nod2_p(i)-1) + nlay_p(i) + sfields(id%DIN)%off
+        thisobs%id_obs_p(val3,i) = (nlmax) * (nod3_p(i)-1) + nlay_p(i) + sfields(id%DIN)%off
         ! density for unit conversion
-        thisobs%id_obs_p(dens1,i) = (nlmax) * (nod1_p(i)-1) + nlay_p(i) + offset(id%sigma)
-        thisobs%id_obs_p(dens2,i) = (nlmax) * (nod2_p(i)-1) + nlay_p(i) + offset(id%sigma)
-        thisobs%id_obs_p(dens3,i) = (nlmax) * (nod3_p(i)-1) + nlay_p(i) + offset(id%sigma)
+        thisobs%id_obs_p(dens1,i) = (nlmax) * (nod1_p(i)-1) + nlay_p(i) + sfields(id%sigma)%off
+        thisobs%id_obs_p(dens2,i) = (nlmax) * (nod2_p(i)-1) + nlay_p(i) + sfields(id%sigma)%off
+        thisobs%id_obs_p(dens3,i) = (nlmax) * (nod3_p(i)-1) + nlay_p(i) + sfields(id%sigma)%off
       END DO
       
     ENDIF ! IF (dim_obs_p = 0) ELSEIF (dim_obs_p > 0)

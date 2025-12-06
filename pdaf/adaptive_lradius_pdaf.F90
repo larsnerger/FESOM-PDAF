@@ -15,14 +15,11 @@ SUBROUTINE get_adaptive_lradius_pdaf(domain_p, lradius, loc_radius)
   USE PDAF, &
        ONLY: PDAF_local_weight
   USE mod_assim_pdaf, &           ! Variables for assimilation
-       ONLY: locweight, loctype, loc_ratio, dim_ens, eff_dim_obs, pi, &
-       mesh_fesom
+       ONLY: locweight, loctype, loc_ratio, dim_ens, eff_dim_obs
+  USE fesom_pdaf, &
+       ONLY: mesh_fesom, pi, mydim_nod2d
   USE mod_parallel_pdaf, &        ! Parallelization variables
        ONLY: mype_filter
-  USE g_parsup, &
-       ONLY: mydim_nod2d
-!~   USE o_mesh, &
-!~        ONLY: coord_nod2D
   USE o_param, &
        ONLY: r_earth
   USE g_rotate_grid, &
@@ -159,12 +156,9 @@ SUBROUTINE adaptive_lradius_stats_pdaf()
        MPI_REAL8, MPIerr, &
        MPI_INTEGER, MPI_SUM, MPI_MAX, MPI_MIN 
   USE mod_assim_pdaf, &       ! Variables for assimilation
-       ONLY: eff_dim_obs, loctype, &
-       mesh_fesom
-  USE g_parsup, &
-       ONLY: dim_p => mydim_nod2d
-!~   USE o_mesh, &
-!~        ONLY: dim => nod2D
+       ONLY: eff_dim_obs, loctype
+  USE fesom_pdaf, &
+       ONLY: mesh_fesom, dim_p => mydim_nod2d
 
   IMPLICIT NONE
 

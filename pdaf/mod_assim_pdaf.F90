@@ -19,9 +19,6 @@
 !!
 MODULE mod_assim_pdaf
 
-!  USE statevector_pdaf
-  USE fesom_pdaf
-
   IMPLICIT NONE
   SAVE
 
@@ -126,13 +123,7 @@ LOGICAL :: assimilateBGC = .false. ! whether to do a BGC assimilation step
 LOGICAL :: assimilatePHY = .false. ! whether to do a physics assimilation step
 
 ! Other variables - NOT available as command line options / in the namelist:
-INTEGER, ALLOCATABLE :: offset(:)          ! PE-local offsets of fields in state vector
-INTEGER, ALLOCATABLE :: dim_fields(:)      ! PE-local dimensions of fields in state vector
-INTEGER, ALLOCATABLE :: offset_glob(:)     ! Global offsets of fields in state vector
-INTEGER, ALLOCATABLE :: dim_fields_glob(:) ! Global dimensions of fields in state vector
 REAL                 :: coords_l(2)        ! Coordinates of local analysis domain
-INTEGER, ALLOCATABLE :: dim_fields_l(:)    ! Field dimensions for local domain (i.e. field of vertical water column at 1 node)
-INTEGER, ALLOCATABLE :: offset_l(:)        ! Field offsets for local domain
 
 REAL, ALLOCATABLE :: state_fcst(:,:)       ! state prior to assimilation, saved to use for correction
 REAL, ALLOCATABLE :: state_fcst_SSH_p(:,:) ! state prior to assimilation, saved to use for correction
@@ -162,14 +153,12 @@ LOGICAL :: compute_monthly_sm
 ! Julian-Gregorian date transformation of EN4 raw data 
 INTEGER :: num_day_in_month(0:1,12), endday_of_month_in_year(0:1,12), startday_of_month_in_year(0:1,12)
 
-
-
 ! For weak coupling:
 integer :: n_sweeps                 !< Number of sweeps in local analysis loop
 character(len=3) :: type_sweep(2)   !< Type of sweep in local analysis loop
 integer :: isweep                   !< Index of sweep during the local analysis loop
-character(len=6) :: cda_phy   ! Flag whether strongly-coupled DA is done
-character(len=6) :: cda_bio   ! Flag whether strongly-coupled DA is done
+character(len=6) :: cda_phy         !< Flag whether strongly-coupled DA is done for physics data
+character(len=6) :: cda_bio         !< Flag whether strongly-coupled DA is done for bgc data
 
 ! Initial state in case of restarts:
 real, allocatable :: state_p_init(:)
@@ -183,13 +172,13 @@ real, allocatable :: factor_conc(:,:)
 type obs_PP
    real, allocatable :: isExclObs (:)! whether to exclude observation due to model topography
    real, allocatable :: isInnoOmit(:)! whether to exclude observation due to Inno Omit
-   real, allocatable :: nod1_g(:)    ! observation indeces on global FESOM grid (nodes)
+   real, allocatable :: nod1_g(:)    ! observation indices on global FESOM grid (nodes)
    real, allocatable :: nod2_g(:)    ! """
    real, allocatable :: nod3_g(:)    ! """
-   real, allocatable :: elem_g(:)    ! observation indeces on global FESOM grid (elements)
+   real, allocatable :: elem_g(:)    ! observation indices on global FESOM grid (elements)
    real, allocatable :: lon(:)       ! observation coordinates
    real, allocatable :: lat(:)       ! """
-   real, allocatable :: nz(:)        ! observation layer indeces
+   real, allocatable :: nz(:)        ! observation layer indices
    real, allocatable :: depth(:)     ! observation depth
    real, allocatable :: numrep(:)    ! number of observations on one single element
    real, allocatable :: volelem(:)   ! volume of FESOM element

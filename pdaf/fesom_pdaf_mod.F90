@@ -9,11 +9,32 @@
 MODULE fesom_pdaf
 
   USE MOD_MESH, ONLY: t_mesh
-  USE g_parsup, ONLY: &
+  USE g_parsup, ONLY: MPI_COMM_FESOM, &
        myDim_nod2D, &          !Process-local number of 2D nodes  
        myDim_nod2D, &          ! Process-local number of vertices
        myDim_elem2D, &         ! Process-local number of elements 
-       myList_nod2D
+       myDim_edge2D, &
+       myList_nod2D, myList_edge2D, &
+       eDim_nod2D, eDim_elem2D 
+  USE g_comm_auto, &
+       ONLY: gather_nod
+  USE o_arrays, &
+       ONLY: eta_n, uv, wvel, tr_arr, unode, MLD1, MLD2, sigma0, &
+       zbar_n_bot, zbar_n_srf
+  USE REcoM_GloVar, &
+       ONLY: GloPCO2surf, GloCO2flux, Diags3D, PAR3D, export, &
+       PistonVelocity, alphaCO2
+  USE i_arrays, &
+       ONLY: a_ice
+  use g_clock, &
+       only: timenew, timeold, daynew, cyearold, yearnew, yearold, &
+       month, num_day_in_month, fleapyear
+  use g_events, &
+       only: daily_event, monthly_event
+  USE g_comm_auto, &
+       ONLY: exchange_nod, exchange_elem
+  USE g_rotate_grid, &
+       ONLY: r2g                 ! Transform from the mesh (rotated) coordinates to geographical coordinates  
 
   IMPLICIT NONE
 

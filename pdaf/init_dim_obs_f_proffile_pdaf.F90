@@ -18,8 +18,9 @@ SUBROUTINE init_dim_obs_f_proffile_pdaf(startyr, endyr)
    USE mod_assim_pdaf, &
       ONLY: path_obs_rawprof, file_rawprof_prefix,  &
             file_rawprof_suffix, &
-            num_day_in_month, &
-            mesh_fesom
+            num_day_in_month
+   USE fesom_pdaf, &
+        ONLY: mesh_fesom
             ! mesh_fesom % coord_nod2D        ! vertex coordinates in radian measure
             ! mesh_fesom % nlevels            ! number of levels at (below) elem     considering bottom topography
             ! mesh_fesom % nlevels_nod2D      ! number of levels at (below) vertices considering bottom topography

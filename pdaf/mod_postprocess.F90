@@ -1,8 +1,9 @@
 MODULE mod_postprocess
 
 use mod_assim_pdaf, &
-    only: nlmax, mesh_fesom, dim_state_p, offset, &
-    DAoutput_path, dim_fields
+    only: dim_state_p, DAoutput_path
+USE fesom_pdaf, &
+     ONLY: nlmax, mesh_fesom 
 USE statevector_pdaf, &
      only: id, sfields
 use mod_parallel_pdaf, &
@@ -313,7 +314,7 @@ SUBROUTINE netCDF_getstate(sim,ReadAtDay)
          do n=1, myDim_nod2D
             do nz=1, nlmax
                s = (n-1) * (nlmax) + nz
-               state_p(sim,offset(ifield)+s) = myData3(nz,n)
+               state_p(sim, sfields(ifield)%off+s) = myData3(nz,n)
             enddo ! nz
          enddo ! n
          deallocate(data3_g,myData3)
@@ -331,7 +332,7 @@ SUBROUTINE netCDF_getstate(sim,ReadAtDay)
          call broadcast_nod(myData2,REAL(data2_g,8))
          ! add to state vector
          do n=1, myDim_nod2D
-               state_p(sim,offset(ifield)+n) = myData2(n)
+               state_p(sim, sfields(ifield)%off+n) = myData2(n)
          enddo ! n
          deallocate(data2_g,myData2)
       endif
@@ -398,7 +399,7 @@ SUBROUTINE netCDF_getforc(sim,ReadAtDay)
          do n=1, myDim_nod2D
             do nz=1, nlmax
                s = (n-1) * (nlmax) + nz
-               forc_p(offset(ifield)+s) = myData3(nz,n)
+               forc_p(sfields(ifield)%off+s) = myData3(nz,n)
             enddo ! nz
          enddo ! n
          deallocate(data3_g,myData3)
@@ -416,7 +417,7 @@ SUBROUTINE netCDF_getforc(sim,ReadAtDay)
          call broadcast_nod(myData2,REAL(data2_g,8))
          ! add to state vector
          do n=1, myDim_nod2D
-               forc_p(offset(ifield)+n) = myData2(n)
+               forc_p(sfields(ifield)%off+n) = myData2(n)
          enddo ! n
          deallocate(data2_g,myData2)
       endif
@@ -1139,8 +1140,8 @@ SUBROUTINE PP_DIN_MERGED()
    endif
    
    ! provide forecast data
-   allocate(mean_n_p(dim_fields(id%DIN)))
-   mean_n_p = forc_p(offset(id%DIN)+1 : offset(id%DIN)+dim_fields(id%DIN))
+   allocate(mean_n_p(sfields(id%DIN)%dim))
+   mean_n_p = forc_p(sfields(id%DIN)%off+1 : sfields(id%DIN)%off+sfields(id%DIN)%dim)
    ! init observation data
    call init_dim_obs_n_merged(-1, dim_obs_f)
    ! offset
@@ -1261,8 +1262,8 @@ SUBROUTINE PP_O2_MERGED()
    endif
    
    ! provide forecast data
-   allocate(mean_O2_p(dim_fields(id%O2)))
-   mean_O2_p = forc_p(offset(id%O2)+1 : offset(id%O2)+dim_fields(id%O2))
+   allocate(mean_O2_p(sfields(id%O2)%dim))
+   mean_O2_p = forc_p(sfields(id%O2)%off+1 : sfields(id%O2)%off+sfields(id%O2)%dim)
    ! init observation data
    call init_dim_obs_o2_merged(-1, dim_obs_f)
    ! offset

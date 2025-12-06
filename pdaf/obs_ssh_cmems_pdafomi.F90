@@ -176,10 +176,12 @@ CONTAINS
     USE PDAF, &
          ONLY: PDAFomi_gather_obs
     USE mod_assim_pdaf, &
-         ONLY: offset, twin_experiment, use_global_obs, mesh_fesom, &
+         ONLY: twin_experiment, use_global_obs, &
          cradius, sradius, delt_obs_ocn
+    USE fesom_pdaf, &
+         only: mesh_fesom, nlmax
     USE statevector_pdaf, &
-         ONLY: id
+         ONLY: id, sfields
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
@@ -392,7 +394,7 @@ CONTAINS
           
           !index for state vector
           thisobs%id_obs_p(1, i_obs) = &
-          i +  offset(id% SSH)
+          i +  sfields(id% SSH)%off
           
           !index for all_obs_p and surface nod2d vector, respectively
           obs_include_index(i_obs) = i 

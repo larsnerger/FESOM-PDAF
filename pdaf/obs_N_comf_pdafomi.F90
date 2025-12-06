@@ -178,11 +178,11 @@ CONTAINS
     USE PDAF, &
          ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
     USE mod_assim_pdaf, &
-         ONLY: offset, use_global_obs, &
-               mesh_fesom, nlmax, &
-               cradius, sradius
+         ONLY: use_global_obs, cradius, sradius
+    USE fesom_pdaf, &
+         only: mesh_fesom, nlmax
     USE statevector_pdaf, &
-         ONLY: id
+         ONLY: id, sfields
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
@@ -216,8 +216,8 @@ CONTAINS
     REAL, ALLOCATABLE :: ivariance_obs_p(:)   ! PE-local array of observation errors
     INTEGER, ALLOCATABLE :: nod1_p(:), &
                             nod2_p(:), &
-                            nod3_p(:)          ! Array of observation pe-local indeces on FESOM grid
-    INTEGER, ALLOCATABLE :: nl_p(:)            ! Array of observation layer indeces
+                            nod3_p(:)          ! Array of observation pe-local indices on FESOM grid
+    INTEGER, ALLOCATABLE :: nl_p(:)            ! Array of observation layer indices
     
     INTEGER :: ncstat                          ! Status for NetCDF functions
     INTEGER :: ncid, dimid                     ! NetCDF IDs
@@ -434,9 +434,9 @@ CONTAINS
       ! 1 if observations are at grid points; >1 if interpolation is required
       allocate(thisobs%id_obs_p(3,dim_obs_p))
       DO i = 1, dim_obs_p
-        thisobs%id_obs_p(1,i) = (nlmax) * (nod1_p(i)-1) + nl_p(i) + offset(id%DIN)
-        thisobs%id_obs_p(2,i) = (nlmax) * (nod2_p(i)-1) + nl_p(i) + offset(id%DIN)
-        thisobs%id_obs_p(3,i) = (nlmax) * (nod3_p(i)-1) + nl_p(i) + offset(id%DIN)
+        thisobs%id_obs_p(1,i) = (nlmax) * (nod1_p(i)-1) + nl_p(i) + sfields(id%DIN)%off
+        thisobs%id_obs_p(2,i) = (nlmax) * (nod2_p(i)-1) + nl_p(i) + sfields(id%DIN)%off
+        thisobs%id_obs_p(3,i) = (nlmax) * (nod3_p(i)-1) + nl_p(i) + sfields(id%DIN)%off
         
       ! *** exclude observations at dry nodes ***
       ! number of layers at nodes considering bottom topography: mesh_fesom% nlevels_nod2D

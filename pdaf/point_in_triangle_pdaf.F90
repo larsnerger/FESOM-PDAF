@@ -5,7 +5,7 @@ SUBROUTINE point_in_triangle_pdaf(el2D,   pt)
   use g_PARSUP
   use o_param
   use g_rotate_grid
-  USE mod_assim_pdaf, ONLY: mesh_fesom
+  USE fesom_pdaf, ONLY: mesh_fesom
   implicit none
 
   INTEGER, INTENT(OUT)                   :: el2D

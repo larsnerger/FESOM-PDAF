@@ -1155,10 +1155,8 @@ END SUBROUTINE
 
 SUBROUTINE compute_ipsr()
 
-USE mod_assim_pdaf, &
-   ONLY: mesh_fesom
-USE g_parsup, &
-   ONLY: myDim_nod2D,eDim_nod2D
+USE fesom_pdaf, &
+   ONLY: mesh_fesom, myDim_nod2D,eDim_nod2D
 USE g_clock, &
    !time in a day, unit: sec
    ONLY: timenew, &

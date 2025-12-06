@@ -19,11 +19,7 @@
 SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
 
   USE mod_assim_pdaf, &           ! Variables for assimilation
-       ONLY: id_lstate_in_pstate, ens_member_debug
-  USE mod_parallel_pdaf, &
-       ONLY: mype_filter, mype_model
-!   USE PDAFomi, &
-!        ONLY: PDAFomi_set_debug_flag
+       ONLY: id_lstate_in_pstate
 
   IMPLICIT NONE
 
@@ -47,17 +43,5 @@ SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
   DO i = 1, dim_l
      state_l(i) = state_p(id_lstate_in_pstate(i))
   ENDDO
-  
-!~   IF ((mype_model==55) .AND. (domain_p==669)) THEN
-!~         ens_member_debug = ens_member_debug + 1
-!~         CALL PDAF_get_memberid(memberid)
-!~         write (*,*) 'g2l Frauke-debug', memberid
-!~         write (filename, "(A11,I2,A4)") "g2l_state_l", ens_member_debug, ".dat"
-!~         open (ens_member_debug, file = TRIM(filename))
-!~         write(ens_member_debug,*) state_l
-!~         close(ens_member_debug) 
-!~   END IF
-  
-  
 
 END SUBROUTINE g2l_state_pdaf

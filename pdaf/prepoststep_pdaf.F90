@@ -25,25 +25,26 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        ONLY: mype_filter, npes_filter, COMM_filter, writepe, mype_world
   USE mod_assim_pdaf, & ! Variables for assimilation
        ONLY: step_null, filtertype, dim_lag, eff_dim_obs, loctype, &
-       offset, proffiles_o, state_fcst, state_fcst_SSH_p, &
+       proffiles_o, state_fcst, state_fcst_SSH_p, &
        monthly_state_f, monthly_state_a, monthly_state_m, &
        monthly_state_sf, monthly_state_sa, monthly_state_sm, &
        endday_of_month_in_year, startday_of_month_in_year, &
-       depth_excl, depth_excl_no, this_is_pdaf_restart, mesh_fesom, nlmax, &
-       dim_fields, dim_fields_glob, offset, offset_glob, &
+       depth_excl, depth_excl_no, this_is_pdaf_restart, &
        timemean, timemean_s, delt_obs_ocn, &
        days_since_DAstart, forget, &
        stdev_SSH_f_p, &
        factor_mass, factor_conc, DAoutput_path, &
-       area_surf_glob, inv_area_surf_glob, &
-       volo_full_glob, inv_volo_full_glob, &
-       cellvol, &
        compute_monthly_aa, compute_monthly_ff, &
        compute_monthly_sa, compute_monthly_sf, &
        compute_monthly_mm, compute_monthly_sm, &
        resetforget
+  USE fesom_pdaf, &
+       ONLY: mesh_fesom, nlmax, &
+       area_surf_glob, inv_area_surf_glob, &
+       volo_full_glob, inv_volo_full_glob, &
+       cellvol
   USE statevector_pdaf, &
-       only: id, nfields, sfields, nfields_3D, ids_3D
+       only: id, nfields, sfields
   USE mod_atmos_ens_stochasticity, &
       ONLY: stable_rmse
   USE g_PARSUP, &
@@ -56,7 +57,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        NCmax_d, SiCmax, Redfield, SecondsPerDay
   USE mod_nc_out_routines, &
        ONLY: netCDF_out
-  USE output_config, &
+  USE output_config_pdaf, &
        ONLY: w_dayensm, w_daymemb, w_monensm, w_monmemb, w_mm, w_sm, &
        mm, aa, ff, ii, sa, sf, si, sm, oo, dd, ee
   ! mean state forecast for observation exclusion criteria
@@ -185,8 +186,8 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   END IF ! IF (mype_filter==0)
   
   ! variables allocated and saved during forecast; and deallocated after analysis
-  IF (.not. ALLOCATED(stdev_SSH_f_p))    ALLOCATE(stdev_SSH_f_p(dim_fields(id%SSH)))
-  IF (.not. ALLOCATED(state_fcst_SSH_p)) ALLOCATE(state_fcst_SSH_p(dim_fields(id%SSH),dim_ens))
+  IF (.not. ALLOCATED(stdev_SSH_f_p))    ALLOCATE(stdev_SSH_f_p(sfields(id%SSH)%dim))
+  IF (.not. ALLOCATED(state_fcst_SSH_p)) ALLOCATE(state_fcst_SSH_p(sfields(id%SSH)%dim, dim_ens))
   
   IF ((step-step_null)==0) THEN
   ! allocate monthly states at initial time; never de-allocated; monthly reset to zero
@@ -246,8 +247,8 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
     IF ((step-step_null)<0) THEN
     ! *** store forecast state fields temporarily to compare with analysis afterwards ***    
       DO member = 1, dim_ens
-        DO i = 1, dim_fields(id% SSH)
-           state_fcst_SSH_p(i,member) = ens_p(i+offset(id% SSH),member)
+        DO i = 1, sfields(id%SSH)%dim
+           state_fcst_SSH_p(i,member) = ens_p(i+sfields(id%SSH)%off, member)
         ENDDO
       ENDDO
     
@@ -258,9 +259,9 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
    count_lim_salt0_p = 0
    
    DO member = 1, dim_ens
-      DO i = 1, dim_fields(id% salt)
-           IF (ens_p(i+ offset(id% salt),member) < 0.0D0) THEN
-               ens_p(i+ offset(id% salt),member) = 0.0D0
+      DO i = 1, sfields(id%salt)%dim
+           IF (ens_p(i+ sfields(id%salt)%off,member) < 0.0D0) THEN
+               ens_p(i+ sfields(id%salt)%off,member) = 0.0D0
                
                count_lim_salt0_p(member) = count_lim_salt0_p(member)+1
            END IF
@@ -276,12 +277,12 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
    count_lim_ssh_p = 0
    
    DO member = 1, dim_ens
-   DO i = 1, dim_fields(id% SSH)
+      DO i = 1, sfields(id%SSH)%dim
        
-       diffm = ens_p(offset(id% SSH)+i,member) - state_fcst_SSH_p(i,member)
+       diffm = ens_p(sfields(id%SSH)%off+i, member) - state_fcst_SSH_p(i, member)
    
        IF (ABS(diffm) > 2.0*stdev_SSH_f_p(i)) THEN
-           ens_p(offset(id% SSH)+i,member) = state_fcst_SSH_p(i,member) + SIGN(2.0*stdev_SSH_f_p(i),diffm)
+           ens_p(sfields(id% SSH)%off+i,member) = state_fcst_SSH_p(i,member) + SIGN(2.0*stdev_SSH_f_p(i),diffm)
            count_lim_ssh_p(member) = count_lim_ssh_p(member)+1
        END IF
        
@@ -298,9 +299,9 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
    count_lim_tempM2_p = 0
    
    DO member = 1, dim_ens
-      DO i = 1, dim_fields(id% temp)
-           IF (ens_p(i+ offset(id% temp),member) < -2.0) THEN
-               ens_p(i+ offset(id% temp),member) = -2.0
+      DO i = 1, sfields(id%temp)%dim
+           IF (ens_p(i+ sfields(id% temp)%off,member) < -2.0) THEN
+               ens_p(i+ sfields(id% temp)%off,member) = -2.0
                
                count_lim_tempM2_p(member) = count_lim_tempM2_p(member)+1
            END IF
@@ -332,29 +333,29 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
            DO f=1,nfields
              ! biogeochemical model tracers
              IF ((sfields(f)%bgc) .and. (sfields(f)% trnumfesom > 0)) THEN
-                ens_p(offset(f)+s,member) = max(tiny,ens_p(offset(f)+s,member))
+                ens_p(sfields(f)%off+s,member) = max(tiny,ens_p(sfields(f)%off+s,member))
              ENDIF
            ENDDO ! f=1,nfields
            
            ! small phytoplankton
-           ens_p(s+ offset(id% PhyN   ),member) = max(tiny_N  ,ens_p(s+ offset(id% PhyN   ),member))
-           ens_p(s+ offset(id% PhyC   ),member) = max(tiny_C  ,ens_p(s+ offset(id% PhyC   ),member))
-           ens_p(s+ offset(id% PhyChl ),member) = max(tiny_chl,ens_p(s+ offset(id% PhyChl ),member))
-           ens_p(s+ offset(id% PhyCalc),member) = max(tiny    ,ens_p(s+ offset(id% PhyCalc),member))
+           ens_p(s+ sfields(id% PhyN   )%off,member) = max(tiny_N  ,ens_p(s+ sfields(id% PhyN   )%off,member))
+           ens_p(s+ sfields(id% PhyC   )%off,member) = max(tiny_C  ,ens_p(s+ sfields(id% PhyC   )%off,member))
+           ens_p(s+ sfields(id% PhyChl )%off,member) = max(tiny_chl,ens_p(s+ sfields(id% PhyChl )%off,member))
+           ens_p(s+ sfields(id% PhyCalc)%off,member) = max(tiny    ,ens_p(s+ sfields(id% PhyCalc)%off,member))
            
            ! diatoms
-           ens_p(s+ offset(id% DiaN   ),member) = max(tiny_N_d,ens_p(s+ offset(id% DiaN   ),member))
-           ens_p(s+ offset(id% DiaC   ),member) = max(tiny_C_d,ens_p(s+ offset(id% DiaC   ),member))
-           ens_p(s+ offset(id% DiaChl ),member) = max(tiny_chl,ens_p(s+ offset(id% DiaChl ),member))
-           ens_p(s+ offset(id% DiaSi  ),member) = max(tiny_Si ,ens_p(s+ offset(id% DiaSi  ),member))
+           ens_p(s+ sfields(id% DiaN   )%off,member) = max(tiny_N_d,ens_p(s+ sfields(id% DiaN   )%off,member))
+           ens_p(s+ sfields(id% DiaC   )%off,member) = max(tiny_C_d,ens_p(s+ sfields(id% DiaC   )%off,member))
+           ens_p(s+ sfields(id% DiaChl )%off,member) = max(tiny_chl,ens_p(s+ sfields(id% DiaChl )%off,member))
+           ens_p(s+ sfields(id% DiaSi  )%off,member) = max(tiny_Si ,ens_p(s+ sfields(id% DiaSi  )%off,member))
            
            ! zooplankton 1
-           ens_p(s+ offset(id% Zo1N   ),member) = max(tiny    ,ens_p(s+ offset(id% Zo1N   ),member))
-           ens_p(s+ offset(id% Zo1C   ),member) = max(tiny_R  ,ens_p(s+ offset(id% Zo1C   ),member))
+           ens_p(s+ sfields(id% Zo1N   )%off,member) = max(tiny    ,ens_p(s+ sfields(id% Zo1N   )%off,member))
+           ens_p(s+ sfields(id% Zo1C   )%off,member) = max(tiny_R  ,ens_p(s+ sfields(id% Zo1C   )%off,member))
            
            ! zooplankton 2
-           ens_p(s+ offset(id% Zo2N   ),member) = max(tiny    ,ens_p(s+ offset(id% Zo2N   ),member))
-           ens_p(s+ offset(id% Zo2C   ),member) = max(tiny_R  ,ens_p(s+ offset(id% Zo2C   ),member))
+           ens_p(s+ sfields(id% Zo2N   )%off,member) = max(tiny    ,ens_p(s+ sfields(id% Zo2N   )%off,member))
+           ens_p(s+ sfields(id% Zo2C   )%off,member) = max(tiny_R  ,ens_p(s+ sfields(id% Zo2C   )%off,member))
 
       ENDDO ! k=1,nlmax
     ENDDO ! i=1,my_Dim_nod2D
@@ -392,9 +393,9 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         .OR. (chl_cci_exclude_ice .and. assim_o_chl_cci )) THEN 
         IF (mype_filter==0) WRITE (*,'(a, 8x,a)') 'FESOM-PDAF', '--- save ensemble mean forecast SEA-ICE for observation exclusion'
         IF (ALLOCATED(mean_ice_p)) DEALLOCATE(mean_ice_p)
-        ALLOCATE (mean_ice_p(dim_fields(id% a_ice)))
-        mean_ice_p = state_p(offset(id% a_ice)+ 1 : &
-                             offset(id% a_ice)+ dim_fields(id% a_ice))
+        ALLOCATE (mean_ice_p(sfields(id%a_ice)%dim))
+        mean_ice_p = state_p(sfields(id%a_ice)%off + 1 : &
+                             sfields(id%a_ice)%off + sfields(id% a_ice)%dim)
      END IF
 
      ! -- SST --
@@ -404,7 +405,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         IF (ALLOCATED(mean_sst_p)) DEALLOCATE(mean_sst_p)
         ALLOCATE (mean_sst_p(myDim_nod2D))
         DO i = 1, myDim_nod2D
-          mean_sst_p(i) = state_p(offset(id% temp) + (i-1) * (nlmax) + 1)
+          mean_sst_p(i) = state_p(sfields(id% temp)%off + (i-1) * (nlmax) + 1)
         END DO
      END IF
      
@@ -415,7 +416,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         IF (ALLOCATED(mean_sss_p)) DEALLOCATE(mean_sss_p)
         ALLOCATE (mean_sss_p(myDim_nod2D))
         DO i = 1, myDim_nod2D
-          mean_sss_p(i) = state_p(offset(id% salt) + (i-1) * (nlmax) + 1)
+          mean_sss_p(i) = state_p(sfields(id% salt)%off + (i-1) * (nlmax) + 1)
         END DO
      END IF
 
@@ -426,7 +427,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         IF (ALLOCATED(mean_sss_cci_p)) DEALLOCATE(mean_sss_cci_p)
         ALLOCATE (mean_sss_cci_p(myDim_nod2D))
         DO i = 1, myDim_nod2D
-          mean_sss_cci_p(i) = state_p(offset(id% salt) + (i-1) * (nlmax) + 1)
+          mean_sss_cci_p(i) = state_p(sfields(id% salt)%off + (i-1) * (nlmax) + 1)
         END DO
      END IF
      
@@ -437,8 +438,8 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         IF (ALLOCATED(mean_chl_cci_p)) DEALLOCATE(mean_chl_cci_p)
         ALLOCATE (mean_chl_cci_p(myDim_nod2D))
         DO i = 1, myDim_nod2D
-          mean_chl_cci_p(i) = state_p(offset(id% PhyChl) + (i-1) * (nlmax) + 1) &
-                            + state_p(offset(id% DiaChl) + (i-1) * (nlmax) + 1)
+          mean_chl_cci_p(i) = state_p(sfields(id% PhyChl)%off + (i-1) * (nlmax) + 1) &
+                            + state_p(sfields(id% DiaChl)%off + (i-1) * (nlmax) + 1)
         END DO
      END IF
      
@@ -450,8 +451,8 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         IF (mype_filter==0) WRITE (*,'(a, 8x,a)') 'FESOM-PDAF', '--- save ensemble mean temperature (3D) for observation exclusion'
         ! Store mean temperature for profile assimilation
         IF (ALLOCATED(mean_temp_p)) DEALLOCATE(mean_temp_p)
-        ALLOCATE (mean_temp_p(dim_fields(id%temp)))
-        mean_temp_p = state_p(offset(id%temp)+1 : offset(id%temp)+dim_fields(id%temp))
+        ALLOCATE (mean_temp_p(sfields(id%temp)%dim))
+        mean_temp_p = state_p(sfields(id%temp)%off+1 : sfields(id%temp)%off+sfields(id%temp)%dim)
      END IF
      
      ! -- oxygen --
@@ -460,8 +461,8 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         .and. assim_o_o2_merged) THEN
         IF (mype_filter==0) WRITE (*,'(a, 8x,a)') 'FESOM-PDAF', '--- save ensemble mean forecast oxygen for observation exclusion'
         IF (ALLOCATED(mean_O2_p)) DEALLOCATE(mean_O2_p)
-        ALLOCATE (mean_O2_p(dim_fields(id%O2)))
-        mean_O2_p = state_p(offset(id%O2)+1 : offset(id%O2)+dim_fields(id%O2))
+        ALLOCATE (mean_O2_p(sfields(id%O2)%dim))
+        mean_O2_p = state_p(sfields(id%O2)%off+1 : sfields(id%O2)%off+sfields(id%O2)%dim)
      END IF
      
      ! -- nitrate --
@@ -470,8 +471,8 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         .and. assim_o_n_merged) THEN
         IF (mype_filter==0) WRITE (*,'(a, 8x,a)') 'FESOM-PDAF', '--- save ensemble mean forecast DIN for observation exclusion'
         IF (ALLOCATED(mean_n_p)) DEALLOCATE(mean_n_p)
-        ALLOCATE (mean_n_p(dim_fields(id%DIN)))
-        mean_n_p = state_p(offset(id%DIN)+1 : offset(id%DIN)+dim_fields(id%DIN))
+        ALLOCATE (mean_n_p(sfields(id%DIN)%dim))
+        mean_n_p = state_p(sfields(id%DIN)%off+1 : sfields(id%DIN)%off+sfields(id%DIN)%dim)
      END IF
 
   END IF ! forecast phase
@@ -495,23 +496,23 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
       DO k = 1, nlmax
       s = (i-1) * (nlmax) + k ! index in state vector
       ! DIC
-      cffields(id_s_asml_dic)% fconc (k, i) = state_p(s + offset(id% DIC))
+      cffields(id_s_asml_dic)% fconc (k, i) = state_p(s + sfields(id% DIC)%off)
       ! Alk
-      cffields(id_s_asml_alk)% fconc (k, i) = state_p(s + offset(id% Alk))
+      cffields(id_s_asml_alk)% fconc (k, i) = state_p(s + sfields(id% Alk)%off)
       ! Living carbon biomass
       cffields(id_s_asml_livingmatter)% fconc (k, i) = &
-                               (state_p(s + offset(id% PhyC)) &
-                              + state_p(s + offset(id% DiaC)) &
-                              + state_p(s + offset(id% Zo1C)) &
-                              + state_p(s + offset(id% Zo2C)) &
-                              + state_p(s + offset(id% PhyCalc)))
+                               (state_p(s + sfields(id% PhyC)%off) &
+                              + state_p(s + sfields(id% DiaC)%off) &
+                              + state_p(s + sfields(id% Zo1C)%off) &
+                              + state_p(s + sfields(id% Zo2C)%off) &
+                              + state_p(s + sfields(id% PhyCalc)%off))
       ! Dead organic carbon
       cffields(id_s_asml_deadmatter)% fconc (k, i) = &
-                               (state_p(s + offset(id% DOC))     &
-                              + state_p(s + offset(id% DetC))    &
-                              + state_p(s + offset(id% DetCalc)) &
-                              + state_p(s + offset(id% Det2C))   &
-                              + state_p(s + offset(id% Det2Calc)))
+                               (state_p(s + sfields(id% DOC)%off)     &
+                              + state_p(s + sfields(id% DetC)%off)    &
+                              + state_p(s + sfields(id% DetCalc)%off) &
+                              + state_p(s + sfields(id% Det2C)%off)   &
+                              + state_p(s + sfields(id% Det2Calc)%off))
       ENDDO ! k=1,nlmax
     ENDDO ! i=1,my_Dim_nod2D
     
@@ -535,23 +536,23 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
       DO k = 1, nlmax
       s = (i-1) * (nlmax) + k ! index in state vector
       ! DIC
-      cffields(id_s_asml_dic)% aconc (k, i) = state_p(s + offset(id% DIC))
+      cffields(id_s_asml_dic)% aconc (k, i) = state_p(s + sfields(id% DIC)%off)
       ! Alk
-      cffields(id_s_asml_alk)% aconc (k, i) = state_p(s + offset(id% Alk))
+      cffields(id_s_asml_alk)% aconc (k, i) = state_p(s + sfields(id% Alk)%off)
       ! Living carbon biomass
       cffields(id_s_asml_livingmatter)% aconc (k, i) = &
-                               (state_p(s + offset(id% PhyC)) &
-                              + state_p(s + offset(id% DiaC)) &
-                              + state_p(s + offset(id% Zo1C)) &
-                              + state_p(s + offset(id% Zo2C)) &
-                              + state_p(s + offset(id% PhyCalc)))
+                               (state_p(s + sfields(id% PhyC)%off) &
+                              + state_p(s + sfields(id% DiaC)%off) &
+                              + state_p(s + sfields(id% Zo1C)%off) &
+                              + state_p(s + sfields(id% Zo2C)%off) &
+                              + state_p(s + sfields(id% PhyCalc)%off))
       ! Dead organic carbon
       cffields(id_s_asml_deadmatter)% aconc (k, i) = &
-                               (state_p(s + offset(id% DOC))     &
-                              + state_p(s + offset(id% DetC))    &
-                              + state_p(s + offset(id% DetCalc)) &
-                              + state_p(s + offset(id% Det2C))   &
-                              + state_p(s + offset(id% Det2Calc)))
+                               (state_p(s + sfields(id% DOC)%off)     &
+                              + state_p(s + sfields(id% DetC)%off)    &
+                              + state_p(s + sfields(id% DetCalc)%off) &
+                              + state_p(s + sfields(id% Det2C)%off)   &
+                              + state_p(s + sfields(id% Det2Calc)%off))
       ENDDO ! k=1,nlmax
     ENDDO ! i=1,my_Dim_nod2D
     
@@ -603,7 +604,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   
   ! if forecast: STD of SSH is saved and used for corrections at next analysis step
   IF ((step-step_null) < 0) then
-     stdev_SSH_f_p = stdev_p( offset(id%SSH)+1 : offset(id%SSH)+dim_fields(id%SSH) )
+     stdev_SSH_f_p = stdev_p( sfields(id%SSH)%off+1 : sfields(id%SSH)%off+sfields(id%SSH)%dim )
   endif
   
   ! -----------------------------------------------------------------------------------------------------
@@ -621,12 +622,12 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
            ! 3D fields
              DO nz=1,nlmax
                 stdev_surf_p(f,nz) =  stdev_surf_p(f,nz) &
-                                   +  mesh_fesom%areasvol(nz,n) * stdev_p( offset(f) + (n-1)*(nlmax) + nz )
+                                   +  mesh_fesom%areasvol(nz,n) * stdev_p( sfields(f)%off + (n-1)*(nlmax) + nz )
              ENDDO ! nz,nlmax
            ELSE
            ! surface fields
              stdev_surf_p(f,1) =  stdev_surf_p(f,1) &
-                               +  mesh_fesom%areasvol(1, n) * stdev_p( offset(f) + n)
+                               +  mesh_fesom%areasvol(1, n) * stdev_p( sfields(f)%off + n)
            ENDIF
      ENDDO ! n, myDim_nod2D
   ENDDO ! f, nfields
@@ -653,7 +654,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
            ! 3D fields
              DO nz=1,nlmax
                 stdev_volo_p(f) =  stdev_volo_p(f) &
-                                +  cellvol(nz,n) * stdev_p( offset(f) + (n-1)*(nlmax) + nz )
+                                +  cellvol(nz,n) * stdev_p( sfields(f)%off + (n-1)*(nlmax) + nz )
              ENDDO ! nz,nlmax
            ENDIF
      ENDDO ! n,myDim_nod2D

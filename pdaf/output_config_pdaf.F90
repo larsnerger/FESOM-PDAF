@@ -1,4 +1,4 @@
-MODULE output_config
+MODULE output_config_pdaf
 
 ! USES:
 
@@ -30,7 +30,9 @@ CONTAINS
 
     USE mod_assim_pdaf, &
          ONLY: assimilateBGC, assimilatePHY, &
-         cda_phy, cda_bio, nlmax, mydim_nod2d
+         cda_phy, cda_bio 
+    USE fesom_pdaf, &
+         ONLY: nlmax, mydim_nod2d
     USE statevector_pdaf, &
          only: id, sfields, nfields, &
          phymin, phymax, bgcmin, bgcmax
@@ -337,6 +339,8 @@ CONTAINS
     ! output message
     IF (mype_world==0) THEN
 
+       WRITE (*,'(/a,2x,a)') 'FESOM-PDAF', '*** Configuration of file output ***'
+
        DO s=1, nfields
           outputmessage(aa,1) = 'Analysis'
           outputmessage(ff,1) = 'Forecast'
@@ -380,4 +384,4 @@ CONTAINS
 
   END SUBROUTINE configure_output
   
-END MODULE output_config
+END MODULE output_config_pdaf

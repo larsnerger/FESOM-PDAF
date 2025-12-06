@@ -3,11 +3,13 @@
 ! 2020-04 - Longjiang Mu - Initial commit for AWI-CM3
 
 SUBROUTINE ignore_nod_pdaf()
+
   USE mod_parallel_pdaf, ONLY: mype_filter
-  USE mod_assim_pdaf, & 
-      ONLY: depth_excl, depth_excl_no, mesh_fesom
-  USE g_PARSUP, &
-      ONLY: myDim_nod2D, MPI_COMM_FESOM, myList_edge2D, myDim_edge2D, myDim_elem2D
+  USE mod_assim_pdaf, &
+       ONLY: depth_excl, depth_excl_no
+  USE fesom_pdaf, &
+      ONLY: myDim_nod2D, myList_edge2D, myDim_edge2D, myDim_elem2D, &
+       mesh_fesom
 
   INTEGER :: i, j, el, ed, elnodes(3) ! Counter
   CHARACTER(4) :: mype_string

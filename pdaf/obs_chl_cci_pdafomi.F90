@@ -183,10 +183,12 @@ CONTAINS
     USE PDAF, &
          ONLY: PDAFomi_gather_obs
     USE mod_assim_pdaf, &
-         ONLY: offset, twin_experiment, use_global_obs, mesh_fesom, &
-         cradius, sradius, nlmax, delt_obs_ocn
+         ONLY: twin_experiment, use_global_obs, delt_obs_ocn, &
+         cradius, sradius
+    USE fesom_pdaf, &
+         only: mesh_fesom, nlmax
     USE statevector_pdaf, &
-         ONLY: id
+         ONLY: id, sfields
     USE mod_parallel_pdaf, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
@@ -463,11 +465,11 @@ CONTAINS
 			  ! index for state vector
 			  ! row 1: DiaChl
 			  thisobs%id_obs_p(1, i_obs) = &
-			  (i-1) * (nlmax) + 1 + offset(id% DiaChl)
+			  (i-1) * (nlmax) + 1 + sfields(id% DiaChl)%off
 			  
 			  ! row 2: PhyChl
 			  thisobs%id_obs_p(2, i_obs) = &
-			  (i-1) * (nlmax) + 1 + offset(id% PhyChl)
+			  (i-1) * (nlmax) + 1 + sfields(id% PhyChl)%off
 			  
 			  ! index for all_obs_p and surface nod2d vector, respectively. 
 			  obs_include_index(i_obs) = i
@@ -553,8 +555,8 @@ CONTAINS
        ivariance_obs_p=1E-12
        ocoord_n2d_p(1,1)=1.57
        ocoord_n2d_p(2,1)=0.0
-       thisobs%id_obs_p(1,1)=offset(id% PhyChl)+1
-       thisobs%id_obs_p(2,1)=offset(id% DiaChl)+1
+       thisobs%id_obs_p(1,1)=sfields(id% PhyChl)%off + 1
+       thisobs%id_obs_p(2,1)=sfields(id% DiaChl)%off + 1
        dim_obs_p=1
     ENDIF
 

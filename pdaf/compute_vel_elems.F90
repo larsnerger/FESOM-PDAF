@@ -2,11 +2,9 @@ subroutine compute_vel_elems(Unode,UV)
 
     ! USE o_ARRAYS, &
     !  ONLY: UV, Unode
-    USE g_PARSUP, &
-       ONLY: myDim_elem2D, eDim_elem2D, &
+    USE fesom_pdaf, &
+       ONLY: mesh_fesom, myDim_elem2D, eDim_elem2D, &
              myDim_nod2D, eDim_nod2D
-    USE mod_assim_pdaf, &
-       ONLY: mesh_fesom
     USE g_comm_auto                    ! contains: interface exchange_nod()
 
     IMPLICIT NONE
