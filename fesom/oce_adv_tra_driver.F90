@@ -54,7 +54,7 @@ subroutine do_oce_adv_tra(ttf, ttfAB, vel, w, wi, we, do_Xmoment, dttf_h, dttf_v
     use oce_tra_adv_flux2dtracer_interface
 #ifdef use_PDAF
     use mod_carbon_fluxes_diags
-    use mod_assim_pdaf, only: nlmax
+    use fesom_pdaf, only: nlmax
     use mod_parallel_pdaf, only: writepe
 #endif
     implicit none
@@ -293,7 +293,7 @@ subroutine oce_tra_adv_flux2dtracer(dttf_h, dttf_v, flux_h, flux_v, mesh, tr_num
     use g_comm_auto
 #ifdef use_PDAF
     use mod_carbon_fluxes_diags
-    use mod_assim_pdaf, only: nlmax
+    use fesom_pdaf, only: nlmax
     use mod_parallel_pdaf, only: writepe
 #endif
     implicit none

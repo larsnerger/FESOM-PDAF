@@ -2547,7 +2547,7 @@ subroutine oce_timestep_ale(n, mesh)
     use oce_ale_interfaces
 #ifdef use_PDAF
     use mod_carbon_fluxes_diags
-    use mod_assim_pdaf, ONLY: nlmax
+    use fesom_pdaf, ONLY: nlmax
 #endif
     
     IMPLICIT NONE

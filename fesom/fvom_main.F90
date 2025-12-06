@@ -41,8 +41,8 @@ use cpl_driver
 #endif
 
 #ifdef use_PDAF
- use timer, only: timeit, time_tot
- use mod_assim_pdaf, only: mesh_fesom
+! use timer, only: timeit
+! use fesom_pdaf, only: mesh_fesom
  use mod_carbon_fluxes_diags, only: carbonfluxes_diags_output_timemean
 #endif
 
@@ -81,17 +81,7 @@ type(t_mesh),   save,  target  :: mesh
 #endif
     t1 = MPI_Wtime()
 
-#ifdef use_PDAF
-    call init_parallel_pdaf(0, 1)
-#else
     call par_init
-#endif 
-    
-#ifdef use_PDAF
-    call timeit(7, 'ini')
-    call timeit(1, 'new')
-    call timeit(2, 'new')
-#endif
  
     if(mype==0) then
         write(*,*)
@@ -108,9 +98,9 @@ type(t_mesh),   save,  target  :: mesh
     call clock_init           ! read the clock file 
     call get_run_steps(nsteps)
     call mesh_setup(mesh)
-#ifdef use_PDAF
-    mesh_fesom => mesh
-#endif
+! #ifdef use_PDAF
+!     mesh_fesom => mesh
+! #endif
 
     if (mype==0) write(*,*) 'FESOM mesh_setup... complete'
     
@@ -215,12 +205,12 @@ type(t_mesh),   save,  target  :: mesh
     rtime_read_forcing  = 0._WP
     
 #ifdef use_PDAF
-    call timeit(2, 'old')
-    call timeit(3, 'new')
-    call compute_vel_nodes(mesh)
-    CALL init_PDAF(nsteps)
-    call timeit(3, 'old')
-    call timeit(4, 'new')
+!    call timeit(2, 'old')
+!    call timeit(3, 'new')
+!    call compute_vel_nodes(mesh)
+    CALL init_PDAF(nsteps, mesh)
+!    call timeit(3, 'old')
+!    call timeit(4, 'new')
 #endif
 
     if (mype==0) write(*,*) 'FESOM start iteration before the barrier...'
@@ -305,9 +295,9 @@ type(t_mesh),   save,  target  :: mesh
         t3 = MPI_Wtime()
         
 #ifdef use_PDAF
-        CALL timeit(7, 'new')
+!        CALL timeit(7, 'new')
         CALL assimilate_PDAF(mstep) ! mstep: starting at 1 at each model (re)start
-        CALL timeit(7, 'old')
+!        CALL timeit(7, 'old')
         t4b = MPI_Wtime()
         CALL carbonfluxes_diags_output_timemean(mstep)
 #endif
@@ -346,10 +336,10 @@ type(t_mesh),   save,  target  :: mesh
 
     end do
     
-#ifdef use_PDAF
-    CALL timeit(4, 'old')
-    CALL timeit(5, 'new')
-#endif
+!#ifdef use_PDAF
+!    CALL timeit(4, 'old')
+!    CALL timeit(5, 'new')
+!#endif
     
     call finalize_output()
     
@@ -409,6 +399,10 @@ type(t_mesh),   save,  target  :: mesh
         write(*,*) '============================================'
         write(*,*)
     end if    
+#ifdef use_PDAF
+!    CALL timeit(5, 'old')
+    CALL finalize_pdaf()
+#endif
 !   call clock_finish  
     call par_ex
 end program main

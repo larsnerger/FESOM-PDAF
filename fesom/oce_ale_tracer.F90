@@ -148,7 +148,7 @@ subroutine solve_tracers_ale(mesh)
     use g_support, only: integrate_nod
 #ifdef use_PDAF
     use mod_carbon_fluxes_diags
-    use mod_assim_pdaf, only: nlmax, mesh_fesom
+    use fesom_pdaf, only: nlmax, mesh_fesom
     use mod_parallel_pdaf, only: writepe
     use g_clock, only: daynew
 #endif
@@ -568,7 +568,7 @@ use g_support
 #endif
 #ifdef use_PDAF
     use mod_carbon_fluxes_diags
-    use mod_assim_pdaf, only: nlmax
+    use fesom_pdaf, only: nlmax
     use g_config, only: dt
     use mod_parallel_pdaf, only: writepe
 #endif
@@ -925,7 +925,7 @@ subroutine diff_ver_part_impl_ale(tr_num, mesh)
     use g_comm_auto, ONLY: gather_nod 
 #ifdef use_PDAF
     use mod_carbon_fluxes_diags
-    use mod_assim_pdaf, only: nlmax,mesh_fesom
+    use fesom_pdaf, only: nlmax, mesh_fesom
     use mod_parallel_pdaf, only: writepe
 #endif
 
@@ -1655,7 +1655,7 @@ subroutine diff_ver_part_redi_expl(mesh,tr_num)
     use g_comm_auto
 #ifdef use_PDAF
     use mod_carbon_fluxes_diags
-    use mod_assim_pdaf, only: nlmax
+    use fesom_pdaf, only: nlmax
     use mod_parallel_pdaf, only: writepe
 #endif
     IMPLICIT NONE
@@ -1777,7 +1777,7 @@ subroutine diff_part_hor_redi(mesh,tr_num)
     use g_comm_auto
 #ifdef use_PDAF
         use mod_carbon_fluxes_diags
-        use mod_assim_pdaf, only: nlmax
+        use fesom_pdaf, only: nlmax
 #endif
     IMPLICIT NONE
     type(t_mesh), intent(in) , target :: mesh

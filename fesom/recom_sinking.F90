@@ -23,7 +23,7 @@ subroutine recom_sinking_new(tr_num,mesh)
   use g_support
 #ifdef use_PDAF
   use mod_carbon_fluxes_diags
-  use mod_assim_pdaf, only: nlmax
+  use fesom_pdaf, only: nlmax
   use mod_parallel_pdaf, only: mype_filter, abort_parallel
 #endif
   
