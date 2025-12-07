@@ -2545,23 +2545,12 @@ subroutine oce_timestep_ale(n, mesh)
     use g_cvmix_tidal
     use Toy_Channel_Soufflet
     use oce_ale_interfaces
-#ifdef use_PDAF
-    use mod_carbon_fluxes_diags
-    use fesom_pdaf, ONLY: nlmax
-#endif
     
     IMPLICIT NONE
     real(kind=8)      :: t0,t1, t2, t30, t3, t4, t5, t6, t7, t8, t9, t10, loc, glo
     integer           :: n, node
     type(t_mesh), intent(in) , target :: mesh
     
-!~ #ifdef use_PDAF
-!~     ! mod_carbon_fluxes_diags
-!~     real, allocatable :: wlayers(:,:)
-!~     integer, allocatable :: tracerlist(:)
-!~     integer :: trcounter
-!~ #endif
-
 #include "associate_mesh.h"
 
     t0=MPI_Wtime()

@@ -63,20 +63,7 @@ subroutine update_atm_forcing(istep, mesh)
   use force_flux_consv_interface
   
 #ifdef use_PDAF
-! For use with PDAF:
-! Adding stochastic variability to an ensemble of atmospheric forcing fields.
-USE mod_parallel_pdaf, &
-     ONLY: mype_model, mype_world
-USE mod_atmos_ens_stochasticity, &
-     ONLY: init_atmos_ens_stochasticity, add_atmos_ens_stochasticity, &
-           init_atmos_stochasticity_output, write_atmos_stochasticity_output, &
-           disturb_xwind, disturb_ywind, disturb_humi, &
-           disturb_qlw, disturb_qsr, disturb_tair, &
-           disturb_prec, disturb_snow, disturb_mslp, &
-           atmos_stochasticity_ON, write_atmos_st
-USE mod_assim_pdaf, &
-     ONLY: step_null, this_is_pdaf_restart, &
-           start_from_ENS_spinup
+  use mod_atmos_ens_stochasticity, only: atmos_ens_stochasticity
 #endif
 
   implicit none
@@ -95,12 +82,6 @@ USE mod_assim_pdaf, &
   logical                                          :: do_rotate_ice_wind=.false.
   INTEGER                                          :: my_global_rank, ierror
   INTEGER 					   :: status(MPI_STATUS_SIZE)
-#endif
-
-#ifdef use_PDAF
-CHARACTER(len=4)        :: mype_string
-CHARACTER(len=4)        :: istep_string
-INTEGER                 :: atmstoch_fileid
 #endif
 
   !character(15)                         :: vari, filevari
@@ -275,17 +256,9 @@ INTEGER                 :: atmstoch_fileid
 #else
   call sbc_do(mesh)
 
-! ****************************************************************************
-! *** For use with PDAF:                                                   ***
-! *** Adding stochastic variability to an ensemble of atmospheric forcings *** 
-! **************************************************************************** 
 #ifdef use_PDAF
-IF (atmos_stochasticity_ON) THEN
-
-call add_atmos_ens_stochasticity(istep)                          ! passing FESOM's istep (0 at each restart)
-IF (write_atmos_st) call write_atmos_stochasticity_output(istep) ! (to-do: not tested for starts in the middle of year)
-
-ENDIF ! atmos_stochasticity_ON
+! *** Add stochastic variability to an ensemble of atmospheric forcings *** 
+  call atmos_ens_stochasticity(istep)
 #endif
   
   u_wind    = atmdata(i_xwind,:)

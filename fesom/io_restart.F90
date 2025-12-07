@@ -15,7 +15,7 @@ MODULE io_RESTART
   use REcoM_ciso
 #endif
 #ifdef use_PDAF
-  use mod_atmos_ens_stochasticity, only: write_atmos_stochasticity_restart, atmos_stochasticity_ON
+  use mod_atmos_ens_stochasticity, only: write_atmos_stoch_restart
 #endif                                                                                         
 
   implicit none
@@ -362,7 +362,7 @@ if(mype==0)  write(*,*) 'REcoM_restart= ',REcoM_restart
    end if
 #endif
 #ifdef use_PDAF
-   IF (atmos_stochasticity_ON) CALL write_atmos_stochasticity_restart()
+   call write_atmos_stoch_restart()
 #endif
 
   ! actualize clock file to latest restart point

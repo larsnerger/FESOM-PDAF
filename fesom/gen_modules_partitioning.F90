@@ -82,6 +82,9 @@ save
 contains
 subroutine par_init    ! initializes MPI
 
+#ifdef use_PDAF
+  use mod_parallel_pdaf
+#endif
   implicit none
 
   integer :: i
@@ -98,7 +101,8 @@ subroutine par_init    ! initializes MPI
 #endif  
 
 #ifdef use_PDAF
-  call init_parallel_pdaf(0, 1)
+  ! Call routine for ensemble parallelization
+  call init_parallel_pdaf(MPI_COMM_FESOM,mype,npes)
 #endif
 
   if(mype==0) then
