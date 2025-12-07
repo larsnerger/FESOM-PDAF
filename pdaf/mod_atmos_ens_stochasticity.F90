@@ -8,7 +8,7 @@ MODULE mod_atmos_ens_stochasticity
 ! --- add_atmos_ens_stochasticity(istep)
 ! --- init_atmos_stochasticity_output()
 ! --- write_atmos_stochasticity_output(istep)
-! --- write_atmos_stochasticity_restart
+! --- write_atmos_stoch_restart
 ! --- read_atmos_stochasticity_restart()
 ! --- compute_ipsr()
 
@@ -316,6 +316,24 @@ endif ! (dim_ens<=1)
 
 END SUBROUTINE
 
+
+! **************************************
+! *** Driver to apply stochasticity  ***
+! **************************************
+
+SUBROUTINE atmos_ens_stochasticity(istep)
+
+  implicit none
+
+  ! Arguments:
+  INTEGER, INTENT(in)    :: istep          ! FESOM's istep (0 at each restart; first called at istep=0)
+
+  IF (atmos_stochasticity_ON) THEN
+     call add_atmos_ens_stochasticity(istep)                          ! passing FESOM's istep (0 at each restart)
+     IF (write_atmos_st) call write_atmos_stochasticity_output(istep) ! (to-do: not tested for starts in the middle of year)
+  ENDIF ! atmos_stochasticity_ON
+
+END SUBROUTINE atmos_ens_stochasticity
 
 
 
@@ -891,13 +909,13 @@ ENDIF ! (dim_ens<=1)
 END SUBROUTINE
 
 
-! *****************************************
-! *****************************************
-! *** write_atmos_stochasticity_restart ***
-! *****************************************
-! *****************************************
+! *********************************
+! *********************************
+! *** write_atmos_stoch_restart ***
+! *********************************
+! *********************************
 
-SUBROUTINE write_atmos_stochasticity_restart()
+SUBROUTINE write_atmos_stoch_restart()
 
     USE g_config, &
          ONLY: runid, ResultPath
@@ -928,6 +946,8 @@ SUBROUTINE write_atmos_stochasticity_restart()
     INTEGER :: varID_restart_snow 
     INTEGER :: varID_restart_mslp
     INTEGER :: varID_restart_rmse, varID_restart_forget
+
+  is_on: IF (atmos_stochasticity_ON) THEN
 
 IF (dim_ens<=1) THEN
   IF ((mype_world==0)) WRITE (*,'(a,8x,a)') 'FESOM-PDAF','Ensemble size 1: No atmospheric perturbation written to restart.'
@@ -1016,7 +1036,9 @@ stat(1) = NF_CLOSE(fileid)
   END IF
 
 ENDIF ! (dim_ens<=1)
-END SUBROUTINE
+
+END IF is_on
+END SUBROUTINE write_atmos_stoch_restart
 
 ! ****************************************
 ! ****************************************

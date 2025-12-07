@@ -3,41 +3,46 @@
 !! The routine prints timing and memory information
 !! and deallocates PDAF internal arrays.
 !!
-subroutine finalize_pdaf()
+module finalize_pdaf_mod
 
-  use mpi
-  use PDAF, &
-       only: PDAF_print_info, PDAF_deallocate
-  use mod_parallel_pdaf, &
-       only: mype_ens, npes_ens, comm_ensemble, mpierr
-  use timer, &
-       only: timeit, time_tot
+contains
+  subroutine finalize_pdaf()
 
-  call timeit(5, 'old')
-  call timeit(1, 'old')
+    use mpi
+    use PDAF, &
+         only: PDAF_print_info, PDAF_deallocate
+    use mod_parallel_pdaf, &
+         only: mype_ens, npes_ens, comm_ensemble, mpierr
+    use timer, &
+         only: timeit, time_tot
 
-! Show allocated memory for PDAF
-  if (mype_ens==0) call PDAF_print_info(10)
-  if (npes_ens>1) call PDAF_print_info(11)
+    call timeit(5, 'old')
+    call timeit(1, 'old')
 
-  ! Print PDAF timings onto screen
-  if (mype_ens==0) call PDAF_print_info(3)
+    ! Show allocated memory for PDAF
+    if (mype_ens==0) call PDAF_print_info(10)
+    if (npes_ens>1) call PDAF_print_info(11)
 
-  ! Deallocate PDAF arrays
-  call PDAF_deallocate()
+    ! Print PDAF timings onto screen
+    if (mype_ens==0) call PDAF_print_info(3)
 
-  if (mype_ens==0) then
-     write (*, '(/a,10x,a)') 'NEMO-PDAF', 'Model-sided timing overview'
-     write (*, '(a,2x,a)') 'NEMO-PDAF', '-----------------------------------'
-     write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'initialize MPI:  ', time_tot(2), 's'
-     write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'initialize model:', time_tot(3), 's'
-     write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'initialize PDAF :', time_tot(4), 's'
-     write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'main part:       ', time_tot(5), 's'
-     write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'PDAF analysis:    ', time_tot(6), 's'
-     write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'means in assimilate_pdaf:    ', time_tot(7), 's'
-     write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'total:         ', time_tot(1), 's'
-  end if
+    ! Deallocate PDAF arrays
+    call PDAF_deallocate()
 
-  call mpi_barrier(comm_ensemble, mpierr)
+    if (mype_ens==0) then
+       write (*, '(/a,10x,a)') 'NEMO-PDAF', 'Model-sided timing overview'
+       write (*, '(a,2x,a)') 'NEMO-PDAF', '-----------------------------------'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'initialize MPI:  ', time_tot(2), 's'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'initialize model:', time_tot(3), 's'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'initialize PDAF :', time_tot(4), 's'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'main part:       ', time_tot(5), 's'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'PDAF analysis:    ', time_tot(6), 's'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'means in assimilate_pdaf:    ', time_tot(7), 's'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'total:         ', time_tot(1), 's'
+    end if
 
-end subroutine finalize_pdaf
+    call mpi_barrier(comm_ensemble, mpierr)
+
+  end subroutine finalize_pdaf
+
+end module finalize_pdaf_mod
