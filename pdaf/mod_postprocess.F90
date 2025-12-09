@@ -1,12 +1,13 @@
 MODULE mod_postprocess
 
-use mod_assim_pdaf, &
+  use mpi
+use assim_pdaf_mod, &
     only: dim_state_p, DAoutput_path
 USE fesom_pdaf, &
      ONLY: nlmax, mesh_fesom 
 USE statevector_pdaf, &
      only: id, sfields
-use mod_parallel_pdaf, &
+use parallel_pdaf_mod, &
     only: writepe, COMM_filter, MPIerr, mype_filter
 use mod_nc_out_routines, &
     only: check
@@ -37,8 +38,6 @@ use netcdf
 
 IMPLICIT NONE
 SAVE
-
-include 'mpif.h'
 
 ! postprocessing settings
 logical :: isPP = .false.                   ! .true. - run postprocessing code instead of model simulation
@@ -1367,7 +1366,7 @@ SUBROUTINE write_ncfile(fid,self_offset_day,self_thisobs,self_thisobsPP, &
 
    USE recom_config,   ONLY: SecondsPerDay
    USE PDAF   ,        ONLY: obs_f          ! Type variable for thisobs
-   USE mod_assim_pdaf, ONLY: obs_PP         ! Type variable for thisobs_PP
+   USE assim_pdaf_mod, ONLY: obs_PP         ! Type variable for thisobs_PP
 
    integer, intent(in) :: fid               ! file ID
    integer, intent(in) :: self_offset_day   ! write position for observations

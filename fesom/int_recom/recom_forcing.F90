@@ -25,7 +25,7 @@ subroutine REcoM_Forcing(zNodes, n, Nn, state, SurfSW, Loc_slp, Temp, Sali, PAR,
   use g_comm
   use g_support
 #ifdef use_PDAF
-    use mod_parallel_pdaf, only: abort_parallel
+    use parallel_pdaf_mod, only: abort_parallel
 #endif
   Implicit none
   type(t_mesh), intent(in) , target         :: mesh

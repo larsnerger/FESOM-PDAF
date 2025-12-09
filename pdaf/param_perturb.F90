@@ -46,7 +46,7 @@ end subroutine perturb_lognormal
 
 subroutine do_perturb_param_bio()
 
-        USE mod_parallel_pdaf, &
+        USE parallel_pdaf_mod, &
             ONLY: mype_model, task_id
         USE recom_config, &
             ONLY: alfa, alfa_d, P_cm, P_cm_d, Chl2N_max, Chl2N_max_d, &
@@ -396,7 +396,7 @@ end subroutine do_perturb_param_bio
 
 subroutine do_perturb_param_phy()
 
-        USE mod_parallel_pdaf, &
+        USE parallel_pdaf_mod, &
             ONLY: mype_model, task_id
        USE o_param, &
             ONLY: K_ver

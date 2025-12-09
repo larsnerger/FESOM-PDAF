@@ -18,9 +18,9 @@
 !!
 SUBROUTINE init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
 
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ONLY: id_lstate_in_pstate, coords_l, isweep
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: abort_parallel
   USE fesom_pdaf, &
        ONLY: mesh_fesom, nlmax, r2g

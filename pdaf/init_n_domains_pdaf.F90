@@ -20,11 +20,11 @@ SUBROUTINE init_n_domains_pdaf(step, n_domains_p)
   USE g_parsup, &
       ONLY: myDim_nod2D, &      ! Process-local number of vertices
             myDim_elem2D        ! Process-local number of elements
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
       ONLY: mype_filter
 !   USE PDAFomi, &
 !       ONLY: PDAFomi_set_debug_flag
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
       ONLY: n_sweeps
 
   IMPLICIT NONE

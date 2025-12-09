@@ -13,9 +13,9 @@ SUBROUTINE init_dim_obs_f_proffile_pdaf(startyr, endyr)
    ! 2022-05 - Frauke B     - Adapted for FESOM2.1
    !
    ! !USES:
-   USE mod_parallel_pdaf, &
+   USE parallel_pdaf_mod, &
       ONLY: mype_filter, COMM_filter, abort_parallel
-   USE mod_assim_pdaf, &
+   USE assim_pdaf_mod, &
       ONLY: path_obs_rawprof, file_rawprof_prefix,  &
             file_rawprof_suffix, &
             num_day_in_month

@@ -16,8 +16,8 @@
 !!
 SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
 
-  USE mod_parallel_pdaf, ONLY: mype_model, task_id
-  USE mod_assim_pdaf, ONLY: delt_obs_ocn, step_null, assim_time
+  USE parallel_pdaf_mod, ONLY: mype_model, task_id
+  USE assim_pdaf_mod, ONLY: delt_obs_ocn, step_null, assim_time
   USE recom_config, ONLY: secondsperday
 
   IMPLICIT NONE

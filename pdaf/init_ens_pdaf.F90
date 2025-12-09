@@ -6,12 +6,12 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! 2022-02 - Frauke B     - Adapted for FESOM2.1
 
 ! !USES:
+  use mpi
   USE PDAF, &
        ONLY: PDAF_seik_omega
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ONLY: file_init, path_init, read_inistate, file_inistate, varscale, &
-       ASIM_START_USE_CLIM_STATE, this_is_pdaf_restart, &
-       start_from_ENS_spinup, &
+       this_is_pdaf_restart, start_from_ENS_spinup, &
        perturb_ssh, perturb_u, &
        perturb_v, perturb_temp, perturb_salt, &
        perturb_DIC, perturb_Alk, perturb_DIN, perturb_O2, &
@@ -20,7 +20,7 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
        ONLY: mesh_fesom, nlmax, topography_p
   USE statevector_pdaf, &
        ONLY: id, sfields
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_filter, COMM_filter, abort_parallel, mype_world
   USE g_PARSUP, &
        ONLY: MPIerr, edim_nod2d, mydim_nod2d
@@ -35,7 +35,6 @@ SUBROUTINE init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
   IMPLICIT NONE
 
   INCLUDE 'netcdf.inc'
-  INCLUDE 'mpif.h'
 
 ! !ARGUMENTS:
   INTEGER, INTENT(in) :: filtertype                ! Type of filter to initialize

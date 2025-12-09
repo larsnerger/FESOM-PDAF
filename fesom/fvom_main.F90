@@ -44,7 +44,7 @@ use cpl_driver
   use init_pdaf_mod, only: init_pdaf
   use assimilate_pdaf_mod, only: assimilate_pdaf
   use finalize_pdaf_mod, only: finalize_pdaf
-  use mod_carbon_fluxes_diags, only: carbonfluxes_diags_output_timemean
+  use cfluxes_diags_pdaf, only: cfluxes_diags_output_tmean
 #endif
 
 IMPLICIT NONE
@@ -290,7 +290,7 @@ type(t_mesh),   save,  target  :: mesh
 #ifdef use_PDAF
         CALL assimilate_PDAF(mstep) ! mstep: starting at 1 at each model (re)start
         t4b = MPI_Wtime()
-        CALL carbonfluxes_diags_output_timemean(mstep)
+        CALL cfluxes_diags_output_tmean(mstep)
 #endif
 
 #if defined (__recom)

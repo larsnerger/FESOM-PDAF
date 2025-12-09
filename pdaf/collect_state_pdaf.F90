@@ -19,7 +19,7 @@
 !!
 SUBROUTINE collect_state_pdaf(dim_p, state_p)
 
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_world
   USE statevector_pdaf, &
        ONLY: id, sfields, nfields !, ids_tr3D, nfields_tr3D

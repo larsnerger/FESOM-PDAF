@@ -17,10 +17,10 @@ MODULE mod_atmos_ens_stochasticity
 ! in namelist.fesom.pdaf.
 
 
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_filter, mype_model, mype_world, &
              COMM_filter, filterpe, task_id, COMM_model
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ! dimensions:
        ONLY: dim_ens, dim_state_p, &
        ! netCDF file:
@@ -347,7 +347,7 @@ SUBROUTINE add_atmos_ens_stochasticity(istep)
 
 USE PDAF, &
      ONLY: PDAF_seik_omega
-USE mod_assim_pdaf, &
+USE assim_pdaf_mod, &
     ONLY: this_is_pdaf_restart, start_from_ENS_spinup
 
 IMPLICIT NONE
@@ -574,7 +574,7 @@ SUBROUTINE init_atmos_stochasticity_output()
          ONLY: runid, ResultPath
     USE g_PARSUP, &
          ONLY: myDim_nod2D
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: DAoutput_path
          
     IMPLICIT NONE
@@ -790,7 +790,7 @@ SUBROUTINE write_atmos_stochasticity_output(istep)
          ONLY: runid, ResultPath
     USE g_PARSUP, &
          ONLY: myDim_nod2D
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: DAoutput_path, step_null
          
     IMPLICIT NONE
@@ -921,7 +921,7 @@ SUBROUTINE write_atmos_stoch_restart()
          ONLY: runid, ResultPath
     USE g_PARSUP, &
          ONLY: myDim_nod2D
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: DAoutput_path
          
     IMPLICIT NONE
@@ -1052,7 +1052,7 @@ SUBROUTINE read_atmos_stochasticity_restart()
          ONLY: runid, ResultPath
     USE g_PARSUP, &
          ONLY: myDim_nod2D
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: DAoutput_path
          
     IMPLICIT NONE
@@ -1186,7 +1186,7 @@ USE g_clock, &
    daynew
 USE o_param, &
    ONLY: pi
-USE mod_parallel_pdaf, &
+USE parallel_pdaf_mod, &
    ONLY: filterpe, COMM_couple
    
    

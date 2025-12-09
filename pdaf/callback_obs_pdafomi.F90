@@ -31,9 +31,9 @@
 SUBROUTINE init_dim_obs_pdafomi(step, dim_obs)
 
   ! Include functions for different observations
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ONLY:  proffiles_o, start_year_o, end_year_o, mype_debug, node_debug
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: abort_parallel
        
   USE obs_sst_pdafomi, &
@@ -191,8 +191,8 @@ SUBROUTINE obs_op_pdafomi(step, dim_p, dim_obs, state_p, ostate)
   USE obs_O2_merged_pdafomi, ONLY: obs_op_o2_merged
   USE obs_n_merged_pdafomi, ONLY: obs_op_n_merged
   
-  USE mod_parallel_pdaf, ONLY: mype_filter
-  USE mod_assim_pdaf, ONLY: mype_debug, node_debug
+  USE parallel_pdaf_mod, ONLY: mype_filter
+  USE assim_pdaf_mod, ONLY: mype_debug, node_debug
 !  USE PDAFomi, ONLY: PDAFomi_set_debug_flag
 
   IMPLICIT NONE
@@ -260,9 +260,9 @@ SUBROUTINE init_dim_obs_l_pdafomi(domain_p, step, dim_obs, dim_obs_l)
 
   ! General modules:
 !  USE PDAFomi, ONLY: PDAFomi_set_debug_flag
-  USE mod_parallel_pdaf, ONLY: mype_filter
+  USE parallel_pdaf_mod, ONLY: mype_filter
   USE g_parsup, ONLY: myList_nod2D, myDim_nod2D
-  USE mod_assim_pdaf, ONLY: debug_id_nod2, mype_debug, node_debug
+  USE assim_pdaf_mod, ONLY: debug_id_nod2, mype_debug, node_debug
 
   IMPLICIT NONE
 

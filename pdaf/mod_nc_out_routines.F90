@@ -10,14 +10,14 @@ MODULE mod_nc_out_routines
 
 ! USES:
   USE output_config_pdaf
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ONLY: DAoutput_path, dim_ens, dim_state, &
        dim_state_p
   USE fesom_pdaf, &
        ONLY: mesh_fesom, nlmax, topography3D_g, pi
   USE statevector_pdaf, &
        only: id, sfields, nfields, phymin, phymax, bgcmin, bgcmax
-USE mod_parallel_pdaf, &
+USE parallel_pdaf_mod, &
    ONLY: abort_parallel, writepe
 USE g_config, &
    ONLY: runid
@@ -101,7 +101,7 @@ END SUBROUTINE check
 
 SUBROUTINE netCDF_init()
 
-USE mod_assim_pdaf, only: dim_ens
+USE assim_pdaf_mod, only: dim_ens
 
 INTEGER :: memb                   ! Zero:    Mean state
                                   ! Number:  Ensemble member

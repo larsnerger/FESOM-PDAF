@@ -13,12 +13,13 @@ contains
 
   subroutine assimilate_pdaf(istep)
 
+    use mpi
     use PDAF, &
          only: PDAF3_assimilate_local, PDAF_get_assim_flag
-    use mod_parallel_pdaf, &        ! Parallelization variables
+    use parallel_pdaf_mod, &        ! Parallelization variables
          only: mype_world, abort_parallel, task_id, mype_submodel, &
          COMM_COUPLE, filterpe
-    use mod_assim_pdaf, &           ! Variables for assimilation
+    use assim_pdaf_mod, &           ! Variables for assimilation
          only: filtertype, istep_asml, step_null, timemean, &
          dim_state_p, delt_obs_ocn, dim_ens, timemean_s, &
          monthly_state_sm, monthly_state_m, &
@@ -34,7 +35,6 @@ contains
          only: timeit
 
     implicit none
-    include 'mpif.h'
 
 ! *** Arguments ***
     integer, intent(in) :: istep       !< current time step

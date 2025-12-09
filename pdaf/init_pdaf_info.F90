@@ -13,7 +13,7 @@
 !!
 SUBROUTINE init_pdaf_info()
 
-  USE mod_assim_pdaf, & ! Variables for assimilation
+  USE assim_pdaf_mod, & ! Variables for assimilation
        ONLY: filtertype, subtype, dim_ens,  &
        forget, delt_obs_ocn, dim_state, &
        file_syntobs, twin_experiment

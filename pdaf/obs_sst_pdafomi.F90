@@ -50,11 +50,11 @@
 !!
 MODULE obs_sst_pdafomi
 
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_filter     ! Rank of filter process
   USE PDAF, &
        ONLY: obs_f, obs_l    ! Declaration of observation data types
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ONLY: n_sweeps        ! Variables for coupled data assimilation
 
 
@@ -178,14 +178,14 @@ CONTAINS
 
     USE PDAF, &
          ONLY: PDAFomi_gather_obs
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: twin_experiment, use_global_obs, &
          cradius, sradius, delt_obs_ocn, debug_id_nod2
     USE fesom_pdaf, &
          only: mesh_fesom, nlmax
     USE statevector_pdaf, &
          ONLY: id, sfields
-    USE mod_parallel_pdaf, &
+    USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
          ONLY: mydim_nod2d, myList_nod2D
@@ -587,10 +587,12 @@ CONTAINS
 
     ! Include PDAFomi function
     USE PDAF, ONLY: PDAFomi_init_dim_obs_l
-    ! Number of domains per sweep:
-    USE g_parsup, ONLY: myDim_nod2D
+    ! Include routine for adaptive localization radius
+    USE adaptive_lradius_pdaf, ONLY: get_adaptive_lradius_pdaf
     ! Include localization radius and local coordinates
-    USE mod_assim_pdaf, ONLY: coords_l, locweight, loctype
+    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
+    ! Number of domains per sweep:
+    USE fesom_pdaf, ONLY: myDim_nod2D
 
     IMPLICIT NONE
 
@@ -603,14 +605,10 @@ CONTAINS
     IF (thisobs%doassim == 1) THEN
        IF (loctype == 1) THEN
           ! *** Variable localization radius for fixed effective observation dimension ***
-          CALL get_adaptive_lradius_pdaf(domain_p, lradius_sst, loc_radius_sst)
+          CALL get_adaptive_lradius_pdaf(thisobs, modulo(domain_p,myDim_nod2D), lradius_sst, loc_radius_sst)
        END IF
        lradius_sst = loc_radius_sst(modulo(domain_p,myDim_nod2D))
 
-!~        if (mype_filter==0) &
-!~                   write (*,'(a,4x,a,4x,i5,4x,i5)') 'FESOM-PDAF', &
-!~                    '--- SST DOMAIN_P ---', domain_p, myDim_nod2D
-!~        This shows that domain_p loops through all values from 1 to n_sweeps*myDim_nod2D.
 
        ! ************************************************************
        ! *** Adapt observation error for coupled DA (double loop) ***

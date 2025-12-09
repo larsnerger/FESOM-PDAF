@@ -4,8 +4,8 @@
 
 SUBROUTINE ignore_nod_pdaf()
 
-  USE mod_parallel_pdaf, ONLY: mype_filter
-  USE mod_assim_pdaf, &
+  USE parallel_pdaf_mod, ONLY: mype_filter
+  USE assim_pdaf_mod, &
        ONLY: depth_excl, depth_excl_no
   USE fesom_pdaf, &
       ONLY: myDim_nod2D, myList_edge2D, myDim_edge2D, myDim_elem2D, &
@@ -144,7 +144,7 @@ SUBROUTINE ignore_nod_pdaf()
 END SUBROUTINE ignore_nod_pdaf
 
 subroutine mysort()
-  USE mod_assim_pdaf, ONLY: depth_excl, depth_excl_no
+  USE assim_pdaf_mod, ONLY: depth_excl, depth_excl_no
   integer::  min,i,j,tmp
 
   do i=1,depth_excl_no-1

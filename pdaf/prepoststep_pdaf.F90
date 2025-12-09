@@ -21,14 +21,13 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   USE mpi
   USE PDAF, &                        ! PDAF interface definitions
        ONLY: PDAF_reset_forget
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_filter, npes_filter, COMM_filter, writepe, mype_world
-  USE mod_assim_pdaf, & ! Variables for assimilation
+  USE assim_pdaf_mod, & ! Variables for assimilation
        ONLY: step_null, filtertype, dim_lag, eff_dim_obs, loctype, &
        proffiles_o, state_fcst, state_fcst_SSH_p, &
        monthly_state_f, monthly_state_a, monthly_state_m, &
        monthly_state_sf, monthly_state_sa, monthly_state_sm, &
-       endday_of_month_in_year, startday_of_month_in_year, &
        depth_excl, depth_excl_no, this_is_pdaf_restart, &
        timemean, timemean_s, delt_obs_ocn, &
        days_since_DAstart, forget, &
@@ -86,9 +85,11 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         ONLY: dayold, yearold, check_fleapyr, daynew, yearnew, &
               num_day_in_month, fleapyear, month, cyearnew, &
               day_in_month, timenew
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
         ONLY: debug_id_nod2
-  USE mod_carbon_fluxes_diags
+  USE utils_pdaf, &
+       ONLY: monthly_event_assimstep
+  USE cfluxes_diags_pdaf
   USE netcdf
   USE g_events
 

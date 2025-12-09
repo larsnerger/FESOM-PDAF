@@ -19,7 +19,7 @@
 !!
 SUBROUTINE l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
 
-  USE mod_assim_pdaf, &           ! Variables for assimilation
+  USE assim_pdaf_mod, &           ! Variables for assimilation
        ONLY: id_lstate_in_pstate, isweep, &
              cda_bio, cda_phy, type_sweep
   USE statevector_pdaf, &

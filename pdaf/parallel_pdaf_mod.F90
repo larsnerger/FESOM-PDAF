@@ -10,14 +10,14 @@
 !! __Revision history:__
 !! * 2004-10 - Lars Nerger  - Initial code
 !! * 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
-!! * 2004-10 - Lars Nerger  - Revision for PDAF3
+!! * 2025-12 - Lars Nerger  - Revision for PDAF3
 !! 
-module mod_parallel_pdaf
+module parallel_pdaf_mod
+
+  use mpi
 
   implicit none
   save 
-
-  include 'mpif.h'
   
   ! Particular variables for use with AWI-CM
   logical :: pairs       !< Whether we use pairs of fesom.x and OpenIFS.x
@@ -76,7 +76,7 @@ contains
     use timer, only: timeit
     use PDAF, &                     ! PDAF routines
          only: PDAF3_set_parallel
-    use mod_assim_pdaf, &
+    use assim_pdaf_mod, &
          only: dim_ens
 #if defined(__oasis)
     use mod_oasis_data, &
@@ -371,4 +371,4 @@ contains
 
   end subroutine abort_parallel
 
-end module mod_parallel_pdaf
+end module parallel_pdaf_mod

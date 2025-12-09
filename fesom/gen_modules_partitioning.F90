@@ -83,7 +83,7 @@ contains
 subroutine par_init    ! initializes MPI
 
 #ifdef use_PDAF
-  use mod_parallel_pdaf
+  use parallel_pdaf_mod
 #endif
   implicit none
 

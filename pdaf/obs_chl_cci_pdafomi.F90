@@ -48,12 +48,12 @@
 !!
 MODULE obs_chl_cci_pdafomi
 
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_filter, writepe
   USE PDAF, &
        ONLY: obs_f, obs_l, & ! Declaration of observation data types
        PDAFomi_set_debug_flag
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ONLY: n_sweeps             ! Variables for coupled data assimilation
 
   IMPLICIT NONE
@@ -182,14 +182,14 @@ CONTAINS
 
     USE PDAF, &
          ONLY: PDAFomi_gather_obs
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: twin_experiment, use_global_obs, delt_obs_ocn, &
          cradius, sradius
     USE fesom_pdaf, &
          only: mesh_fesom, nlmax
     USE statevector_pdaf, &
          ONLY: id, sfields
-    USE mod_parallel_pdaf, &
+    USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
          ONLY: mydim_nod2d, myList_nod2d
@@ -674,11 +674,12 @@ CONTAINS
 
     ! Include PDAFomi function
     USE PDAF, ONLY: PDAFomi_init_dim_obs_l
+    ! Include routine for adaptive localization radius
+    USE adaptive_lradius_pdaf, ONLY: get_adaptive_lradius_pdaf
     ! Include localization radius and local coordinates
-    USE mod_assim_pdaf, ONLY: coords_l, locweight, loctype, &
-                              mype_debug, node_debug
+    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
     ! Number of domains per sweep:
-    USE g_parsup, ONLY: myDim_nod2D
+    USE fesom_pdaf, ONLY: myDim_nod2D
 
     IMPLICIT NONE
 
@@ -692,23 +693,9 @@ CONTAINS
     IF (thisobs%doassim == 1) THEN
        IF (loctype == 1) THEN
           ! *** Variable localization radius for fixed effective observation dimension ***
-          CALL get_adaptive_lradius_pdaf(domain_p, lradius_chl_cci, loc_radius_chl_cci)
+          CALL get_adaptive_lradius_pdaf(thisobs, modulo(domain_p,myDim_nod2D), lradius_chl_cci, loc_radius_chl_cci)
        END IF
        lradius_chl_cci = loc_radius_chl_cci(modulo(domain_p,myDim_nod2D))
-
-!~        IF (mype_filter==mype_debug .AND. domain_p==node_debug) THEN
-!~          CALL PDAFomi_set_debug_flag(domain_p)
-!~        ELSE
-!~          CALL PDAFomi_set_debug_flag(0)
-!~        ENDIF
-!~        if (mype_filter==mype_debug .and. domain_p==node_debug) write(*,*) 'Frauke: thisobs_l% dim_obs_l', thisobs_l% dim_obs_l
-!~        if (mype_filter==mype_debug .and. domain_p==node_debug) write(*,*) 'Frauke: thisobs_l% id_obs_l', thisobs_l% id_obs_l
-!~        if (mype_filter==mype_debug .and. domain_p==node_debug) write(*,*) 'Frauke: thisobs_l% distance_l', thisobs_l% distance_l
-!~        if (mype_filter==mype_debug .and. domain_p==node_debug) write(*,*) 'Frauke: coords_l', coords_l
-!~        if (mype_filter==mype_debug .and. domain_p==node_debug) write(*,*) 'Frauke: locweight', locweight
-!~        if (mype_filter==mype_debug .and. domain_p==node_debug) write(*,*) 'Frauke: lradius_chl_cci', lradius_chl_cci
-!~        if (mype_filter==mype_debug .and. domain_p==node_debug) write(*,*) 'Frauke: sradius_chl_cci', sradius_chl_cci
-!~        if (mype_filter==mype_debug .and. domain_p==node_debug) write(*,*) 'Frauke: dim_obs_l', dim_obs_l
        
        ! ************************************************************
        ! *** Adapt observation error for coupled DA (double loop) ***

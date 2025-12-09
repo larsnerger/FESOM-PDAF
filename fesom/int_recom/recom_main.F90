@@ -30,7 +30,7 @@ subroutine recom(mesh)
   use g_comm
   use g_support
 #ifdef use_PDAF
-  use mod_carbon_fluxes_diags
+  use cfluxes_diags_pdaf
   use fesom_pdaf, only: nlmax
 #endif
   

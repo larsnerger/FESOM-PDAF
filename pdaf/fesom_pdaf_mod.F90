@@ -20,21 +20,33 @@ MODULE fesom_pdaf
        ONLY: gather_nod
   USE o_arrays, &
        ONLY: eta_n, uv, wvel, tr_arr, unode, MLD1, MLD2, sigma0, &
-       zbar_n_bot, zbar_n_srf
+       zbar_n_bot, zbar_n_srf, hnode_new, z_n, zbar_n
   USE REcoM_GloVar, &
        ONLY: GloPCO2surf, GloCO2flux, Diags3D, PAR3D, export, &
        PistonVelocity, alphaCO2
   USE i_arrays, &
        ONLY: a_ice
   use g_clock, &
-       only: timenew, timeold, daynew, cyearold, yearnew, yearold, &
-       month, num_day_in_month, fleapyear
+       only: timenew, timeold, daynew, dayold, yearnew, yearold, &
+       month, day_in_month, num_day_in_month, cyearnew, cyearold, &
+       fleapyear, check_fleapyr, dt, clock
   use g_events, &
        only: daily_event, monthly_event
   USE g_comm_auto, &
        ONLY: exchange_nod, exchange_elem
   USE g_rotate_grid, &
        ONLY: r2g                 ! Transform from the mesh (rotated) coordinates to geographical coordinates  
+  use o_param, &
+       only: r_earth, rad
+  use recom_config, &
+       only: tiny_chl, tiny, chl2N_max, chl2N_max_d, NCmax, &      
+       NCmax_d, SiCmax, Redfield, SecondsPerDay
+  USE g_config, &
+       ONLY: runid, step_per_day, ResultPath
+  USE g_sbf, &
+       ONLY: atmdata, &
+       i_xwind, i_ywind, i_humi, &
+       i_qsr, i_qlw, i_tair, i_prec, i_mslp, i_snow
 
   IMPLICIT NONE
 

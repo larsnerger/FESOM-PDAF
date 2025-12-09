@@ -11,7 +11,7 @@ contains
     use mpi
     use PDAF, &
          only: PDAF_print_info, PDAF_deallocate
-    use mod_parallel_pdaf, &
+    use parallel_pdaf_mod, &
          only: mype_ens, npes_ens, comm_ensemble, mpierr
     use timer, &
          only: timeit, time_tot

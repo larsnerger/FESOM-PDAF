@@ -21,10 +21,10 @@ subroutine REcoM_sms(n,Nn,state,thick,recipthick,SurfSR,sms,Temp,SinkVel,zF,PAR,
     use g_comm
     use g_support
 #ifdef use_PDAF
-    use mod_carbon_fluxes_diags
-    use mod_assim_pdaf, only: DAoutput_path
+    use cfluxes_diags_pdaf
+    use assim_pdaf_mod, only: DAoutput_path
     use fesom_pdaf, only: nlmax
-    use mod_parallel_pdaf, only: writepe, filterpe, mype_filter
+    use parallel_pdaf_mod, only: writepe, filterpe, mype_filter
 #endif
 
 

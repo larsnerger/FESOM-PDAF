@@ -12,9 +12,9 @@ SUBROUTINE read_config_pdaf()
 
 
 ! general assimilation settings
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_model, n_modeltasks, task_id
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ONLY: dim_state, dim_state_p, dim_ens, dim_lag, &
        screen, filtertype, subtype, &
        delt_obs_ocn, &
@@ -25,7 +25,7 @@ SUBROUTINE read_config_pdaf()
        eff_dim_obs, loc_radius, loctype, loc_ratio, &
        path_init, file_init, file_inistate, read_inistate, &
        twin_experiment, dim_obs_max, use_global_obs, DAoutput_path, &
-       ASIM_START_USE_CLIM_STATE, this_is_pdaf_restart, &
+       this_is_pdaf_restart, &
        path_atm_cov, days_since_DAstart, assimilateBGC, assimilatePHY, &
        start_from_ENS_spinup, resetforget, &
        ! initial ensemble perturbation
@@ -133,7 +133,7 @@ SUBROUTINE read_config_pdaf()
        dim_obs_max, &
        twin_experiment, &
        DAoutput_path, &
-       ASIM_START_USE_CLIM_STATE, this_is_pdaf_restart, &
+       this_is_pdaf_restart, &
        days_since_DAstart, start_from_ENS_spinup, &
        assimilatePHY, &
        ! initial ensemble perturbation:
@@ -424,7 +424,6 @@ file_chl_cci_prefix = 'CCI_OC_'//TRIM(year_string)//'_dist72_'
      WRITE (*,'(a,5x,a20,1x,1x,a)')     'FESOM-PDAF',   'file_init   ',         TRIM(file_init)
      WRITE (*,'(a,5x,a20,1x,1x,l)')     'FESOM-PDAF',   'this_is_pdaf_restart', this_is_pdaf_restart
      WRITE (*,'(a,5x,a20,1x,1x,l)')     'FESOM-PDAF',   'start_from_ENS_spinup',start_from_ENS_spinup
-     WRITE (*,'(a,5x,a20,1x,1x,l)')     'FESOM-PDAF',   'ASIM_START_USE_CLIM_STATE', ASIM_START_USE_CLIM_STATE
      WRITE (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'varscale    ', varscale
      WRITE (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_ssh',  perturb_ssh
      WRITE (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_u',    perturb_u

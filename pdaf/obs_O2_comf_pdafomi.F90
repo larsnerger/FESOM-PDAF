@@ -50,11 +50,11 @@
 !!
 MODULE obs_o2_comf_pdafomi
 
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_filter, writepe ! Rank of filter process
   USE PDAF, &
        ONLY: obs_f, obs_l         ! Declaration of observation data types
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ONLY: n_sweeps, obs_PP     ! Variables for coupled data assimilation
  
   IMPLICIT NONE
@@ -181,13 +181,13 @@ CONTAINS
 
     USE PDAF, &
          ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: use_global_obs, cradius, sradius
     USE fesom_pdaf, &
          only: mesh_fesom, nlmax
     USE statevector_pdaf, &
          ONLY: id, sfields
-    USE mod_parallel_pdaf, &
+    USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
          ONLY: myDim_nod2D
@@ -778,7 +778,7 @@ CONTAINS
                        PDAFomi_set_debug_flag
 
     ! Include localization radius and local coordinates
-    USE mod_assim_pdaf, ONLY: coords_l, locweight, loctype
+    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
     
     ! Number of domains per sweep:
     USE g_parsup, ONLY: myDim_nod2D

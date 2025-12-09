@@ -18,11 +18,11 @@ contains
     use mpi
     use PDAF                        ! PDAF interface definitions
     use statevector_pdaf, only: setup_statevector, sfields
-    use mod_parallel_pdaf, &                                                ! Parallelization variables for assimilation
+    use parallel_pdaf_mod, &                                                ! Parallelization variables for assimilation
          only: n_modeltasks, task_id, COMM_filter, COMM_couple, filterpe, &
          mype_world, COMM_model, abort_parallel, MPIerr, &
          mype_model, mype_filter, npes_filter, writepe, mype_submodel
-    use mod_assim_pdaf, &                                                   ! Variables for assimilation
+    use assim_pdaf_mod, &                                                   ! Variables for assimilation
          only: dim_state, dim_state_p, dim_ens, dim_lag, &
          step_null, istep_asml, assim_time, screen, filtertype, subtype, &
          delt_obs_ocn, &
@@ -78,7 +78,7 @@ contains
          only: netCDF_init
     use output_config_pdaf, &
          only: configure_output, setoutput
-    use mod_carbon_fluxes_diags, &
+    use cfluxes_diags_pdaf, &
          only: init_carbonfluxes_diags_out, init_carbonfluxes_diags_arrays
 
     implicit none

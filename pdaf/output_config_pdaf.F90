@@ -28,7 +28,7 @@ CONTAINS
 
   SUBROUTINE configure_output()
 
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: assimilateBGC, assimilatePHY, &
          cda_phy, cda_bio 
     USE fesom_pdaf, &
@@ -36,7 +36,7 @@ CONTAINS
     USE statevector_pdaf, &
          only: id, sfields, nfields, &
          phymin, phymax, bgcmin, bgcmax
-    USE mod_parallel_pdaf, &
+    USE parallel_pdaf_mod, &
          ONLY: writepe, mype_world
     USE obs_chl_cci_pdafomi,    ONLY: assim_o_chl_cci
     USE obs_DIC_glodap_pdafomi, ONLY: assim_o_DIC_glodap

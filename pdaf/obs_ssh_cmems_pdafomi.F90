@@ -49,7 +49,7 @@
 !!
 MODULE obs_ssh_cmems_pdafomi
 
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_filter     ! Rank of filter process
   USE PDAF, &
        ONLY: obs_f, obs_l    ! Declaration of observation data types
@@ -175,14 +175,14 @@ CONTAINS
 
     USE PDAF, &
          ONLY: PDAFomi_gather_obs
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: twin_experiment, use_global_obs, &
          cradius, sradius, delt_obs_ocn
     USE fesom_pdaf, &
          only: mesh_fesom, nlmax
     USE statevector_pdaf, &
          ONLY: id, sfields
-    USE mod_parallel_pdaf, &
+    USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
     USE g_parsup, &
          ONLY: mydim_nod2d
@@ -544,9 +544,12 @@ CONTAINS
 
     ! Include PDAFomi function
     USE PDAF, ONLY: PDAFomi_init_dim_obs_l
-
+    ! Include routine for adaptive localization radius
+    USE adaptive_lradius_pdaf, ONLY: get_adaptive_lradius_pdaf
     ! Include localization radius and local coordinates
-    USE mod_assim_pdaf, ONLY: coords_l, locweight, loctype
+    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
+    ! Number of domains per sweep:
+    USE fesom_pdaf, ONLY: myDim_nod2D
 
     IMPLICIT NONE
 
@@ -564,9 +567,9 @@ CONTAINS
     IF (thisobs%doassim == 1) THEN
        IF (loctype == 1) THEN
           ! *** Variable localization radius for fixed effective observation dimension ***
-          CALL get_adaptive_lradius_pdaf(domain_p, lradius_ssh, loc_radius_ssh)
+          CALL get_adaptive_lradius_pdaf(thisobs, modulo(domain_p,myDim_nod2D), lradius_ssh, loc_radius_ssh)
        END IF
-       lradius_ssh = loc_radius_ssh(domain_p)
+       lradius_ssh = loc_radius_ssh(modulo(domain_p,myDim_nod2D))
 
 
        CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &

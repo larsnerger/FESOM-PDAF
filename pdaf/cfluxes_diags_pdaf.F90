@@ -1,4 +1,4 @@
-MODULE mod_carbon_fluxes_diags
+MODULE cfluxes_diags_pdaf
 
    use fesom_pdaf, only: nlmax
 
@@ -158,8 +158,8 @@ CONTAINS
 ! ***********************************************
 SUBROUTINE init_carbonfluxes_diags_arrays()
 USE g_PARSUP, ONLY: myDim_nod2D, eDim_nod2D            ! model grid dimensions
-USE mod_assim_pdaf, ONLY: factor_mass, factor_conc     ! used in prepoststep
-USE mod_parallel_pdaf, ONLY: writepe
+USE assim_pdaf_mod, ONLY: factor_mass, factor_conc     ! used in prepoststep
+USE parallel_pdaf_mod, ONLY: writepe
 
 implicit none
 integer :: i, ids ! counters
@@ -335,8 +335,9 @@ END SUBROUTINE init_carbonfluxes_diags_arrays
 ! - compute time mean and ensemble means of model fields and write output
 ! - called from model (fvom_main)
 
-SUBROUTINE carbonfluxes_diags_output_timemean(mstep)
+SUBROUTINE cfluxes_diags_output_tmean(mstep)
 
+  USE mpi
       USE g_clock, &
         ONLY: month, num_day_in_month, fleapyear, cyearnew, &
         daynew, timenew
@@ -345,11 +346,11 @@ SUBROUTINE carbonfluxes_diags_output_timemean(mstep)
         ONLY: step_per_day
       USE g_parsup, &
         ONLY: myDim_nod2D
-      USE mod_assim_pdaf, &
+      USE assim_pdaf_mod, &
         ONLY: dim_ens
       USE fesom_pdaf, &
         ONLY: nlmax, mesh_fesom
-      USE mod_parallel_pdaf, &
+      USE parallel_pdaf_mod, &
         ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
         COMM_COUPLE, filterpe, writepe, mype_model
       USE g_comm_auto, &
@@ -359,7 +360,6 @@ SUBROUTINE carbonfluxes_diags_output_timemean(mstep)
 
 
       IMPLICIT NONE
-      include 'mpif.h'
       
       ! arguments
       INTEGER, INTENT(in) :: mstep
@@ -529,7 +529,7 @@ SUBROUTINE carbonfluxes_diags_output_timemean(mstep)
       
       ENDIF ! now_to_write
   
-END SUBROUTINE carbonfluxes_diags_output_timemean
+    END SUBROUTINE cfluxes_diags_output_tmean
 
 
 ! ****************************************************
@@ -550,17 +550,17 @@ SUBROUTINE carbonfluxes_diags_output_timemean_asml()
         ONLY: step_per_day
       USE fesom_pdaf, &
         ONLY: myDim_nod2D, nlmax, mesh_fesom
-      USE mod_assim_pdaf, &
+      USE assim_pdaf_mod, &
         ONLY: dim_ens, assim_time
-      USE mod_parallel_pdaf, &
+      USE parallel_pdaf_mod, &
         ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
         COMM_COUPLE, filterpe, writepe
+      USE utils_pdaf, &
+           ONLY: monthly_event_assimstep
       USE g_comm_auto, &
         ONLY: gather_nod
 
-
       IMPLICIT NONE
-      include 'mpif.h'
       
       ! local variables
       LOGICAL :: now_to_write
@@ -638,7 +638,7 @@ END SUBROUTINE carbonfluxes_diags_output_timemean_asml
 
 SUBROUTINE check(status)
      USE netcdf
-     USE mod_parallel_pdaf, ONLY: abort_parallel
+     USE parallel_pdaf_mod, ONLY: abort_parallel
      
      IMPLICIT NONE
 
@@ -660,7 +660,7 @@ END SUBROUTINE check
 ! Initializes netCDF output file for carbon flux diagnostics. 
 SUBROUTINE init_carbonfluxes_diags_out()
       
-      USE mod_assim_pdaf, &
+      USE assim_pdaf_mod, &
          ONLY: DAoutput_path
       USE fesom_pdaf, &
         ONLY: myDim_nod2D, nlmax, mesh_fesom, pi
@@ -673,7 +673,7 @@ SUBROUTINE init_carbonfluxes_diags_out()
          yearold, yearnew, month, daynew, timenew
       USE g_comm_auto, &
          ONLY: gather_nod
-      USE mod_parallel_pdaf, &
+      USE parallel_pdaf_mod, &
          ONLY: writepe
       USE netcdf
 
@@ -805,11 +805,11 @@ SUBROUTINE write_carbonfluxes_diags_out()
 USE g_clock, &
    ONLY: month, cyearnew, daynew, num_day_in_month, fleapyear
 USE recom_config, ONLY: SecondsPerDay
-USE mod_assim_pdaf, &
+USE assim_pdaf_mod, &
    ONLY: DAoutput_path
 USE fesom_pdaf, &
      ONLY: myDim_nod2D, nlmax, mesh_fesom
-USE mod_parallel_pdaf, &
+USE parallel_pdaf_mod, &
    ONLY: writepe
 USE g_comm_auto, &
    ONLY: gather_nod
@@ -927,11 +927,11 @@ SUBROUTINE write_carbonfluxes_diags_out_asml()
 USE g_clock, &
    ONLY: month, cyearnew, daynew, num_day_in_month, fleapyear
 USE recom_config, ONLY: SecondsPerDay
-USE mod_assim_pdaf, &
+USE assim_pdaf_mod, &
    ONLY: DAoutput_path
 USE fesom_pdaf, &
      ONLY: myDim_nod2D, nlmax, mesh_fesom
-USE mod_parallel_pdaf, &
+USE parallel_pdaf_mod, &
    ONLY: writepe
 USE g_comm_auto, &
    ONLY: gather_nod
@@ -1107,11 +1107,11 @@ END SUBROUTINE cfdiags_computetransport
 ! vertical fluxes
 
 SUBROUTINE debug_vert(varname,vardata)
-   USE mod_parallel_pdaf, &
+   USE parallel_pdaf_mod, &
       ONLY: writepe
    USE g_comm_auto, &
       ONLY: gather_nod 
-   USE mod_assim_pdaf, &
+   USE assim_pdaf_mod, &
       ONLY: istep_asml, DAoutput_path
    USE fesom_pdaf, &
         ONLY: nlmax, mesh_fesom, myDim_nod2D
@@ -1138,11 +1138,11 @@ END SUBROUTINE debug_vert
 ! horizontal fluxes
 
 SUBROUTINE debug_hor(varname,vardata)
-   USE mod_parallel_pdaf, &
+   USE parallel_pdaf_mod, &
       ONLY: writepe
    USE g_comm_auto, &
       ONLY: gather_nod 
-   USE mod_assim_pdaf, &
+   USE assim_pdaf_mod, &
       ONLY: istep_asml,DAoutput_path
    USE fesom_pdaf, &
         ONLY: nlmax, mesh_fesom, myDim_nod2D
@@ -1170,6 +1170,6 @@ SUBROUTINE debug_hor(varname,vardata)
 
 END SUBROUTINE debug_hor
 
-END MODULE mod_carbon_fluxes_diags
+END MODULE cfluxes_diags_pdaf
 
 

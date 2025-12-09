@@ -20,10 +20,10 @@
 !!
 SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 
-  USE mod_parallel_pdaf, &
+  USE parallel_pdaf_mod, &
        ONLY: mype_submodel, mype_world, task_id, mype_model, npes_model, &
        COMM_model, MPIerr, mype_filter, writepe
-  USE mod_assim_pdaf, &
+  USE assim_pdaf_mod, &
        ONLY: this_is_pdaf_restart, start_from_ENS_spinup, &
        istep_asml, step_null
   USE statevector_pdaf, &
@@ -35,8 +35,6 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
        exchange_nod, exchange_elem
 
   IMPLICIT NONE
-  
-  INCLUDE 'mpif.h'
   
 ! *** Arguments ***
   INTEGER, INTENT(in) :: dim_p           !< PE-local state dimension

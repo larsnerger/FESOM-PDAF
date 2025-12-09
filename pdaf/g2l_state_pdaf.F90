@@ -18,7 +18,7 @@
 !!
 SUBROUTINE g2l_state_pdaf(step, domain_p, dim_p, state_p, dim_l, state_l)
 
-  USE mod_assim_pdaf, &           ! Variables for assimilation
+  USE assim_pdaf_mod, &           ! Variables for assimilation
        ONLY: id_lstate_in_pstate
 
   IMPLICIT NONE

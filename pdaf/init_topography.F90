@@ -1,7 +1,7 @@
 SUBROUTINE init_topography(dim_state_p, dim_state)
 
   use mpi
-  use mod_parallel_pdaf, &
+  use parallel_pdaf_mod, &
        only: MPIerr, mype_world
   Use fesom_pdaf, &
        ONLY: volo_full_glob, cellvol, topography_p, topography3D_g, topography3D, &

@@ -147,9 +147,9 @@ subroutine solve_tracers_ale(mesh)
     use REcoM_ciso, only: lambda_14        ! decay constant of 14C    
     use g_support, only: integrate_nod
 #ifdef use_PDAF
-    use mod_carbon_fluxes_diags
+    use cfluxes_diags_pdaf
     use fesom_pdaf, only: nlmax, mesh_fesom
-    use mod_parallel_pdaf, only: writepe
+    use parallel_pdaf_mod, only: writepe
     use g_clock, only: daynew
 #endif
     
@@ -441,16 +441,9 @@ subroutine adv_tracers_ale(tr_num, mesh)
     use adv_tracers_muscle_ale_interface
     use adv_tracers_vert_ppm_ale_interface
     use oce_adv_tra_driver_interfaces
-!~ #ifdef use_PDAF
-!~     use mod_carbon_fluxes_diags
-!~     use mod_assim_pdaf, only: nlmax
-!~     use mod_parallel_pdaf, only: writepe
-!~ #endif
+
     implicit none
-!~ #ifdef use_PDAF
-!~     real, allocatable :: factormass(:,:)
-!~     real, allocatable :: factorconc(:,:)
-!~ #endif
+
     integer :: tr_num, node, nz
     type(t_mesh), intent(in) , target :: mesh
     
@@ -567,10 +560,10 @@ subroutine diff_tracers_ale(tr_num, mesh)
 use g_support
 #endif
 #ifdef use_PDAF
-    use mod_carbon_fluxes_diags
+    use cfluxes_diags_pdaf
     use fesom_pdaf, only: nlmax
     use g_config, only: dt
-    use mod_parallel_pdaf, only: writepe
+    use parallel_pdaf_mod, only: writepe
 #endif
 
     implicit none
@@ -924,9 +917,9 @@ subroutine diff_ver_part_impl_ale(tr_num, mesh)
     use bc_surface_interface
     use g_comm_auto, ONLY: gather_nod 
 #ifdef use_PDAF
-    use mod_carbon_fluxes_diags
+    use cfluxes_diags_pdaf
     use fesom_pdaf, only: nlmax, mesh_fesom
-    use mod_parallel_pdaf, only: writepe
+    use parallel_pdaf_mod, only: writepe
 #endif
 
         
@@ -1654,9 +1647,9 @@ subroutine diff_ver_part_redi_expl(mesh,tr_num)
     use g_config
     use g_comm_auto
 #ifdef use_PDAF
-    use mod_carbon_fluxes_diags
+    use cfluxes_diags_pdaf
     use fesom_pdaf, only: nlmax
-    use mod_parallel_pdaf, only: writepe
+    use parallel_pdaf_mod, only: writepe
 #endif
     IMPLICIT NONE
     type(t_mesh), intent(in) , target :: mesh
@@ -1776,8 +1769,8 @@ subroutine diff_part_hor_redi(mesh,tr_num)
     use g_config
     use g_comm_auto
 #ifdef use_PDAF
-        use mod_carbon_fluxes_diags
-        use fesom_pdaf, only: nlmax
+    use cfluxes_diags_pdaf
+    use fesom_pdaf, only: nlmax
 #endif
     IMPLICIT NONE
     type(t_mesh), intent(in) , target :: mesh

@@ -781,7 +781,7 @@ CONTAINS
 !!
   SUBROUTINE set_field_types(verbose)
 
-    USE mod_parallel_pdaf, &
+    USE parallel_pdaf_mod, &
          ONLY: mype_world
 
     IMPLICIT NONE
@@ -926,9 +926,9 @@ CONTAINS
 !!
   SUBROUTINE set_updated()
 
-    USE mod_assim_pdaf, &
+    USE assim_pdaf_mod, &
          ONLY: nmlfile, assimilatePHY, assimilateBGC, cda_phy, cda_bio
-    USE mod_parallel_pdaf, &
+    USE parallel_pdaf_mod, &
          ONLY: mype_world
 
 
@@ -1063,7 +1063,7 @@ CONTAINS
 !!
   SUBROUTINE setup_statevector(dim_state, dim_state_p, screen)
 
-    USE mod_parallel_pdaf, &
+    USE parallel_pdaf_mod, &
          ONLY: mype=>mype_ens, npes=>npes_ens, task_id, comm_ensemble, &
          comm_model, MPI_SUM, MPI_INTEGER, MPIerr
 
