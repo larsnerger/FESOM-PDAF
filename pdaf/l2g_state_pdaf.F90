@@ -1,7 +1,4 @@
-!$Id: l2g_state_pdaf.F90 2466 2021-02-25 12:46:34Z lnerger $
 !>  Routine to initialize full state from local analysis
-!!
-!! User-supplied call-back routine for PDAF.
 !!
 !! The routine is called during the loop over all
 !! local analysis domains in the domain local filters
@@ -15,64 +12,64 @@
 !!
 !! __Revision history:__
 !! 2005-09 - Lars Nerger - Initial code
-!! * Later revisions - see repository log
+!! ~2022   - Frauke B - adaption for REcoM
 !!
-SUBROUTINE l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
+subroutine l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
 
-  USE assim_pdaf_mod, &           ! Variables for assimilation
-       ONLY: id_lstate_in_pstate, isweep, &
+  use assim_pdaf_mod, &                 ! Variables for assimilation
+       only: id_lstate_in_pstate, isweep, &
              cda_bio, cda_phy, type_sweep
-  USE statevector_pdaf, &
-       ONLY: nfields, sfields, sfields_l
+  use statevector_pdaf, &               ! Statevector variables
+       only: nfields, sfields, sfields_l
 
-  IMPLICIT NONE
+  implicit none
 
 ! *** Arguments ***
-  INTEGER, INTENT(in) :: step           !< Current time step
-  INTEGER, INTENT(in) :: domain         !< Current local analysis domain
-  INTEGER, INTENT(in) :: dim_l          !< Local state dimension
-  INTEGER, INTENT(in) :: dim_p          !< Process-local full state dimension
-  REAL, INTENT(in)    :: state_l(dim_l) !< State vector on local analysis domain
-  REAL, INTENT(inout) :: state_p(dim_p) !< Process-local full state vector 
+  integer, intent(in) :: step           !< Current time step
+  integer, intent(in) :: domain         !< Current local analysis domain
+  integer, intent(in) :: dim_l          !< Local state dimension
+  integer, intent(in) :: dim_p          !< Process-local full state dimension
+  real, intent(in)    :: state_l(dim_l) !< State vector on local analysis domain
+  real, intent(inout) :: state_p(dim_p) !< Process-local full state vector 
   
 ! *** Local variables *** 
-  INTEGER :: i, ifield            !< Counters
-  LOGICAL :: update_cda           !< Whether to perform DA update
-  
-  
+  integer :: i, ifield                  ! Counters
+  logical :: update_cda                 ! Whether to apply DA update
+
+
 ! **************************************************
 ! *** Initialize elements of global state vector ***
 ! **************************************************
   
-  DO ifield = 1, nfields
+  do ifield = 1, nfields
   
      ! Determine whether to apply update according to coupled data assimilation settings
      
-     IF (.NOT.(sfields(ifield)%bgc) .AND. (TRIM(type_sweep(isweep))=='phy')) THEN
+     if (.not.(sfields(ifield)%bgc) .and. (trim(type_sweep(isweep))=='phy')) then
         ! Physics field and physics sweep:
-        update_cda = .TRUE.
-     ELSEIF (sfields(ifield)%bgc .AND. (TRIM(type_sweep(isweep))=='bio')) THEN
+        update_cda = .true.
+     elseif (sfields(ifield)%bgc .and. (trim(type_sweep(isweep))=='bio')) then
         ! BGC field and BGC sweep:
-        update_cda = .TRUE.
-     ELSE
+        update_cda = .true.
+     else
         ! Strongly coupled DA configuration:
-        IF (type_sweep(isweep)=='phy' .AND. TRIM(cda_phy)=='strong') THEN
-           update_cda = .TRUE.
-        ELSEIF (type_sweep(isweep)=='bio' .AND. TRIM(cda_bio)=='strong') THEN
-           update_cda = .TRUE.
-        ELSE
+        if (type_sweep(isweep)=='phy' .and. trim(cda_phy)=='strong') then
+           update_cda = .true.
+        elseif (type_sweep(isweep)=='bio' .and. trim(cda_bio)=='strong') then
+           update_cda = .true.
+        else
            ! Weak coupling and unequal type of field and sweep:
-           update_cda = .FALSE.
-        END IF
-     END IF
+           update_cda = .false.
+        end if
+     end if
   
-     IF (update_cda) THEN
+     if (update_cda) then
         ! update field in global state vector from local state
-        DO i = sfields_l(ifield)%off + 1, sfields_l(ifield)%off + sfields_l(ifield)%dim
+        do i = sfields_l(ifield)%off + 1, sfields_l(ifield)%off + sfields_l(ifield)%dim
            state_p(id_lstate_in_pstate(i)) = state_l(i)
-        END DO
-     ENDIF
+        end do
+     endif
      
-  END DO
+  end do
 
-END SUBROUTINE l2g_state_pdaf
+end subroutine l2g_state_pdaf

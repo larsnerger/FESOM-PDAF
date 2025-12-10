@@ -28,73 +28,71 @@
 !! This routine calls the observation-specific
 !! routines init_dim_obs_TYPE.
 !!
-SUBROUTINE init_dim_obs_pdafomi(step, dim_obs)
+subroutine init_dim_obs_pdafomi(step, dim_obs)
 
   ! Include functions for different observations
-  USE assim_pdaf_mod, &
-       ONLY:  proffiles_o, start_year_o, end_year_o, mype_debug, node_debug
-  USE parallel_pdaf_mod, &
-       ONLY: abort_parallel
+  use assim_pdaf_mod, &
+       only:  proffiles_o, start_year_o, end_year_o
+  use parallel_pdaf_mod, &
+       only: abort_parallel
        
-  USE obs_sst_pdafomi, &
-       ONLY: assim_o_sst, init_dim_obs_sst
-  USE obs_sss_smos_pdafomi, &
-       ONLY: assim_o_sss, init_dim_obs_sss
-  USE obs_sss_cci_pdafomi, &
-       ONLY: assim_o_sss_cci, init_dim_obs_sss_cci
-  USE obs_ssh_cmems_pdafomi, &
-       ONLY: assim_o_ssh, init_dim_obs_ssh
-  USE obs_TSprof_EN4_pdafomi, &
-       ONLY: assim_o_en4_t, assim_o_en4_s, init_dim_obs_prof
+  use obs_sst_pdafomi, &
+       only: assim_o_sst, init_dim_obs_sst
+  use obs_sss_smos_pdafomi, &
+       only: assim_o_sss, init_dim_obs_sss
+  use obs_sss_cci_pdafomi, &
+       only: assim_o_sss_cci, init_dim_obs_sss_cci
+  use obs_ssh_cmems_pdafomi, &
+       only: assim_o_ssh, init_dim_obs_ssh
+  use obs_TSprof_EN4_pdafomi, &
+       only: assim_o_en4_t, assim_o_en4_s, init_dim_obs_prof
        
-  USE obs_chl_cci_pdafomi, &
-       ONLY: assim_o_chl_cci, init_dim_obs_chl_cci
-  USE obs_DIC_glodap_pdafomi, &
-       ONLY: assim_o_DIC_glodap, init_dim_obs_DIC_glodap
-  USE obs_Alk_glodap_pdafomi, &
-       ONLY: assim_o_Alk_glodap, init_dim_obs_Alk_glodap
-  USE obs_pco2_SOCAT_pdafomi, &
-       ONLY: assim_o_pCO2_SOCAT, init_dim_obs_pCO2_SOCAT
-  USE obs_O2_comf_pdafomi, &
-       ONLY: assim_o_O2_comf, init_dim_obs_O2_comf
-  USE obs_N_comf_pdafomi, &
-       ONLY: assim_o_N_comf, init_dim_obs_N_comf
-  USE obs_O2_argo_pdafomi, &
-       ONLY: assim_o_O2_argo, init_dim_obs_O2_argo
-  USE obs_N_argo_pdafomi, &
-       ONLY: assim_o_N_argo, init_dim_obs_N_argo
-  USE obs_O2_merged_pdafomi, &
-       ONLY: assim_o_O2_merged, init_dim_obs_O2_merged
-  USE obs_n_merged_pdafomi, &
-       ONLY: assim_o_n_merged, init_dim_obs_n_merged
-              
-!   USE PDAFomi, &
-!        ONLY: PDAFomi_set_debug_flag
+  use obs_chl_cci_pdafomi, &
+       only: assim_o_chl_cci, init_dim_obs_chl_cci
+  use obs_DIC_glodap_pdafomi, &
+       only: assim_o_DIC_glodap, init_dim_obs_DIC_glodap
+  use obs_Alk_glodap_pdafomi, &
+       only: assim_o_Alk_glodap, init_dim_obs_Alk_glodap
+  use obs_pco2_SOCAT_pdafomi, &
+       only: assim_o_pCO2_SOCAT, init_dim_obs_pCO2_SOCAT
+  use obs_O2_comf_pdafomi, &
+       only: assim_o_O2_comf, init_dim_obs_O2_comf
+  use obs_N_comf_pdafomi, &
+       only: assim_o_N_comf, init_dim_obs_N_comf
+  use obs_O2_argo_pdafomi, &
+       only: assim_o_O2_argo, init_dim_obs_O2_argo
+  use obs_N_argo_pdafomi, &
+       only: assim_o_N_argo, init_dim_obs_N_argo
+  use obs_O2_merged_pdafomi, &
+       only: assim_o_O2_merged, init_dim_obs_O2_merged
+  use obs_n_merged_pdafomi, &
+       only: assim_o_n_merged, init_dim_obs_n_merged
 
-  IMPLICIT NONE
+  implicit none
 
 ! *** Arguments ***
-  INTEGER, INTENT(in)  :: step      !< Current time step
-  INTEGER, INTENT(out) :: dim_obs   !< Dimension of full observation vector
+  integer, intent(in)  :: step      !< Current time step
+  integer, intent(out) :: dim_obs   !< Dimension of full observation vector
 
 ! *** Local variables ***
-  INTEGER :: dim_obs_sst     ! Full number of SST observations
-  INTEGER :: dim_obs_sss_cci ! Full number of SSS (CCI) observations
-  INTEGER :: dim_obs_sss     ! Full number of SSS (SMOS) observations
-  INTEGER :: dim_obs_ssh     ! Full number of SSH observations
-  INTEGER :: dim_obs_prof    ! Full number of subsurface profile observations
-  INTEGER :: dim_obs_en4ana  ! Full number of EN4 analysis profile observations
+  integer :: dim_obs_sst     ! Full number of SST observations
+  integer :: dim_obs_sss_cci ! Full number of SSS (CCI) observations
+  integer :: dim_obs_sss     ! Full number of SSS (SMOS) observations
+  integer :: dim_obs_ssh     ! Full number of SSH observations
+  integer :: dim_obs_prof    ! Full number of subsurface profile observations
+  integer :: dim_obs_en4ana  ! Full number of EN4 analysis profile observations
   
-  INTEGER :: dim_obs_chl_cci ! Full number of biogeochem.-TYPE observations
-  INTEGER :: dim_obs_DIC_glodap
-  INTEGER :: dim_obs_Alk_glodap
-  INTEGER :: dim_obs_pCO2_socat
-  INTEGER :: dim_obs_O2_comf
-  INTEGER :: dim_obs_N_comf
-  INTEGER :: dim_obs_O2_argo
-  INTEGER :: dim_obs_N_argo
-  INTEGER :: dim_obs_O2_merged
-  INTEGER :: dim_obs_n_merged
+  integer :: dim_obs_chl_cci ! Full number of biogeochem.-TYPE observations
+  integer :: dim_obs_DIC_glodap
+  integer :: dim_obs_Alk_glodap
+  integer :: dim_obs_pCO2_socat
+  integer :: dim_obs_O2_comf
+  integer :: dim_obs_N_comf
+  integer :: dim_obs_O2_argo
+  integer :: dim_obs_N_argo
+  integer :: dim_obs_O2_merged
+  integer :: dim_obs_n_merged
+
 
 ! *********************************************
 ! *** Initialize full observation dimension ***
@@ -123,24 +121,22 @@ SUBROUTINE init_dim_obs_pdafomi(step, dim_obs)
   ! The routines are independent, so it is not relevant
   ! in which order they are called
   
-  ! No domain_p, thus no debugging call from here
+  if (assim_o_sst)     call init_dim_obs_sst(step, dim_obs_sst)
+  if (assim_o_sss)     call init_dim_obs_sss(step, dim_obs_sss)
+  if (assim_o_sss_cci) call init_dim_obs_sss_cci(step, dim_obs_sss_cci)
+  if (assim_o_ssh)     call init_dim_obs_ssh(step, dim_obs_ssh)
+  if (assim_o_en4_t .or. assim_o_en4_s) call init_dim_obs_prof(step, dim_obs_prof)
   
-  IF (assim_o_sst)     CALL init_dim_obs_sst(step, dim_obs_sst)
-  IF (assim_o_sss)     CALL init_dim_obs_sss(step, dim_obs_sss)
-  IF (assim_o_sss_cci) CALL init_dim_obs_sss_cci(step, dim_obs_sss_cci)
-  IF (assim_o_ssh)     CALL init_dim_obs_ssh(step, dim_obs_ssh)
-  IF (assim_o_en4_t .OR. assim_o_en4_s) CALL init_dim_obs_prof(step, dim_obs_prof)
-  
-  IF (assim_o_chl_cci)      CALL init_dim_obs_chl_cci(step, dim_obs_chl_cci)
-  IF (assim_o_DIC_glodap)   CALL init_dim_obs_DIC_glodap(step, dim_obs_DIC_glodap)
-  IF (assim_o_Alk_glodap)   CALL init_dim_obs_Alk_glodap(step, dim_obs_Alk_glodap)
-  IF (assim_o_pCO2_SOCAT)   CALL init_dim_obs_pCO2_SOCAT(step, dim_obs_pCO2_socat)
-  IF (assim_o_O2_comf)      CALL init_dim_obs_O2_comf(step, dim_obs_O2_comf)
-  IF (assim_o_N_comf)       CALL init_dim_obs_N_comf(step, dim_obs_N_comf)
-  IF (assim_o_O2_argo)      CALL init_dim_obs_O2_argo(step, dim_obs_O2_argo)
-  IF (assim_o_N_argo)       CALL init_dim_obs_N_argo(step, dim_obs_N_argo)
-  IF (assim_o_O2_merged)    CALL init_dim_obs_O2_merged(step, dim_obs_O2_merged)
-  IF (assim_o_n_merged)     CALL init_dim_obs_n_merged(step, dim_obs_n_merged)
+  if (assim_o_chl_cci)      call init_dim_obs_chl_cci(step, dim_obs_chl_cci)
+  if (assim_o_DIC_glodap)   call init_dim_obs_DIC_glodap(step, dim_obs_DIC_glodap)
+  if (assim_o_Alk_glodap)   call init_dim_obs_Alk_glodap(step, dim_obs_Alk_glodap)
+  if (assim_o_pCO2_SOCAT)   call init_dim_obs_pCO2_SOCAT(step, dim_obs_pCO2_socat)
+  if (assim_o_O2_comf)      call init_dim_obs_O2_comf(step, dim_obs_O2_comf)
+  if (assim_o_N_comf)       call init_dim_obs_N_comf(step, dim_obs_N_comf)
+  if (assim_o_O2_argo)      call init_dim_obs_O2_argo(step, dim_obs_O2_argo)
+  if (assim_o_N_argo)       call init_dim_obs_N_argo(step, dim_obs_N_argo)
+  if (assim_o_O2_merged)    call init_dim_obs_O2_merged(step, dim_obs_O2_merged)
+  if (assim_o_n_merged)     call init_dim_obs_n_merged(step, dim_obs_n_merged)
 
   dim_obs =   dim_obs_sst + dim_obs_sss + dim_obs_sss_cci + dim_obs_ssh + dim_obs_prof + dim_obs_en4ana &
             + dim_obs_chl_cci + dim_obs_DIC_glodap + dim_obs_Alk_glodap + dim_obs_pCO2_socat &
@@ -149,19 +145,19 @@ SUBROUTINE init_dim_obs_pdafomi(step, dim_obs)
 
 
   ! *** Generate profile observation files ***
-  IF (proffiles_o == 1) THEN
+  if (proffiles_o == 1) then
      ! Generate distributed files
-     CALL init_dim_obs_f_proffile_pdaf(start_year_o,end_year_o)
+     call init_dim_obs_f_proffile_pdaf(start_year_o,end_year_o)
           
-  ELSEIF (proffiles_o == 2) THEN
+  elseif (proffiles_o == 2) then
      ! Generate one global file
-     WRITE(*,*) 'Generation of global file from EN4 raw profile data ', &
+     write(*,*) 'Generation of global file from EN4 raw profile data ', &
                 'not yet implemented in FESOM Version 2.0 - stopping!'
-     CALL abort_parallel
+     call abort_parallel
 !~      CALL init_dim_obs_f_proffile_g_pdaf(step,dim_obs_prof)
-  END IF
+  end if
 
-END SUBROUTINE init_dim_obs_pdafomi
+end subroutine init_dim_obs_pdafomi
 
 
 
@@ -171,40 +167,35 @@ END SUBROUTINE init_dim_obs_pdafomi
 !! This routine calls the observation-specific
 !! routines obs_op_TYPE.
 !!
-SUBROUTINE obs_op_pdafomi(step, dim_p, dim_obs, state_p, ostate)
+subroutine obs_op_pdafomi(step, dim_p, dim_obs, state_p, ostate)
 
   ! Include functions for different observations
-  USE obs_sst_pdafomi, ONLY: obs_op_sst
-  USE obs_sss_smos_pdafomi, ONLY: obs_op_sss
-  USE obs_sss_cci_pdafomi, ONLY: obs_op_sss_cci
-  USE obs_ssh_cmems_pdafomi, ONLY: obs_op_ssh
-  USE obs_TSprof_EN4_pdafomi, ONLY: obs_op_prof
+  use obs_sst_pdafomi, only: obs_op_sst
+  use obs_sss_smos_pdafomi, only: obs_op_sss
+  use obs_sss_cci_pdafomi, only: obs_op_sss_cci
+  use obs_ssh_cmems_pdafomi, only: obs_op_ssh
+  use obs_TSprof_EN4_pdafomi, only: obs_op_prof
   
-  USE obs_chl_cci_pdafomi, ONLY: obs_op_chl_cci
-  USE obs_DIC_glodap_pdafomi, ONLY: obs_op_DIC_glodap
-  USE obs_Alk_glodap_pdafomi, ONLY: obs_op_Alk_glodap
-  USE obs_pco2_SOCAT_pdafomi, ONLY: obs_op_pCO2_SOCAT
-  USE obs_O2_comf_pdafomi, ONLY: obs_op_O2_comf
-  USE obs_N_comf_pdafomi, ONLY: obs_op_N_comf
-  USE obs_O2_argo_pdafomi, ONLY: obs_op_o2_argo
-  USE obs_N_argo_pdafomi, ONLY: obs_op_N_argo
-  USE obs_O2_merged_pdafomi, ONLY: obs_op_o2_merged
-  USE obs_n_merged_pdafomi, ONLY: obs_op_n_merged
-  
-  USE parallel_pdaf_mod, ONLY: mype_filter
-  USE assim_pdaf_mod, ONLY: mype_debug, node_debug
-!  USE PDAFomi, ONLY: PDAFomi_set_debug_flag
+  use obs_chl_cci_pdafomi, only: obs_op_chl_cci
+  use obs_DIC_glodap_pdafomi, only: obs_op_DIC_glodap
+  use obs_Alk_glodap_pdafomi, only: obs_op_Alk_glodap
+  use obs_pco2_SOCAT_pdafomi, only: obs_op_pCO2_SOCAT
+  use obs_O2_comf_pdafomi, only: obs_op_O2_comf
+  use obs_N_comf_pdafomi, only: obs_op_N_comf
+  use obs_O2_argo_pdafomi, only: obs_op_o2_argo
+  use obs_N_argo_pdafomi, only: obs_op_N_argo
+  use obs_O2_merged_pdafomi, only: obs_op_o2_merged
+  use obs_n_merged_pdafomi, only: obs_op_n_merged
 
-  IMPLICIT NONE
+  implicit none
 
 ! *** Arguments ***
-  INTEGER, INTENT(in) :: step                 !< Current time step
-  INTEGER, INTENT(in) :: dim_p                !< PE-local state dimension
-  INTEGER, INTENT(in) :: dim_obs              !< Dimension of full observed state
-  REAL, INTENT(in)    :: state_p(dim_p)       !< PE-local model state
-  REAL, INTENT(inout) :: ostate(dim_obs)      !< PE-local full observed state
+  integer, intent(in) :: step                 !< Current time step
+  integer, intent(in) :: dim_p                !< PE-local state dimension
+  integer, intent(in) :: dim_obs              !< Dimension of full observed state
+  real, intent(in)    :: state_p(dim_p)       !< PE-local model state
+  real, intent(inout) :: ostate(dim_obs)      !< PE-local full observed state
 
-! No domain_p, thus no debugging call from here
 
 ! ******************************************************
 ! *** Apply observation operator H on a state vector ***
@@ -212,24 +203,24 @@ SUBROUTINE obs_op_pdafomi(step, dim_p, dim_obs, state_p, ostate)
 
   ! The order of the calls determines how the different observations
   ! are ordered in the full state vector
-  CALL obs_op_sst    (dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_sss    (dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_sss_cci(dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_ssh    (dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_prof   (dim_p, dim_obs, state_p, ostate)
+  call obs_op_sst    (dim_p, dim_obs, state_p, ostate)
+  call obs_op_sss    (dim_p, dim_obs, state_p, ostate)
+  call obs_op_sss_cci(dim_p, dim_obs, state_p, ostate)
+  call obs_op_ssh    (dim_p, dim_obs, state_p, ostate)
+  call obs_op_prof   (dim_p, dim_obs, state_p, ostate)
   
-  CALL obs_op_chl_cci   (dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_DIC_glodap(dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_Alk_glodap(dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_pCO2_SOCAT(dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_O2_comf   (dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_N_comf    (dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_O2_argo   (dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_N_argo    (dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_O2_merged (dim_p, dim_obs, state_p, ostate)
-  CALL obs_op_n_merged  (dim_p, dim_obs, state_p, ostate)
+  call obs_op_chl_cci   (dim_p, dim_obs, state_p, ostate)
+  call obs_op_DIC_glodap(dim_p, dim_obs, state_p, ostate)
+  call obs_op_Alk_glodap(dim_p, dim_obs, state_p, ostate)
+  call obs_op_pCO2_SOCAT(dim_p, dim_obs, state_p, ostate)
+  call obs_op_O2_comf   (dim_p, dim_obs, state_p, ostate)
+  call obs_op_N_comf    (dim_p, dim_obs, state_p, ostate)
+  call obs_op_O2_argo   (dim_p, dim_obs, state_p, ostate)
+  call obs_op_N_argo    (dim_p, dim_obs, state_p, ostate)
+  call obs_op_O2_merged (dim_p, dim_obs, state_p, ostate)
+  call obs_op_n_merged  (dim_p, dim_obs, state_p, ostate)
 
-END SUBROUTINE obs_op_pdafomi
+end subroutine obs_op_pdafomi
 
 
 !-------------------------------------------------------------------------------
@@ -238,73 +229,54 @@ END SUBROUTINE obs_op_pdafomi
 !! This routine calls the routine PDAFomi_init_dim_obs_l
 !! for each observation type
 !!
-SUBROUTINE init_dim_obs_l_pdafomi(domain_p, step, dim_obs, dim_obs_l)
+subroutine init_dim_obs_l_pdafomi(domain_p, step, dim_obs, dim_obs_l)
 
   ! Include observation types:
-  USE obs_sst_pdafomi, ONLY: init_dim_obs_l_sst
-  USE obs_sss_smos_pdafomi, ONLY: init_dim_obs_l_sss
-  USE obs_sss_cci_pdafomi, ONLY: init_dim_obs_l_sss_cci
-  USE obs_ssh_cmems_pdafomi, ONLY: init_dim_obs_l_ssh
-  USE obs_TSprof_EN4_pdafomi, ONLY: init_dim_obs_l_prof
+  use obs_sst_pdafomi, only: init_dim_obs_l_sst
+  use obs_sss_smos_pdafomi, only: init_dim_obs_l_sss
+  use obs_sss_cci_pdafomi, only: init_dim_obs_l_sss_cci
+  use obs_ssh_cmems_pdafomi, only: init_dim_obs_l_ssh
+  use obs_TSprof_EN4_pdafomi, only: init_dim_obs_l_prof
   
-  USE obs_chl_cci_pdafomi, ONLY: init_dim_obs_l_chl_cci
-  USE obs_DIC_glodap_pdafomi, ONLY: init_dim_obs_l_DIC_glodap
-  USE obs_Alk_glodap_pdafomi, ONLY: init_dim_obs_l_Alk_glodap
-  USE obs_pco2_SOCAT_pdafomi, ONLY: init_dim_obs_l_pCO2_SOCAT
-  USE obs_o2_comf_pdafomi, ONLY: init_dim_obs_l_o2_comf
-  USE obs_n_comf_pdafomi, ONLY: init_dim_obs_l_n_comf
-  USE obs_o2_argo_pdafomi, ONLY: init_dim_obs_l_o2_argo
-  USE obs_n_argo_pdafomi, ONLY: init_dim_obs_l_n_argo
-  USE obs_o2_merged_pdafomi, ONLY: init_dim_obs_l_o2_merged
-  USE obs_n_merged_pdafomi, ONLY: init_dim_obs_l_n_merged
+  use obs_chl_cci_pdafomi, only: init_dim_obs_l_chl_cci
+  use obs_DIC_glodap_pdafomi, only: init_dim_obs_l_DIC_glodap
+  use obs_Alk_glodap_pdafomi, only: init_dim_obs_l_Alk_glodap
+  use obs_pco2_SOCAT_pdafomi, only: init_dim_obs_l_pCO2_SOCAT
+  use obs_o2_comf_pdafomi, only: init_dim_obs_l_o2_comf
+  use obs_n_comf_pdafomi, only: init_dim_obs_l_n_comf
+  use obs_o2_argo_pdafomi, only: init_dim_obs_l_o2_argo
+  use obs_n_argo_pdafomi, only: init_dim_obs_l_n_argo
+  use obs_o2_merged_pdafomi, only: init_dim_obs_l_o2_merged
+  use obs_n_merged_pdafomi, only: init_dim_obs_l_n_merged
 
-  ! General modules:
-!  USE PDAFomi, ONLY: PDAFomi_set_debug_flag
-  USE parallel_pdaf_mod, ONLY: mype_filter
-  USE g_parsup, ONLY: myList_nod2D, myDim_nod2D
-  USE assim_pdaf_mod, ONLY: debug_id_nod2, mype_debug, node_debug
-
-  IMPLICIT NONE
+  implicit none
 
 ! *** Arguments ***
-  INTEGER, INTENT(in)  :: domain_p   !< Index of current local analysis domain
-  INTEGER, INTENT(in)  :: step       !< Current time step
-  INTEGER, INTENT(in)  :: dim_obs    !< Full dimension of observation vector
-  INTEGER, INTENT(out) :: dim_obs_l  !< Local dimension of observation vector
-   
-   ! Debugging:
-!  IF (mype_filter==mype_debug .AND. modulo(domain_p,myDim_nod2D)==node_debug) THEN
-!   IF ( (mype_filter==57 .AND. modulo(domain_p,myDim_nod2D)==23)  .OR. &
-!        (mype_filter==56 .AND. modulo(domain_p,myDim_nod2D)==129) .OR. &
-!        (mype_filter==56 .AND. modulo(domain_p,myDim_nod2D)==802) .OR. &
-!        (mype_filter==56 .AND. modulo(domain_p,myDim_nod2D)==880)      &
-!        ) THEN
-!    CALL PDAFomi_set_debug_flag(domain_p)
-!    ELSE
-!   CALL PDAFomi_set_debug_flag(0)
-!   ENDIF
-
+  integer, intent(in)  :: domain_p   !< Index of current local analysis domain
+  integer, intent(in)  :: step       !< Current time step
+  integer, intent(in)  :: dim_obs    !< Full dimension of observation vector
+  integer, intent(out) :: dim_obs_l  !< Local dimension of observation vector
 
 
 ! **********************************************
 ! *** Initialize local observation dimension ***
 ! **********************************************
 
-   CALL init_dim_obs_l_sst    (domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_sss    (domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_sss_cci(domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_ssh    (domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_prof   (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_sst    (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_sss    (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_sss_cci(domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_ssh    (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_prof   (domain_p, step, dim_obs, dim_obs_l)
    
-   CALL init_dim_obs_l_chl_cci   (domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_DIC_glodap(domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_Alk_glodap(domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_pCO2_SOCAT(domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_o2_comf   (domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_n_comf    (domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_o2_argo   (domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_n_argo    (domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_o2_merged (domain_p, step, dim_obs, dim_obs_l)
-   CALL init_dim_obs_l_n_merged  (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_chl_cci   (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_DIC_glodap(domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_Alk_glodap(domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_pCO2_SOCAT(domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_o2_comf   (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_n_comf    (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_o2_argo   (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_n_argo    (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_o2_merged (domain_p, step, dim_obs, dim_obs_l)
+   call init_dim_obs_l_n_merged  (domain_p, step, dim_obs, dim_obs_l)
 
-END SUBROUTINE init_dim_obs_l_pdafomi
+end subroutine init_dim_obs_l_pdafomi

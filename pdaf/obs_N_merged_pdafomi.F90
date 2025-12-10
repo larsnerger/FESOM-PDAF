@@ -195,17 +195,12 @@ CONTAINS
     USE assim_pdaf_mod, &
          ONLY: use_global_obs, cradius, sradius
     USE fesom_pdaf, &
-         only: mesh_fesom, nlmax
+         only: mesh_fesom, nlmax, mydim_nod2d, pi, &
+         month, day_in_month, yearnew, timenew, daynew
     USE statevector_pdaf, &
          ONLY: id, sfields
     USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER, MPI_MAX
-    USE g_parsup, &
-         ONLY: myDim_nod2D
-    USE g_clock, &
-         ONLY: month, day_in_month, yearnew, timenew
-    USE o_param, &
-         ONLY: pi
          
     USE netcdf
 
@@ -1627,14 +1622,13 @@ CONTAINS
   SUBROUTINE init_dim_obs_l_n_merged(domain_p, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
-    USE PDAF, ONLY: PDAFomi_init_dim_obs_l,&
-                       PDAFomi_set_debug_flag
+    USE PDAF, ONLY: PDAFomi_init_dim_obs_l
 
     ! Include localization radius and local coordinates
     USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
     
     ! Number of domains per sweep:
-    USE g_parsup, ONLY: myDim_nod2D
+    USE fesom_pdaf, ONLY: myDim_nod2D
 
     IMPLICIT NONE
 

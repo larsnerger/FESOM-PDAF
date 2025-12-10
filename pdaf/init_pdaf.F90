@@ -32,7 +32,6 @@ contains
          twin_experiment, dim_obs_max, use_global_obs,  &
          path_atm_cov, this_is_pdaf_restart, start_from_ENS_spinup, timemean, timemean_s, &
          resetforget, &
-         debug_id_depth, debug_id_nod2, ens_member_debug, &   ! Debugging:
          proffiles_o, path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix, & ! EN4 profile data processing:
          n_sweeps, type_sweep, assimilateBGC, assimilatePHY, & ! Weak coupling of FESOM-REcoM:
          cda_phy, cda_bio, &
@@ -554,16 +553,6 @@ contains
           call PDAF_reset_forget(forget)
        endif
 
-    
-! *****************
-! *** Debugging ***
-! *****************
-
-!   At this node and depth, we see a problem in the model output:
-       debug_id_depth = 1
-       debug_id_nod2  = 85615 !96487 !3833
-       ens_member_debug = 0
-   
     endif ! isPP
 
     call timeit(4, 'old')

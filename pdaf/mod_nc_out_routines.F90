@@ -14,59 +14,53 @@ MODULE mod_nc_out_routines
        ONLY: DAoutput_path, dim_ens, dim_state, &
        dim_state_p
   USE fesom_pdaf, &
-       ONLY: mesh_fesom, nlmax, topography3D_g, pi
+       ONLY: mesh_fesom, nlmax, topography3D_g, pi, &
+       myDim_nod2D, runid, gather_nod, &
+       cyearnew, timeold, dayold, yearold, yearnew, num_day_in_month, fleapyear
   USE statevector_pdaf, &
        only: id, sfields, nfields, phymin, phymax, bgcmin, bgcmax
-USE parallel_pdaf_mod, &
-   ONLY: abort_parallel, writepe
-USE g_config, &
-   ONLY: runid
-USE g_clock, &
-   ONLY: cyearnew, timeold, dayold, yearold, yearnew, num_day_in_month, fleapyear
-USE g_parsup, &
-   ONLY: myDim_nod2D
-USE g_comm_auto, &
-   ONLY: gather_nod
-USE netcdf
+  USE parallel_pdaf_mod, &
+       ONLY: abort_parallel, writepe
+  USE netcdf
 
-IMPLICIT NONE
-save
+  IMPLICIT NONE
+  save
 
-! Private variables:
-INTEGER :: i                          ! counter (state variables)
-INTEGER :: j                          ! counter (ini/forc/ana/mean)
-INTEGER :: member                     ! counter (ensemble member)
-INTEGER :: n                          ! counter (nodes)
-INTEGER :: l                          ! counter (levels/layers)
+  ! Private variables:
+  INTEGER :: i                          ! counter (state variables)
+  INTEGER :: j                          ! counter (ini/forc/ana/mean)
+  INTEGER :: member                     ! counter (ensemble member)
+  INTEGER :: n                          ! counter (nodes)
+  INTEGER :: l                          ! counter (levels/layers)
 
-CHARACTER(len=2)   :: memberstr       ! ensemble member
-CHARACTER(len=200) :: filename        ! name of output file
-INTEGER :: fileid                     ! IDs of netCDF files
-INTEGER :: fidphyday, fidbgcday, &    ! IDs of netCDF files
-           fidphymon, fidbgcmon
+  CHARACTER(len=2)   :: memberstr       ! ensemble member
+  CHARACTER(len=200) :: filename        ! name of output file
+  INTEGER :: fileid                     ! IDs of netCDF files
+  INTEGER :: fidphyday, fidbgcday, &    ! IDs of netCDF files
+       fidphymon, fidbgcmon
            
 !~ ff=1, aa=2, mm=3, ii=4 ! forecast (ff), analysis (aa), mean (mm) and initial (ii)
 !~ sf=5, sa=6, si=7, sm=8 ! ensemble standard deviation of forecast (sf), analysis (sa) and initial (si)
 !~ oo=1, ee=2, dd=3       ! any output (oo), ensemble members (ee) and daily values (dd)
 
-CHARACTER(len=2), dimension(8) :: IFA       ! Type character ('ff','aa','mm','ii','sf','sa','si')
-CHARACTER(len=8), dimension(8) :: IFA_long  ! Type character
-INTEGER :: dimID_nod2, dimID_time, &
-           dimID_nz, dimID_iter
-INTEGER :: dimIDs(3)
-INTEGER :: varid_nod2, varid_nz, &    ! netCDF IDs for dimensions
-           varid_time, varid_iter, &              
-           varid_lon, varid_lat, &
-           varid_forget               ! netCDF ID for forgetting factor
-INTEGER :: ndims
+  CHARACTER(len=2), dimension(8) :: IFA       ! Type character ('ff','aa','mm','ii','sf','sa','si')
+  CHARACTER(len=8), dimension(8) :: IFA_long  ! Type character
+  INTEGER :: dimID_nod2, dimID_time, &
+       dimID_nz, dimID_iter
+  INTEGER :: dimIDs(3)
+  INTEGER :: varid_nod2, varid_nz, &    ! netCDF IDs for dimensions
+       varid_time, varid_iter, &              
+       varid_lon, varid_lat, &
+       varid_forget               ! netCDF ID for forgetting factor
+  INTEGER :: ndims
 
-REAL, allocatable :: lon(:)
-REAL, allocatable :: lat(:)
+  REAL, allocatable :: lon(:)
+  REAL, allocatable :: lat(:)
 
-REAL, parameter    :: fill_value = -999.0
-INTEGER, parameter :: int0=0
+  REAL, parameter    :: fill_value = -999.0
+  INTEGER, parameter :: int0=0
 
-LOGICAL :: debug = .false.
+  LOGICAL :: debug = .false.
 
 CONTAINS
 

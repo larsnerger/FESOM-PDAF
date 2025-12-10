@@ -1,4 +1,3 @@
-!$Id: init_n_domains_pdaf.F90 2466 2021-02-25 12:46:34Z lnerger $
 !>  Routine to set number of local analysis domains
 !!
 !! User-supplied call-back routine for PDAF.
@@ -13,25 +12,21 @@
 !!
 !! __Revision history:__
 !! 2005-09 - Lars Nerger - Initial code for AWI-CM
-!! * Later revisions - see repository log
 !!
-SUBROUTINE init_n_domains_pdaf(step, n_domains_p)
+subroutine init_n_domains_pdaf(step, n_domains_p)
 
-  USE g_parsup, &
-      ONLY: myDim_nod2D, &      ! Process-local number of vertices
-            myDim_elem2D        ! Process-local number of elements
-  USE parallel_pdaf_mod, &
-      ONLY: mype_filter
-!   USE PDAFomi, &
-!       ONLY: PDAFomi_set_debug_flag
-  USE assim_pdaf_mod, &
-      ONLY: n_sweeps
+  use g_parsup, &
+      only: myDim_nod2D, myDim_elem2D
+  use parallel_pdaf_mod, &
+      only: mype_filter
+  use assim_pdaf_mod, &
+      only: n_sweeps
 
-  IMPLICIT NONE
+  implicit none
 
 ! *** Arguments ***
-  INTEGER, INTENT(in)  :: step        ! Current time step
-  INTEGER, INTENT(out) :: n_domains_p ! Process-local number of analysis domains
+  integer, intent(in)  :: step        ! Current time step
+  integer, intent(out) :: n_domains_p ! Process-local number of analysis domains
   
 ! ************************************
 ! *** Initialize number of domains ***
@@ -39,4 +34,4 @@ SUBROUTINE init_n_domains_pdaf(step, n_domains_p)
 
   n_domains_p = n_sweeps * myDim_nod2D
 
-END SUBROUTINE init_n_domains_pdaf
+end subroutine init_n_domains_pdaf

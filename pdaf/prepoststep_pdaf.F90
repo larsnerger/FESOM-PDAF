@@ -22,7 +22,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   USE PDAF, &                        ! PDAF interface definitions
        ONLY: PDAF_reset_forget
   USE parallel_pdaf_mod, &
-       ONLY: mype_filter, npes_filter, COMM_filter, writepe, mype_world
+       ONLY: mype_filter, npes_filter, COMM_filter, writepe, mype_world, MPIerr
   USE assim_pdaf_mod, & ! Variables for assimilation
        ONLY: step_null, filtertype, dim_lag, eff_dim_obs, loctype, &
        proffiles_o, state_fcst, state_fcst_SSH_p, &
@@ -32,28 +32,27 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        timemean, timemean_s, delt_obs_ocn, &
        days_since_DAstart, forget, &
        stdev_SSH_f_p, &
-       factor_mass, factor_conc, DAoutput_path, &
+       DAoutput_path, &
        compute_monthly_aa, compute_monthly_ff, &
        compute_monthly_sa, compute_monthly_sf, &
        compute_monthly_mm, compute_monthly_sm, &
        resetforget
-  USE fesom_pdaf, &
-       ONLY: mesh_fesom, nlmax, &
+  use fesom_pdaf, &
+       only: mesh_fesom, nlmax, MPI_COMM_FESOM, &
        area_surf_glob, inv_area_surf_glob, &
        volo_full_glob, inv_volo_full_glob, &
-       cellvol
+       cellvol, mydim_nod2d, &
+       myList_edge2D, myDim_edge2D, myList_nod2D, &
+       gather_nod, hnode_new, &
+       tiny_chl, tiny, chl2N_max, chl2N_max_d, NCmax, &    ! RECOM  
+       NCmax_d, SiCmax, Redfield, SecondsPerDay, &            ! RECOM
+       dayold, yearold, check_fleapyr, daynew, yearnew, &  ! clock
+       num_day_in_month, fleapyear, month, cyearnew, &     ! clock
+       day_in_month, timenew                               ! clock
   USE statevector_pdaf, &
        only: id, nfields, sfields
   USE mod_atmos_ens_stochasticity, &
-      ONLY: stable_rmse
-  USE g_PARSUP, &
-       ONLY:  MPIerr, mydim_nod2d, MPI_COMM_FESOM, &
-       myList_edge2D, myDim_edge2D, myList_nod2D
-  USE o_ARRAYS, ONLY: hnode_new
-  USE g_comm_auto, ONLY: gather_nod
-  USE recom_config, &
-       ONLY: tiny_chl, tiny, chl2N_max, chl2N_max_d, NCmax, &      
-       NCmax_d, SiCmax, Redfield, SecondsPerDay
+      only: stable_rmse
   USE mod_nc_out_routines, &
        ONLY: netCDF_out
   USE output_config_pdaf, &
@@ -81,17 +80,10 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         ONLY: assim_o_n_merged, n_merged_excl_absolute, n_merged_excl_relative, &
               mean_n_p
               
-  USE g_clock, &
-        ONLY: dayold, yearold, check_fleapyr, daynew, yearnew, &
-              num_day_in_month, fleapyear, month, cyearnew, &
-              day_in_month, timenew
-  USE assim_pdaf_mod, &
-        ONLY: debug_id_nod2
   USE utils_pdaf, &
        ONLY: monthly_event_assimstep
   USE cfluxes_diags_pdaf
   USE netcdf
-  USE g_events
 
   IMPLICIT NONE
   SAVE
@@ -155,9 +147,6 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   ! variables for debugging:
   LOGICAL :: debug
   LOGICAL :: write_debug
-  INTEGER :: fileID_debug
-  CHARACTER(len=3) :: day_string
-  INTEGER :: myDebug_id(1)
   LOGICAL :: debugging_monthlymean = .false.
 
 ! **********************
@@ -576,14 +565,9 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   
   ! Set debug output
   debug = .false.
-  IF (.not. debug) THEN
-     write_debug = .false.
-  ELSE
-     IF (mype_world>0) THEN
-        write_debug = .false.
-     ELSE
-        write_debug = .true.
-     ENDIF
+  write_debug = .false.
+  IF (debug .and. mype_world==0) THEN
+     write_debug = .true.
   ENDIF
   
   IF (mype_filter == 0) &
@@ -841,6 +825,7 @@ SUBROUTINE prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! ***************************
 ! *** Compute daily means ***
 ! ***************************
+
 ! daily means ("m"-state) are averaged over one analysis step and the consecutive model forecast steps of that day
 ! during analysis step, add to m-fields
   IF (w_mm) THEN

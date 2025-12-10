@@ -179,19 +179,12 @@ CONTAINS
          ONLY: twin_experiment, use_global_obs, &
          cradius, sradius, delt_obs_ocn
     USE fesom_pdaf, &
-         only: mesh_fesom, nlmax
+         only: mesh_fesom, nlmax, r2g, myDim_nod2d, &
+         month, day_in_month, yearnew, timenew, daynew
     USE statevector_pdaf, &
          ONLY: id, sfields
     USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
-    USE g_parsup, &
-         ONLY: mydim_nod2d
-!~     USE mod_mesh, &
-!~          ONLY: nod2d, coord_nod2d
-    USE g_rotate_grid, &
-         ONLY: r2g
-    USE g_clock, &
-         ONLY: month, day_in_month, yearnew, timenew, daynew
 
     IMPLICIT NONE
 

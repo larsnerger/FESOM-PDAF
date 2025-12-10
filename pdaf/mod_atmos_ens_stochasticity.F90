@@ -16,27 +16,17 @@ MODULE mod_atmos_ens_stochasticity
 ! forcing fields. Which of these fields shall be perturbed is set
 ! in namelist.fesom.pdaf.
 
-
+  USE mpi
   USE parallel_pdaf_mod, &
-       ONLY: mype_filter, mype_model, mype_world, &
+       ONLY: mype_filter, mype_model, mype_world, MPIerr, &
              COMM_filter, filterpe, task_id, COMM_model
   USE assim_pdaf_mod, &
-       ! dimensions:
-       ONLY: dim_ens, dim_state_p, &
-       ! netCDF file:
-       path_atm_cov, forget
-  USE g_clock, &
-       ONLY: cyearnew, cyearold
-  USE g_PARSUP, &
-       ONLY: myDim_nod2D, eDim_nod2D, &
-             MPI_DOUBLE_PRECISION, MPIerr
-  USE g_sbf, &
-	ONLY: atmdata, &
-	      i_xwind, i_ywind, i_humi, &
-	      i_qsr, i_qlw, i_tair, i_prec, i_mslp, i_snow
-  USE g_comm_auto
-  USE g_config, &
-    ONLY: step_per_day
+       ONLY: dim_ens, dim_state_p, path_atm_cov, forget
+  USE fesom_pdaf, &
+       ONLY: cyearnew, cyearold, step_per_day, exchange_nod, &
+       myDim_nod2D, eDim_nod2D, &
+       atmdata, i_xwind, i_ywind, i_humi, &
+       i_qsr, i_qlw, i_tair, i_prec, i_mslp, i_snow
        
   IMPLICIT NONE
   
@@ -570,10 +560,8 @@ END SUBROUTINE
 
 SUBROUTINE init_atmos_stochasticity_output()
 
-    USE g_config, &
-         ONLY: runid, ResultPath
-    USE g_PARSUP, &
-         ONLY: myDim_nod2D
+    USE fesom_pdaf, &
+         ONLY: runid, ResultPath, myDim_nod2D
     USE assim_pdaf_mod, &
          ONLY: DAoutput_path
          
@@ -786,10 +774,8 @@ END SUBROUTINE
 
 SUBROUTINE write_atmos_stochasticity_output(istep)
 
-    USE g_config, &
-         ONLY: runid, ResultPath
-    USE g_PARSUP, &
-         ONLY: myDim_nod2D
+    USE fesom_pdaf, &
+         ONLY: runid, ResultPath, myDim_nod2D
     USE assim_pdaf_mod, &
          ONLY: DAoutput_path, step_null
          
@@ -917,10 +903,8 @@ END SUBROUTINE
 
 SUBROUTINE write_atmos_stoch_restart()
 
-    USE g_config, &
-         ONLY: runid, ResultPath
-    USE g_PARSUP, &
-         ONLY: myDim_nod2D
+    USE fesom_pdaf, &
+         ONLY: runid, ResultPath, myDim_nod2D
     USE assim_pdaf_mod, &
          ONLY: DAoutput_path
          
@@ -1048,10 +1032,8 @@ END SUBROUTINE write_atmos_stoch_restart
 
 SUBROUTINE read_atmos_stochasticity_restart()
 
-    USE g_config, &
-         ONLY: runid, ResultPath
-    USE g_PARSUP, &
-         ONLY: myDim_nod2D
+    USE fesom_pdaf, &
+         ONLY: runid, ResultPath, myDim_nod2D
     USE assim_pdaf_mod, &
          ONLY: DAoutput_path
          
@@ -1178,18 +1160,12 @@ END SUBROUTINE
 SUBROUTINE compute_ipsr()
 
 USE fesom_pdaf, &
-   ONLY: mesh_fesom, myDim_nod2D,eDim_nod2D
-USE g_clock, &
-   !time in a day, unit: sec
-   ONLY: timenew, &
-   !day in a year, unit: day
-   daynew
-USE o_param, &
-   ONLY: pi
+   ONLY: mesh_fesom, myDim_nod2D,eDim_nod2D, &
+   timenew, daynew, pi
+! USE o_param, &
+!    ONLY: pi
 USE parallel_pdaf_mod, &
    ONLY: filterpe, COMM_couple
-   
-   
    
 IMPLICIT NONE
              

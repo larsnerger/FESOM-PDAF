@@ -181,17 +181,12 @@ CONTAINS
          ONLY: twin_experiment, use_global_obs, delt_obs_ocn, &
                cradius, sradius
     USE fesom_pdaf, &
-         only: mesh_fesom, nlmax
+         only: mesh_fesom, nlmax, myDim_nod2D, r2g, &
+         month, day_in_month, yearnew, timenew, daynew
     USE statevector_pdaf, &
          ONLY: id, sfields
     USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
-    USE g_parsup, &
-         ONLY: myDim_nod2D
-    USE g_clock, &
-         ONLY: month, day_in_month, yearnew, timenew, daynew
-    USE g_rotate_grid, &
-         ONLY: r2g
 
     IMPLICIT NONE
 
@@ -757,12 +752,11 @@ CONTAINS
 
     ! Include PDAFomi function
     USE PDAF, &
-         ONLY: PDAFomi_init_dim_obs_l,&
-         PDAFomi_set_debug_flag
+         ONLY: PDAFomi_init_dim_obs_l
     ! Include localization radius and local coordinates
     USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
     ! Number of domains per sweep:
-    USE g_parsup, ONLY: myDim_nod2D
+    USE fesom_pdaf, ONLY: myDim_nod2D
 
     IMPLICIT NONE
 

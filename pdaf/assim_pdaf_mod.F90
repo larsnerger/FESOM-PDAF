@@ -155,22 +155,6 @@ module assim_pdaf_mod
   real, allocatable :: monthly_state_sa(:)       ! analyzed monthly standard deviation
   real, allocatable :: monthly_state_sm(:)       ! monthly time-mean standard deviation
 
-  ! For carbon diagnostics:
-  real, allocatable :: factor_mass(:,:)
-  real, allocatable :: factor_conc(:,:)
-
-
-! For debugging:
-integer :: debug_id_depth, & ! Location for debugging output
-           debug_id_nod2           
-integer :: ens_member_debug
-integer :: mype_debug = 18
-integer :: node_debug = 1167
-! DIC debugging: Have_obs on mype_debug=18; node_debug=1167 on 2010-01-05.
-! Alk debugging: Have_obs on mype_debug=65; node_debug=915 .OR. 885 .OR. 268 on 2010-01-08.
-
-
-
 
 ! -----------------------------------------------------------------
 ! *** Below are the generic variables used for configuring PDAF ***
@@ -372,12 +356,11 @@ integer :: node_debug = 1167
 
 !    ! Other variables - _NOT_ available as command line options!
   real    :: time               !< model time
-  real, allocatable :: coords_p(:,:)    !< Coordinates of process-local state vector entries
-                                        !< needed to intiialize localization for LEnKF/ENSRF
 
-! Specific for local filters
-integer, allocatable :: id_lstate_in_pstate(:) ! Indices of local state vector in PE-local global state vector
-!REAL, ALLOCATABLE :: distance(:)               ! Distances of local observations
-real                 :: coords_l(2)        ! Coordinates of local analysis domain
+  ! Specific for local filters
+  integer, allocatable :: id_lstate_in_pstate(:) !< Indices of local state vector in PE-local global state vector
+  real                 :: coords_l(2)            !< Coordinates of local analysis domain
+
+!$OMP THREADPRIVATE(coords_l, id_lstate_in_pstate)
 
 end module assim_pdaf_mod

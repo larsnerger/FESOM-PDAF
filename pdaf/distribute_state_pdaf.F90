@@ -21,8 +21,7 @@
 SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 
   USE parallel_pdaf_mod, &
-       ONLY: mype_submodel, mype_world, task_id, mype_model, npes_model, &
-       COMM_model, MPIerr, mype_filter, writepe
+       ONLY: mype_submodel, mype_world, task_id, writepe
   USE assim_pdaf_mod, &
        ONLY: this_is_pdaf_restart, start_from_ENS_spinup, &
        istep_asml, step_null

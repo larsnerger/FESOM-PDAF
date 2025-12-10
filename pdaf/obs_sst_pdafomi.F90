@@ -180,19 +180,14 @@ CONTAINS
          ONLY: PDAFomi_gather_obs
     USE assim_pdaf_mod, &
          ONLY: twin_experiment, use_global_obs, &
-         cradius, sradius, delt_obs_ocn, debug_id_nod2
+         cradius, sradius, delt_obs_ocn
     USE fesom_pdaf, &
-         only: mesh_fesom, nlmax
+         only: mesh_fesom, nlmax, r2g, mydim_nod2d, &
+         month, day_in_month, yearnew, timenew, daynew
     USE statevector_pdaf, &
          ONLY: id, sfields
     USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
-    USE g_parsup, &
-         ONLY: mydim_nod2d, myList_nod2D
-    USE g_rotate_grid, &
-         ONLY: r2g
-    USE g_clock, &
-         ONLY: month, day_in_month, yearnew, timenew, daynew
 
     IMPLICIT NONE
 
@@ -479,20 +474,6 @@ CONTAINS
 ! *** Gather full observation arrays ***
 ! **************************************
 
-!~     test = FINDLOC(myList_nod2D, value=debug_id_nod2)
-!~     IF (test(1)/=0) THEN
-!~        DO i = 1, myDim_nod2D
-!~ 	      IF (i==test(1)) THEN
-!~ 		        write(*,*) 'OMI-debug (F) ', 'obs_sst/init_dim_obs_sst ', 'mesh_fesom%coord_nod2d(1,i): ', mesh_fesom%coord_nod2d(1, i), &
-!~ 		                                                                  'mesh_fesom%coord_nod2d(2,i): ', mesh_fesom%coord_nod2d(2, i)
-!~ 		        CALL r2g(test1, test2, mesh_fesom%coord_nod2d(1,i), mesh_fesom%coord_nod2d(2,i))
-!~                 write(*,*) 'OMI-debug (F) ', 'obs_sst/init_dim_obs_sst ', 'ocoord_n2d_p(1,i): ', test1, &
-!~ 		                                                                  'ocoord_n2d_p(2,i): ', test2
-!~ 		     EXIT
-!~ 	      END IF
-!~ 	   END DO
-!~ 	END IF
-
     CALL PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_n2d_p, &
          thisobs%ncoord, lradius_sst, dim_obs)
          
@@ -589,10 +570,10 @@ CONTAINS
     USE PDAF, ONLY: PDAFomi_init_dim_obs_l
     ! Include routine for adaptive localization radius
     USE adaptive_lradius_pdaf, ONLY: get_adaptive_lradius_pdaf
-    ! Include localization radius and local coordinates
-    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
     ! Number of domains per sweep:
     USE fesom_pdaf, ONLY: myDim_nod2D
+    ! Include localization radius and local coordinates
+    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
 
     IMPLICIT NONE
 
@@ -603,6 +584,7 @@ CONTAINS
     INTEGER, INTENT(inout) :: dim_obs_l  !< Local dimension of observation vector
 
     IF (thisobs%doassim == 1) THEN
+
        IF (loctype == 1) THEN
           ! *** Variable localization radius for fixed effective observation dimension ***
           CALL get_adaptive_lradius_pdaf(thisobs, modulo(domain_p,myDim_nod2D), lradius_sst, loc_radius_sst)

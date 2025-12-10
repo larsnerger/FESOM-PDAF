@@ -179,17 +179,12 @@ CONTAINS
          ONLY: twin_experiment, use_global_obs, &
          cradius, sradius, delt_obs_ocn
     USE fesom_pdaf, &
-         only: mesh_fesom, nlmax
+         only: mesh_fesom, nlmax, r2g, mydim_nod2d, &
+         month, day_in_month, yearnew, timenew, daynew
     USE statevector_pdaf, &
          ONLY: id, sfields
     USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
-    USE g_parsup, &
-         ONLY: mydim_nod2d, myList_nod2d
-    USE g_rotate_grid, &
-         ONLY: r2g
-    USE g_clock, &
-         ONLY: month, day_in_month, yearnew, timenew, daynew
     USE obs_sst_pdafomi, &
          ONLY: mean_ice_p
 
@@ -573,10 +568,10 @@ CONTAINS
     USE PDAF, ONLY: PDAFomi_init_dim_obs_l
     ! Include routine for adaptive localization radius
     USE adaptive_lradius_pdaf, ONLY: get_adaptive_lradius_pdaf
+    USE fesom_pdaf, ONLY: myDim_nod2D
+
     ! Include localization radius and local coordinates
     USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
-    ! Number of domains per sweep:
-    USE fesom_pdaf, ONLY: myDim_nod2D
 
     IMPLICIT NONE
 

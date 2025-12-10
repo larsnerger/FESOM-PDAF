@@ -1,26 +1,27 @@
+!> Create distriuted observation files for EN4 data
+!!
+!! Create distributed observation files for EN4 data. Each process reads
+!! the original EN4 data, selects those observations that belong to the 
+!! process and pass the quality checks. Then the observations are written
+!! into one netCDF file per process including the node information required
+!! for the observation operator.
+!!
+!! !REVISION HISTORY:
+!! 2019-03 - Qi Tang      - Initial code based on init_dim_obs_f_prof_pdaf
+!! 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
+!! 2022-05 - Frauke B     - Adapted for FESOM2.1
+!!
 SUBROUTINE init_dim_obs_f_proffile_pdaf(startyr, endyr)
 
-   ! !DESCRIPTION:
-   ! Create distributed observation files for EN4 data. Each process reads
-   ! the original EN4 data, selects those observations that belong to the 
-   ! process and pass the quality checks. Then the observations are written
-   ! into one netCDF file per process including the node information required
-   ! for the observation operator.
-   !
-   ! !REVISION HISTORY:
-   ! 2019-03 - Qi Tang      - Initial code based on init_dim_obs_f_prof_pdaf
-   ! 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
-   ! 2022-05 - Frauke B     - Adapted for FESOM2.1
-   !
-   ! !USES:
-   USE parallel_pdaf_mod, &
-      ONLY: mype_filter, COMM_filter, abort_parallel
-   USE assim_pdaf_mod, &
-      ONLY: path_obs_rawprof, file_rawprof_prefix,  &
-            file_rawprof_suffix, &
-            num_day_in_month
-   USE fesom_pdaf, &
-        ONLY: mesh_fesom
+  USE mpi
+  USE parallel_pdaf_mod, &
+       ONLY: mype_filter, COMM_filter, abort_parallel, MPIerr
+  USE assim_pdaf_mod, &
+       ONLY: path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix
+  USE fesom_pdaf, &
+       ONLY: mesh_fesom, &
+       num_day_in_month, myDim_nod2D, MPI_COMM_FESOM, rad, &
+       fleapyear, check_fleapyr, z_n, zbar_n
             ! mesh_fesom % coord_nod2D        ! vertex coordinates in radian measure
             ! mesh_fesom % nlevels            ! number of levels at (below) elem     considering bottom topography
             ! mesh_fesom % nlevels_nod2D      ! number of levels at (below) vertices considering bottom topography
@@ -28,33 +29,20 @@ SUBROUTINE init_dim_obs_f_proffile_pdaf(startyr, endyr)
             ! mesh_fesom % elem2D_nodes(:,e)  ! 3 nodes of element e
             ! mesh_fesom % Z                  ! mid-layer depths not considering bottom topography
             ! mesh_fesom % zbar               ! upper layer bounds not considering bottom topography
-   USE obs_TSprof_EN4_pdafomi, &
-      ONLY: assim_o_en4_t, assim_o_en4_s, rms_obs_T, rms_obs_S, &
-            path_obs_prof, file_prof_prefix, file_prof_suffix, &
-            prof_exclude_diff, file_syntobs_prof, bias_obs_prof
-   USE g_PARSUP, &
-      ONLY: MPI_DOUBLE_PRECISION, MPI_INTEGER, MPI_SUM,  &
-            MPIerr, myDim_nod2D, MPI_COMM_FESOM
-   USE o_ARRAYS, &
-      ONLY: z_n, zbar_n
-   USE o_param, &
-      ONLY: rad
-   use g_clock, &
-      ONLY: fleapyear, check_fleapyr
-   USE IFPORT, &
-      ONLY: MAKEDIRQQ
+  USE obs_TSprof_EN4_pdafomi, &
+       ONLY: assim_o_en4_t, assim_o_en4_s, rms_obs_T, rms_obs_S, &
+       path_obs_prof, file_prof_prefix, file_prof_suffix, &
+       prof_exclude_diff, file_syntobs_prof, bias_obs_prof
+  USE IFPORT, &
+       ONLY: MAKEDIRQQ
 
-     IMPLICIT NONE
-     INCLUDE 'netcdf.inc'
+  IMPLICIT NONE
+  INCLUDE 'netcdf.inc'
    
-!    !ARGUMENTS:
-      INTEGER, INTENT(in)    :: startyr, endyr      
+! *** Arguments ***
+  INTEGER, INTENT(in)    :: startyr, endyr      
    
-   ! !CALLING SEQUENCE:
-   ! Called by: init_dim_obs_f_pdaf
-   !EOP
-   
-     ! Local variables
+! *** Local variables ***
      CHARACTER(len=120) :: outpath, outfile, ncfile_out, ncid_out
      INTEGER :: steps
      INTEGER :: month_day (12)

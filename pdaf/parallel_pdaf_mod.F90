@@ -76,8 +76,6 @@ contains
     use timer, only: timeit
     use PDAF, &                     ! PDAF routines
          only: PDAF3_set_parallel
-    use assim_pdaf_mod, &
-         only: dim_ens
 #if defined(__oasis)
     use mod_oasis_data, &
          only: comm_cplmod, cplmodid, strcplmodid ! For AWI-CM
@@ -97,6 +95,7 @@ contains
     integer :: my_color, color_couple   ! Variables for communicator-splitting 
     logical :: iniflag                  ! Flag whether MPI is initialized
     integer :: flag                     ! Status flag
+    integer :: dim_ens                  ! Ensemble size / number of model tasks
     character(len=32) :: handle         ! handle for command line parser
     integer :: screen=0                 ! Whether information is shown on the screen
                                         ! 1 fro active display (set in namelist)

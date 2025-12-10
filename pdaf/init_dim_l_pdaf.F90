@@ -16,44 +16,44 @@
 !! * 2022-03 - Frauke B    - Adapted for FESOM 2.1
 !! * 2025-12 - Lars Nerger - Revision for PDAF3
 !!
-SUBROUTINE init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
+subroutine init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
 
-  USE assim_pdaf_mod, &
-       ONLY: id_lstate_in_pstate, coords_l, isweep
-  USE parallel_pdaf_mod, &
-       ONLY: abort_parallel
-  USE fesom_pdaf, &
-       ONLY: mesh_fesom, nlmax, r2g
-  USE statevector_pdaf, &
-       ONLY: id, nfields, sfields, sfields_l, &
+  use assim_pdaf_mod, &
+       only: id_lstate_in_pstate, coords_l, isweep
+  use parallel_pdaf_mod, &
+       only: abort_parallel
+  use fesom_pdaf, &
+       only: mesh_fesom, nlmax, r2g
+  use statevector_pdaf, &
+       only: id, nfields, sfields, sfields_l, &
        bgcmin, bgcmax, phymin, phymax
-  USE fesom_pdaf, &
-       ONLY: myDim_nod2D
+  use fesom_pdaf, &
+       only: myDim_nod2D
 
-  IMPLICIT NONE
+  implicit none
 
 ! *** Arguments ***
-  INTEGER, INTENT(in)  :: step              !< Current time step
-  INTEGER, INTENT(in)  :: nsweeped_domain_p !< Current local analysis domain, containing repititive sweeps
-  INTEGER, INTENT(out) :: dim_l             !< Local state dimension
+  integer, intent(in)  :: step              !< Current time step
+  integer, intent(in)  :: nsweeped_domain_p !< Current local analysis domain, containing repititive sweeps
+  integer, intent(out) :: dim_l             !< Local state dimension
 
 ! *** Local variables ***
-  INTEGER :: i, b, id_var                        ! Counters
-  INTEGER :: nlay                                ! Number of layers for current domain
-  INTEGER :: domain_p                            ! Local analysis domain accounting for multiple sweeps
+  integer :: i, b, id_var                        ! Counters
+  integer :: nlay                                ! Number of layers for current domain
+  integer :: domain_p                            ! Local analysis domain accounting for multiple sweeps
   
   
 ! ********************************************************
 ! ***  Account for multi sweeps in local analysis loop ***
 ! ********************************************************
 
-  IF (nsweeped_domain_p <= myDim_nod2D) THEN
+  if (nsweeped_domain_p <= myDim_nod2D) then
      domain_p = nsweeped_domain_p
      isweep = 1
-  ELSE
+  else
      domain_p = nsweeped_domain_p - myDim_nod2D
      isweep = 2
-  END IF
+  end if
 
 
 ! ****************************************
@@ -63,51 +63,51 @@ SUBROUTINE init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
   ! The local state vector only contains fields that are updated
   
   ! Allocate array
-  IF (ALLOCATED(sfields_l)) DEALLOCATE(sfields_l)
-  ALLOCATE(sfields_l(nfields))
+  if (allocated(sfields_l)) deallocate(sfields_l)
+  allocate(sfields_l(nfields))
 
   nlay = mesh_fesom%nlevels_nod2D(domain_p)-1
   
-  IF (nlay > nlmax) THEN
-     WRITE(*,*) 'FESOM-PDAF ', 'init_dim_l_pdaf ', 'domain_p ', domain_p, ' nlay exceeds layer bounds!'
-     CALL abort_parallel()
-  ENDIF
+  if (nlay > nlmax) then
+     write(*,*) 'FESOM-PDAF ', 'init_dim_l_pdaf ', 'domain_p ', domain_p, ' nlay exceeds layer bounds!'
+     call abort_parallel()
+  endif
   
   ! Physics:
-  DO i = phymin, phymax
+  do i = phymin, phymax
 
-     IF (sfields(i)%updated) THEN
+     if (sfields(i)%updated) then
         ! surface fields:
-        IF (sfields(i)%ndims == 1) sfields_l(i)%dim = 1
+        if (sfields(i)%ndims == 1) sfields_l(i)%dim = 1
         ! 3D fields:
-        IF (sfields(i)%ndims == 2) sfields_l(i)%dim = nlay
-     ELSE
+        if (sfields(i)%ndims == 2) sfields_l(i)%dim = nlay
+     else
         ! not updated:
         sfields_l(i)%dim = 0
-     ENDIF
-  ENDDO
+     endif
+  enddo
 
   ! BGC:
-  DO i = bgcmin, bgcmax
-     IF (sfields(i)%updated) THEN
+  do i = bgcmin, bgcmax
+     if (sfields(i)%updated) then
         ! surface fields:
-        IF (sfields(i)%ndims == 1) sfields_l(i)%dim = 1
+        if (sfields(i)%ndims == 1) sfields_l(i)%dim = 1
         ! 3D fields:
-        IF (sfields(i)%ndims == 2) sfields_l(i)%dim = nlay
-     ELSE
+        if (sfields(i)%ndims == 2) sfields_l(i)%dim = nlay
+     else
         ! not updated:
         sfields_l(i)%dim = 0
-     ENDIF
-  ENDDO
+     endif
+  enddo
 
   ! Set local offsets
   sfields_l(1)%off = 0
-  DO i = 2, nfields
+  do i = 2, nfields
      sfields_l(i)%off = sfields_l(i-1)%off + sfields_l(i-1)%dim
-  END DO
+  end do
 
   ! *** Local state dimension
-  dim_l = SUM(sfields_l(:)%dim)
+  dim_l = sum(sfields_l(:)%dim)
 
 
 ! **********************************************
@@ -115,7 +115,7 @@ SUBROUTINE init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
 ! **********************************************
 
   ! Get location of current water column (basis point)
-  CALL r2g(coords_l(1), coords_l(2), mesh_fesom%coord_nod2D(1, domain_p), mesh_fesom%coord_nod2D(2, domain_p))
+  call r2g(coords_l(1), coords_l(2), mesh_fesom%coord_nod2D(1, domain_p), mesh_fesom%coord_nod2D(2, domain_p))
   
 
 ! ****************************************************
@@ -123,34 +123,34 @@ SUBROUTINE init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
 ! ****************************************************
 
   ! Allocate array
-  IF (ALLOCATED(id_lstate_in_pstate)) DEALLOCATE(id_lstate_in_pstate)
-  ALLOCATE(id_lstate_in_pstate(dim_l))
+  if (allocated(id_lstate_in_pstate)) deallocate(id_lstate_in_pstate)
+  allocate(id_lstate_in_pstate(dim_l))
 
   ! *** indices for full state vector ***
 
   ! SSH
-  IF (sfields(id%ssh)%updated) THEN
+  if (sfields(id%ssh)%updated) then
      id_lstate_in_pstate (sfields_l(id%ssh)%off+1) &
           = sfields(id%ssh)%off + domain_p
-  ENDIF
+  endif
   
   ! U
   id_var = id%u
-  IF (sfields(id_var)%updated) THEN
-     DO i = 1, sfields_l(id_var)%dim
+  if (sfields(id_var)%updated) then
+     do i = 1, sfields_l(id_var)%dim
         id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
             sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
-     END DO
-  ENDIF
+     end do
+  endif
   
   ! V
   id_var = id%v
-  IF (sfields(id_var)%updated) THEN
-     DO i = 1, sfields_l(id_var)%dim
+  if (sfields(id_var)%updated) then
+     do i = 1, sfields_l(id_var)%dim
         id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
             sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
-     END DO
-  ENDIF
+     end do
+  endif
         
   ! W
   ! id_lstate_in_pstate (sfields_l(id%w)%off+1 : sfields_l(id%w+1)%off) &
@@ -160,49 +160,45 @@ SUBROUTINE init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
   
   ! Temp
   id_var = id%temp
-  IF (sfields(id_var)%updated) THEN
-     DO i = 1, sfields_l(id_var)%dim
+  if (sfields(id_var)%updated) then
+     do i = 1, sfields_l(id_var)%dim
         id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
             sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
-     END DO
-  ENDIF
+     end do
+  endif
   
   ! Salt
   id_var = id%salt
-  IF (sfields(id_var)%updated) THEN
-     DO i = 1, sfields_l(id_var)%dim
+  if (sfields(id_var)%updated) then
+     do i = 1, sfields_l(id_var)%dim
         id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
             sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
-     END DO
-  ENDIF
+     end do
+  endif
         
   ! BGC:
-  DO b = bgcmin, bgcmax
+  do b = bgcmin, bgcmax
   
      ! only updated fields:
-     IF ((sfields(b)% updated)) THEN
-        IF (sfields(b)%ndims == 1)   THEN
+     if ((sfields(b)%updated)) then
+        if (sfields(b)%ndims == 1)   then
 
            ! surface fields:
            id_lstate_in_pstate (sfields_l(b)%off+1) &
                 = sfields(b)%off + domain_p
 
-        ELSEIF (sfields(b)%ndims == 2)   THEN
+        elseif (sfields(b)%ndims == 2)   then
 
            ! 3D fields:
            id_var = b
-           IF (sfields(id_var)%updated) THEN
-              DO i = 1, sfields_l(id_var)%dim
+           if (sfields(id_var)%updated) then
+              do i = 1, sfields_l(id_var)%dim
                  id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
                       sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
-              END DO
-           ENDIF
-!            id_lstate_in_pstate (sfields_l(i)%off + 1 : sfields_l(i)%off + sfields_l(i)%dim)&
-!                 = sfields(i)%off &
-!                 + (domain_p-1)*(nlmax) &
-!                 + (/(k, k=1, sfields_l(i)%dim)/)
-        ENDIF
-     ENDIF
-  ENDDO
+              end do
+           endif
+        endif
+     endif
+  enddo
 
-END SUBROUTINE init_dim_l_pdaf
+end subroutine init_dim_l_pdaf

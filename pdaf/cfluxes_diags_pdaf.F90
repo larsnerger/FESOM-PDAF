@@ -148,7 +148,11 @@ MODULE cfluxes_diags_pdaf
    logical          :: outconc = .false. ! whether to write output for concentration
    logical          :: outmass = .true.  ! """                         mass
 
-   
+   ! For carbon diagnostics:
+   real, allocatable :: factor_mass(:,:)
+   real, allocatable :: factor_conc(:,:)
+
+
 CONTAINS
 
 ! ***********************************************
@@ -157,8 +161,7 @@ CONTAINS
 ! ***                                         ***
 ! ***********************************************
 SUBROUTINE init_carbonfluxes_diags_arrays()
-USE g_PARSUP, ONLY: myDim_nod2D, eDim_nod2D            ! model grid dimensions
-USE assim_pdaf_mod, ONLY: factor_mass, factor_conc     ! used in prepoststep
+USE fesom_pdaf, ONLY: myDim_nod2D, eDim_nod2D            ! model grid dimensions
 USE parallel_pdaf_mod, ONLY: writepe
 
 implicit none
@@ -338,25 +341,18 @@ END SUBROUTINE init_carbonfluxes_diags_arrays
 SUBROUTINE cfluxes_diags_output_tmean(mstep)
 
   USE mpi
-      USE g_clock, &
-        ONLY: month, num_day_in_month, fleapyear, cyearnew, &
-        daynew, timenew
-      USE g_events
-      USE g_config, &
-        ONLY: step_per_day
-      USE g_parsup, &
-        ONLY: myDim_nod2D
-      USE assim_pdaf_mod, &
-        ONLY: dim_ens
-      USE fesom_pdaf, &
-        ONLY: nlmax, mesh_fesom
-      USE parallel_pdaf_mod, &
-        ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
-        COMM_COUPLE, filterpe, writepe, mype_model
-      USE g_comm_auto, &
-        ONLY: gather_nod
-      USE o_arrays, &
-        ONLY: tr_arr, hnode_new
+  USE fesom_pdaf, &
+       ONLY: month, num_day_in_month, fleapyear, cyearnew, &
+       daynew, timenew, step_per_day, myDim_nod2D, &
+       nlmax, mesh_fesom, daily_event, monthly_event, &
+       gather_nod, tr_arr, hnode_new
+  USE assim_pdaf_mod, &
+       ONLY: dim_ens
+  USE fesom_pdaf, &
+       ONLY: nlmax, mesh_fesom, daily_event, monthly_event
+  USE parallel_pdaf_mod, &
+       ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
+       COMM_COUPLE, filterpe, writepe, mype_model
 
 
       IMPLICIT NONE
@@ -542,25 +538,20 @@ SUBROUTINE cfluxes_diags_output_tmean(mstep)
 
 SUBROUTINE carbonfluxes_diags_output_timemean_asml()
 
-      USE g_clock, &
-        ONLY: month, num_day_in_month, fleapyear, cyearnew, &
-        daynew, timenew
-      USE g_events
-      USE g_config, &
-        ONLY: step_per_day
-      USE fesom_pdaf, &
-        ONLY: myDim_nod2D, nlmax, mesh_fesom
-      USE assim_pdaf_mod, &
-        ONLY: dim_ens, assim_time
-      USE parallel_pdaf_mod, &
-        ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
-        COMM_COUPLE, filterpe, writepe
-      USE utils_pdaf, &
-           ONLY: monthly_event_assimstep
-      USE g_comm_auto, &
-        ONLY: gather_nod
+  USE mpi
+  USE utils_pdaf, &
+       only: monthly_event_assimstep
+  USE fesom_pdaf, &
+       ONLY: myDim_nod2D, nlmax, mesh_fesom, step_per_day, &
+       month, num_day_in_month, fleapyear, cyearnew, &
+       daynew, timenew
+  USE assim_pdaf_mod, &
+       ONLY: dim_ens, assim_time
+  USE parallel_pdaf_mod, &
+       ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
+       COMM_COUPLE, filterpe, writepe
 
-      IMPLICIT NONE
+  IMPLICIT NONE
       
       ! local variables
       LOGICAL :: now_to_write
@@ -660,22 +651,16 @@ END SUBROUTINE check
 ! Initializes netCDF output file for carbon flux diagnostics. 
 SUBROUTINE init_carbonfluxes_diags_out()
       
-      USE assim_pdaf_mod, &
-         ONLY: DAoutput_path
-      USE fesom_pdaf, &
-        ONLY: myDim_nod2D, nlmax, mesh_fesom, pi
-      USE g_config, &
-         ONLY: runid
-      USE recom_config, &
-         ONLY: secondsperday
-      USE g_clock, &
-         ONLY: cyearnew, num_day_in_month, fleapyear, &
-         yearold, yearnew, month, daynew, timenew
-      USE g_comm_auto, &
-         ONLY: gather_nod
-      USE parallel_pdaf_mod, &
-         ONLY: writepe
-      USE netcdf
+  USE assim_pdaf_mod, &
+       ONLY: DAoutput_path
+  USE fesom_pdaf, &
+       ONLY: myDim_nod2D, nlmax, mesh_fesom, pi, &
+       runid, gather_nod, secondsperday, &
+       cyearnew, num_day_in_month, fleapyear, &
+       yearold, yearnew, month, daynew, timenew
+  USE parallel_pdaf_mod, &
+       ONLY: writepe
+  USE netcdf
 
       IMPLICIT NONE
       
@@ -1030,70 +1015,68 @@ END SUBROUTINE putvar
 ! ***********************************************
 SUBROUTINE cfdiags_computetransport(tr_arr,Unode,wvel)
 
-   USE fesom_pdaf, &
-      ONLY: nlmax, mesh_fesom
-USE g_parsup, &
-   ONLY: myDim_nod2D, eDim_nod2D
-USE o_param, &
-   ONLY: num_tracers
+  USE fesom_pdaf, &
+       ONLY: nlmax, mesh_fesom, myDim_nod2D, eDim_nod2D, &
+       num_tracers
 
-IMPLICIT NONE
+  IMPLICIT NONE
 
 ! ARGUMENTS:
-REAL, intent(in)  :: tr_arr(mesh_fesom%nl-1, myDim_nod2D+eDim_nod2D, num_tracers) ! tracers
-REAL, intent(in)  :: Unode(2, mesh_fesom%nl-1, myDim_nod2D+eDim_nod2D)            ! horizontal velocities on nodes
-REAL, intent(in)  :: wvel(mesh_fesom%nl, myDim_nod2D+eDim_nod2D)                  ! vertical velocity on levels
+  REAL, intent(in)  :: tr_arr(mesh_fesom%nl-1, myDim_nod2D+eDim_nod2D, num_tracers) ! tracers
+  REAL, intent(in)  :: Unode(2, mesh_fesom%nl-1, myDim_nod2D+eDim_nod2D)            ! horizontal velocities on nodes
+  REAL, intent(in)  :: wvel(mesh_fesom%nl, myDim_nod2D+eDim_nod2D)                  ! vertical velocity on levels
 
 ! LOCAL VARIABLES:
-real, allocatable    :: wlayers(:,:)   ! vertical velocity on layers
-integer, allocatable :: tracerlist(:)
-integer              :: trcounter
+  real, allocatable    :: wlayers(:,:)   ! vertical velocity on layers
+  integer, allocatable :: tracerlist(:)
+  integer              :: trcounter
 
 ! vertical velocities at layers
-allocate(wlayers(nlmax,myDim_nod2D))
-wlayers = 0.5*(wvel(1:nlmax,:myDim_nod2D) + wvel(2:nlmax+1,:myDim_nod2D)) ! positive upwards
+  allocate(wlayers(nlmax,myDim_nod2D))
+  wlayers = 0.5*(wvel(1:nlmax,:myDim_nod2D) + wvel(2:nlmax+1,:myDim_nod2D)) ! positive upwards
 
 ! alkalinity (5)
-cffields(id_t_u_alk)%instantconc = tr_arr(:nlmax,:myDim_nod2D,5) * Unode(1,:nlmax,:myDim_nod2D)
-cffields(id_t_v_alk)%instantconc = tr_arr(:nlmax,:myDim_nod2D,5) * Unode(2,:nlmax,:myDim_nod2D)
-cffields(id_t_w_alk)%instantconc = tr_arr(:nlmax,:myDim_nod2D,5) * wlayers(:nlmax,:myDim_nod2D)
+  cffields(id_t_u_alk)%instantconc = tr_arr(:nlmax,:myDim_nod2D,5) * Unode(1,:nlmax,:myDim_nod2D)
+  cffields(id_t_v_alk)%instantconc = tr_arr(:nlmax,:myDim_nod2D,5) * Unode(2,:nlmax,:myDim_nod2D)
+  cffields(id_t_w_alk)%instantconc = tr_arr(:nlmax,:myDim_nod2D,5) * wlayers(:nlmax,:myDim_nod2D)
 
 ! DIC (4)
-cffields(id_t_u_dic)%instantconc = tr_arr(:nlmax,:myDim_nod2D,4) * Unode(1,:nlmax,:myDim_nod2D)
-cffields(id_t_v_dic)%instantconc = tr_arr(:nlmax,:myDim_nod2D,4) * Unode(2,:nlmax,:myDim_nod2D)
-cffields(id_t_w_dic)%instantconc = tr_arr(:nlmax,:myDim_nod2D,4) * wlayers(:nlmax,:myDim_nod2D)
+  cffields(id_t_u_dic)%instantconc = tr_arr(:nlmax,:myDim_nod2D,4) * Unode(1,:nlmax,:myDim_nod2D)
+  cffields(id_t_v_dic)%instantconc = tr_arr(:nlmax,:myDim_nod2D,4) * Unode(2,:nlmax,:myDim_nod2D)
+  cffields(id_t_w_dic)%instantconc = tr_arr(:nlmax,:myDim_nod2D,4) * wlayers(:nlmax,:myDim_nod2D)
 
 ! Living biomass
-allocate(tracerlist(5))
-tracerlist(1) =  7 ! PhyC
-tracerlist(2) = 12 ! HetC
-tracerlist(3) = 22 ! PhyCalc
-tracerlist(4) = 16 ! DiaC
-tracerlist(5) = 26 ! Zoo2C
+  allocate(tracerlist(5))
+  tracerlist(1) =  7 ! PhyC
+  tracerlist(2) = 12 ! HetC
+  tracerlist(3) = 22 ! PhyCalc
+  tracerlist(4) = 16 ! DiaC
+  tracerlist(5) = 26 ! Zoo2C
 
-DO trcounter=1,5
-   cffields(id_t_u_livingmatter)%instantconc = cffields(id_t_u_livingmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(1,:nlmax,:myDim_nod2D)
-   cffields(id_t_v_livingmatter)%instantconc = cffields(id_t_v_livingmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(2,:nlmax,:myDim_nod2D)
-   cffields(id_t_w_livingmatter)%instantconc = cffields(id_t_w_livingmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * wlayers(:nlmax,:myDim_nod2D)
-ENDDO
-deallocate(tracerlist)
+  DO trcounter=1,5
+     cffields(id_t_u_livingmatter)%instantconc = cffields(id_t_u_livingmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(1,:nlmax,:myDim_nod2D)
+     cffields(id_t_v_livingmatter)%instantconc = cffields(id_t_v_livingmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(2,:nlmax,:myDim_nod2D)
+     cffields(id_t_w_livingmatter)%instantconc = cffields(id_t_w_livingmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * wlayers(:nlmax,:myDim_nod2D)
+  ENDDO
+  deallocate(tracerlist)
 
 ! Dead biomass
-allocate(tracerlist(5))
-tracerlist(1) = 28 ! DetZ2C
-tracerlist(2) = 30 ! DetZ2Calc
-tracerlist(3) = 10 ! DetC
-tracerlist(4) = 23 ! DetCalc
-tracerlist(5) = 14 ! DOC
+  allocate(tracerlist(5))
+  tracerlist(1) = 28 ! DetZ2C
+  tracerlist(2) = 30 ! DetZ2Calc
+  tracerlist(3) = 10 ! DetC
+  tracerlist(4) = 23 ! DetCalc
+  tracerlist(5) = 14 ! DOC
 
-DO trcounter=1,5
-   cffields(id_t_u_deadmatter)%instantconc = cffields(id_t_u_deadmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(1,:nlmax,:myDim_nod2D)
-   cffields(id_t_v_deadmatter)%instantconc = cffields(id_t_v_deadmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(2,:nlmax,:myDim_nod2D)
-   cffields(id_t_w_deadmatter)%instantconc = cffields(id_t_w_deadmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * wlayers(:nlmax,:myDim_nod2D)
-ENDDO
-deallocate(tracerlist)
+  DO trcounter=1,5
+     cffields(id_t_u_deadmatter)%instantconc = cffields(id_t_u_deadmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(1,:nlmax,:myDim_nod2D)
+     cffields(id_t_v_deadmatter)%instantconc = cffields(id_t_v_deadmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(2,:nlmax,:myDim_nod2D)
+     cffields(id_t_w_deadmatter)%instantconc = cffields(id_t_w_deadmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * wlayers(:nlmax,:myDim_nod2D)
+  ENDDO
 
-deallocate(wlayers)
+  deallocate(tracerlist)
+  deallocate(wlayers)
+
 END SUBROUTINE cfdiags_computetransport
 
 
@@ -1112,7 +1095,7 @@ SUBROUTINE debug_vert(varname,vardata)
    USE g_comm_auto, &
       ONLY: gather_nod 
    USE assim_pdaf_mod, &
-      ONLY: istep_asml, DAoutput_path
+      ONLY: DAoutput_path
    USE fesom_pdaf, &
         ONLY: nlmax, mesh_fesom, myDim_nod2D
    implicit none
@@ -1143,7 +1126,7 @@ SUBROUTINE debug_hor(varname,vardata)
    USE g_comm_auto, &
       ONLY: gather_nod 
    USE assim_pdaf_mod, &
-      ONLY: istep_asml,DAoutput_path
+      ONLY: DAoutput_path
    USE fesom_pdaf, &
         ONLY: nlmax, mesh_fesom, myDim_nod2D
       

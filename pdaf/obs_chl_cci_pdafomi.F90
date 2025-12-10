@@ -186,17 +186,13 @@ CONTAINS
          ONLY: twin_experiment, use_global_obs, delt_obs_ocn, &
          cradius, sradius
     USE fesom_pdaf, &
-         only: mesh_fesom, nlmax
+         only: mesh_fesom, nlmax, r2g, mydim_nod2d, &
+         mydim_nod2d, myList_nod2d, &
+         month, day_in_month, yearnew, timenew, daynew
     USE statevector_pdaf, &
          ONLY: id, sfields
     USE parallel_pdaf_mod, &
          ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
-    USE g_parsup, &
-         ONLY: mydim_nod2d, myList_nod2d
-    USE g_rotate_grid, &
-         ONLY: r2g
-    USE g_clock, &
-         ONLY: month, day_in_month, yearnew, timenew, daynew
     USE obs_sst_pdafomi, &
          ONLY: mean_ice_p
 
@@ -696,6 +692,7 @@ CONTAINS
           CALL get_adaptive_lradius_pdaf(thisobs, modulo(domain_p,myDim_nod2D), lradius_chl_cci, loc_radius_chl_cci)
        END IF
        lradius_chl_cci = loc_radius_chl_cci(modulo(domain_p,myDim_nod2D))
+
        
        ! ************************************************************
        ! *** Adapt observation error for coupled DA (double loop) ***
@@ -728,8 +725,6 @@ CONTAINS
        CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
             locweight, lradius_chl_cci, sradius_chl_cci, dim_obs_l)
 
-
-       
     END IF
 
   END SUBROUTINE init_dim_obs_l_chl_cci

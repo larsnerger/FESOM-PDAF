@@ -11,90 +11,90 @@
 !! * 2011-05 - Lars Nerger - Initial code extracted from init_pdaf
 !! * 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
 !!
-SUBROUTINE init_pdaf_info()
+subroutine init_pdaf_info()
 
-  USE assim_pdaf_mod, & ! Variables for assimilation
-       ONLY: filtertype, subtype, dim_ens,  &
+  use assim_pdaf_mod, & ! Variables for assimilation
+       only: filtertype, subtype, dim_ens,  &
        forget, delt_obs_ocn, dim_state, &
        file_syntobs, twin_experiment
     
-  IMPLICIT NONE
+  implicit none
     
     
 ! *****************************
 ! *** Initial Screen output ***
 ! *****************************
     
-  IF (filtertype == 1) THEN
-     WRITE (*, '(21x, a)') 'Filter: SEIK'
-     IF (subtype == 2) THEN
-        WRITE (*, '(6x, a)') '-- fixed error-space basis'
-     ELSE IF (subtype == 3) THEN
-        WRITE (*, '(6x, a)') '-- fixed state covariance matrix'
-     ELSE IF (subtype == 4) THEN
-        WRITE (*, '(6x, a)') '-- use ensemble transformation'
-     ELSE IF (subtype == 5) THEN
-        WRITE (*, '(6x, a)') '-- Offline mode'
-     END IF
-  ELSE IF (filtertype == 3) THEN
-     WRITE (*, '(21x, a)') 'Filter: LSEIK'
-     IF (subtype == 2) THEN
-        WRITE (*, '(6x, a)') '-- fixed error-space basis'
-     ELSE IF (subtype == 3) THEN
-        WRITE (*, '(6x, a)') '-- fixed state covariance matrix'
-     ELSE IF (subtype == 4) THEN
-        WRITE (*, '(6x, a)') '-- use ensemble transformation'
-     ELSE IF (subtype == 5) THEN
-        WRITE (*, '(6x, a)') '-- Offline mode'
-     END IF
-  ELSE IF (filtertype == 4) THEN
-     WRITE (*, '(21x, a)') 'Filter: ETKF'
-     IF (subtype == 0) THEN
-        WRITE (*, '(6x, a)') '-- Variant using T-matrix'
-     ELSE IF (subtype == 1) THEN
-        WRITE (*, '(6x, a)') '-- Variant following Hunt et al. (2007)'
-     ELSE IF (subtype == 5) THEN
-        WRITE (*, '(6x, a)') '-- Offline mode'
-     END IF
-  ELSE IF (filtertype == 5) THEN
-     WRITE (*, '(21x, a)') 'Filter: LETKF'
-     IF (subtype == 0) THEN
-        WRITE (*, '(6x, a)') '-- Variant using T-matrix'
-     ELSE IF (subtype == 1) THEN
-        WRITE (*, '(6x, a)') '-- Variant following Hunt et al. (2007)'
-     ELSE IF (subtype == 5) THEN
-        WRITE (*, '(6x, a)') '-- Offline mode'
-     END IF
-  ELSE IF (filtertype == 6) THEN
-     WRITE (*, '(21x, a)') 'Filter: ESTKF'
-     IF (subtype == 0) THEN
-        WRITE (*, '(6x, a)') '-- Standard mode'
-     ELSE IF (subtype == 5) THEN
-        WRITE (*, '(6x, a)') '-- Offline mode'
-     END IF
-  ELSE IF (filtertype == 7) THEN
-     WRITE (*, '(a, 21x, a)') 'FESOM-PDAF','Filter: LESTKF'
-     IF (subtype == 0) THEN
-        WRITE (*, '(a, 6x, a)') 'FESOM-PDAF','-- Standard mode'
-     ELSE IF (subtype == 5) THEN
-        WRITE (*, '(a, 6x, a)') 'FESOM-PDAF','-- Offline mode'
-     END IF
-  ELSE IF (filtertype == 100) THEN
-     WRITE (*, '(a, 6x, a, f5.2)') 'FESOM-PDAF','-- Generate observations --'
-     IF (dim_ens>1) THEN
-        WRITE (*, '(a, 14x, a)') 'FESOM-PDAF','Use ensemble mean for observations'
-     ELSE
-        WRITE (*, '(a, 14x, a)') 'FESOM-PDAF','Generate observations from single ensemble state'
-     END IF
-  END IF
-  WRITE (*, '(a, 14x, a, i5)') 'FESOM-PDAF','ensemble size:', dim_ens
-  IF (subtype /= 5) WRITE (*, '(a, 6x, a, i5)') 'FESOM-PDAF','Assimilation interval:', delt_obs_ocn
-  WRITE (*, '(a, 10x, a, f5.2)') 'FESOM-PDAF','forgetting factor:', forget
-  IF (twin_experiment) &
-       WRITE (*, '(/a,6x, a)') 'FESOM-PDAF','Run twin experiment with synthetic observations'
-  IF (filtertype==100 .OR. twin_experiment) &
-       WRITE (*, '(a,11x, a, a)') 'FESOM-PDAF','File for synthetic observations: ', TRIM(file_syntobs)
-  WRITE (*, '(a, 8x, a, 1x, i9)') 'FESOM-PDAF','FESOM state dimension:',dim_state
+  if (filtertype == 1) then
+     write (*, '(21x, a)') 'Filter: SEIK'
+     if (subtype == 2) then
+        write (*, '(6x, a)') '-- fixed error-space basis'
+     else if (subtype == 3) then
+        write (*, '(6x, a)') '-- fixed state covariance matrix'
+     else if (subtype == 4) then
+        write (*, '(6x, a)') '-- use ensemble transformation'
+     else if (subtype == 5) then
+        write (*, '(6x, a)') '-- Offline mode'
+     end if
+  else if (filtertype == 3) then
+     write (*, '(21x, a)') 'Filter: LSEIK'
+     if (subtype == 2) then
+        write (*, '(6x, a)') '-- fixed error-space basis'
+     else if (subtype == 3) then
+        write (*, '(6x, a)') '-- fixed state covariance matrix'
+     else if (subtype == 4) then
+        write (*, '(6x, a)') '-- use ensemble transformation'
+     else if (subtype == 5) then
+        write (*, '(6x, a)') '-- Offline mode'
+     end if
+  else if (filtertype == 4) then
+     write (*, '(21x, a)') 'Filter: ETKF'
+     if (subtype == 0) then
+        write (*, '(6x, a)') '-- Variant using T-matrix'
+     else if (subtype == 1) then
+        write (*, '(6x, a)') '-- Variant following Hunt et al. (2007)'
+     else if (subtype == 5) then
+        write (*, '(6x, a)') '-- Offline mode'
+     end if
+  else if (filtertype == 5) then
+     write (*, '(21x, a)') 'Filter: LETKF'
+     if (subtype == 0) then
+        write (*, '(6x, a)') '-- Variant using T-matrix'
+     else if (subtype == 1) then
+        write (*, '(6x, a)') '-- Variant following Hunt et al. (2007)'
+     else if (subtype == 5) then
+        write (*, '(6x, a)') '-- Offline mode'
+     end if
+  else if (filtertype == 6) then
+     write (*, '(21x, a)') 'Filter: ESTKF'
+     if (subtype == 0) then
+        write (*, '(6x, a)') '-- Standard mode'
+     else if (subtype == 5) then
+        write (*, '(6x, a)') '-- Offline mode'
+     end if
+  else if (filtertype == 7) then
+     write (*, '(a, 21x, a)') 'FESOM-PDAF','Filter: LESTKF'
+     if (subtype == 0) then
+        write (*, '(a, 6x, a)') 'FESOM-PDAF','-- Standard mode'
+     else if (subtype == 5) then
+        write (*, '(a, 6x, a)') 'FESOM-PDAF','-- Offline mode'
+     end if
+  else if (filtertype == 100) then
+     write (*, '(a, 6x, a, f5.2)') 'FESOM-PDAF','-- Generate observations --'
+     if (dim_ens>1) then
+        write (*, '(a, 14x, a)') 'FESOM-PDAF','Use ensemble mean for observations'
+     else
+        write (*, '(a, 14x, a)') 'FESOM-PDAF','Generate observations from single ensemble state'
+     end if
+  end if
+  write (*, '(a, 14x, a, i5)') 'FESOM-PDAF','ensemble size:', dim_ens
+  if (subtype /= 5) write (*, '(a, 6x, a, i5)') 'FESOM-PDAF','Assimilation interval:', delt_obs_ocn
+  write (*, '(a, 10x, a, f5.2)') 'FESOM-PDAF','forgetting factor:', forget
+  if (twin_experiment) &
+       write (*, '(/a,6x, a)') 'FESOM-PDAF','Run twin experiment with synthetic observations'
+  if (filtertype==100 .or. twin_experiment) &
+       write (*, '(a,11x, a, a)') 'FESOM-PDAF','File for synthetic observations: ', trim(file_syntobs)
+  write (*, '(a, 8x, a, 1x, i9)') 'FESOM-PDAF','FESOM state dimension:',dim_state
 
 
-END SUBROUTINE init_pdaf_info
+end subroutine init_pdaf_info

@@ -101,9 +101,6 @@ MODULE statevector_pdaf
   INTEGER :: phymin, phymax   ! First and last physics field in state vector
   INTEGER :: bgcmin, bgcmax   ! First and last biogeochemistry field in state vector
 
-  INTEGER :: nfields_tr3D                   ! Number of 3D model tracer fields in state vector
-  INTEGER, ALLOCATABLE :: ids_tr3D(:)       ! List of 3D model tracer IDs
-
 
   !---- The next variables usually do not need editing -----
 
@@ -779,6 +776,9 @@ CONTAINS
 
 !> Count 2D and 3D fields and initialize index arrays
 !!
+!! This functioanlity of optional and not used elsewhere
+!! in the code.
+!!
   SUBROUTINE set_field_types(verbose)
 
     USE parallel_pdaf_mod, &
@@ -795,10 +795,12 @@ CONTAINS
     INTEGER, ALLOCATABLE :: ids_2D(:)         ! """       2D fields """
     INTEGER, ALLOCATABLE :: ids_phy(:)        ! """       physics fields """
     INTEGER, ALLOCATABLE :: ids_bgc(:)        ! """       biogeochem. fields """
+    INTEGER, ALLOCATABLE :: ids_tr3D(:)       ! List of 3D model tracer IDs
     INTEGER :: nfields_3D                     ! Number of 3D fields in state vector
     INTEGER :: nfields_2D                     ! """       2D fields """
     INTEGER :: nfields_phy                    ! """       physics fields """
     INTEGER :: nfields_bgc                    ! """       biogeochem. fields """
+    INTEGER :: nfields_tr3D                   ! Number of 3D model tracer fields in state vector
 
 
 ! **************************************
@@ -821,7 +823,6 @@ CONTAINS
     DO i=1,nfields
        IF (sfields(i)%ndims == 2) THEN
           ids_3D(cnt) = i
-!          sfields(i)%id_dim = cnt
           cnt = cnt+1
        ENDIF
     ENDDO
@@ -837,7 +838,6 @@ CONTAINS
     DO i=1,nfields
        IF (sfields(i)%ndims == 1) THEN
           ids_2D(cnt) = i
-!          sfields(i)%id_dim = cnt
           cnt = cnt+1
        ENDIF
     ENDDO
@@ -889,7 +889,6 @@ CONTAINS
     DO i=1,nfields
        IF (sfields(i)%bgc) THEN
           ids_bgc(cnt) = i
-!          sfields(i)%id_type = cnt
           cnt = cnt+1
        ENDIF
     ENDDO
@@ -905,7 +904,6 @@ CONTAINS
     DO i=1,nfields
        IF (.NOT. sfields(i)%bgc) THEN
           ids_phy(cnt) = i
-!          sfields(i)%id_type = cnt
           cnt = cnt+1
        ENDIF
     ENDDO
