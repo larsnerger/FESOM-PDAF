@@ -126,8 +126,8 @@ MODULE cfluxes_diags_pdaf
      real, allocatable  :: instantmass  (:,:) !  model data is collected into instanteous arrays (mass)
      real, allocatable  :: instantconc  (:,:) !  """                                             (concentration)
      real, allocatable  :: loc          (:)   !  recom-specific terms need to be collected into domain-local arrays
-     real, allocatable  :: timemeanmass (:,:) !  time mean (mass)
-     real, allocatable  :: timemeanconc (:,:) !  """       (concentration)
+     real, allocatable  :: tmeanmass (:,:) !  time mean (mass)
+     real, allocatable  :: tmeanconc (:,:) !  """       (concentration)
      real, allocatable  :: ensmmass     (:,:) !  ensemble mean (mass)
      real, allocatable  :: ensmconc     (:,:) !                (concentration)
      character(len=200) :: unitsmass          !  units mass
@@ -157,19 +157,22 @@ CONTAINS
 
 ! ***********************************************
 ! ***                                         ***
-! ***   init_carbonfluxes_diags_arrays        ***
+! ***   init_cfluxes_diags_arrays        ***
 ! ***                                         ***
 ! ***********************************************
-SUBROUTINE init_carbonfluxes_diags_arrays()
-USE fesom_pdaf, ONLY: myDim_nod2D, eDim_nod2D            ! model grid dimensions
-USE parallel_pdaf_mod, ONLY: writepe
+  SUBROUTINE init_cfluxes_diags_arrays()
 
-implicit none
-integer :: i, ids ! counters
+    USE fesom_pdaf, ONLY: myDim_nod2D, eDim_nod2D            ! model grid dimensions
+    USE parallel_pdaf_mod, ONLY: writepe
+
+    implicit none
+
+! Local variables
+    integer :: i, ids ! counters
 
 
-   ! To write debugging output:
-   cfdiags_debug = .False.
+    ! To write debugging output:
+    cfdiags_debug = .False.
    
    allocate(cffields(cfnfields))
    
@@ -247,7 +250,7 @@ integer :: i, ids ! counters
       ids=cffieldsflux(i)
       
       allocate(cffields(ids)%instantconc  (nlmax,myDim_nod2D), source=0.0)
-      allocate(cffields(ids)%timemeanconc (nlmax,myDim_nod2D), source=0.0)
+      allocate(cffields(ids)%tmeanconc (nlmax,myDim_nod2D), source=0.0)
       allocate(cffields(ids)%ensmconc     (nlmax,myDim_nod2D), source=0.0)
       
       cffields(ids)%unitsconc = 'mmol m$^{-2}$ s$^{-1}$'
@@ -275,9 +278,9 @@ integer :: i, ids ! counters
          allocate(cffields(ids)%instantmass (nlmax,myDim_nod2D+eDim_nod2D), source=0.0)
       ENDIF
       
-      allocate(cffields(ids)%timemeanconc (nlmax,myDim_nod2D), source=0.0)
+      allocate(cffields(ids)%tmeanconc (nlmax,myDim_nod2D), source=0.0)
       allocate(cffields(ids)%ensmconc     (nlmax,myDim_nod2D), source=0.0)
-      allocate(cffields(ids)%timemeanmass (nlmax,myDim_nod2D), source=0.0)
+      allocate(cffields(ids)%tmeanmass (nlmax,myDim_nod2D), source=0.0)
       allocate(cffields(ids)%ensmmass     (nlmax,myDim_nod2D), source=0.0)
       
       cffields(ids)%unitsconc = 'mmol m$^{-3}$ s$^{-1}$'
@@ -321,18 +324,18 @@ integer :: i, ids ! counters
       ids=cffieldsvol(i)
       
       allocate(cffields(ids)%instantconc  (nlmax,myDim_nod2D), source=0.0)
-      allocate(cffields(ids)%timemeanconc (nlmax,myDim_nod2D), source=0.0)
+      allocate(cffields(ids)%tmeanconc (nlmax,myDim_nod2D), source=0.0)
       allocate(cffields(ids)%ensmconc     (nlmax,myDim_nod2D), source=0.0)
       
       cffields(ids)%unitsconc = 'mmol m$^{-3}$'
    ENDDO ! (cell volume change)
 
-END SUBROUTINE init_carbonfluxes_diags_arrays
+END SUBROUTINE init_cfluxes_diags_arrays
 
 
 ! ***********************************************
 ! ***                                         ***
-! ***   carbonfluxes_diags_output_timemean     ***
+! ***   cfluxes_diags_output_tmean     ***
 ! ***                                         ***
 ! ***********************************************
 ! - compute time mean and ensemble means of model fields and write output
@@ -414,24 +417,24 @@ SUBROUTINE cfluxes_diags_output_tmean(mstep)
       IF (cfdiags_debug .and. writepe) WRITE (*, '(/a, 1x, a, 1x, i5, 1x, a, 1x, l)') 'FESOM-PDAF', 'Call carbonflux diagnostics at step', mstep, 'nowtowrite', now_to_write
       
       ! ***
-      ! *** add instantaneous data to timemean
+      ! *** add instantaneous data to time mean
       ! ***
       
       ! directed fluxes through area
       DO i=1, size(cffieldsflux)
          ids = cffieldsflux(i)
-         cffields(ids)%timemeanconc = cffields(ids)%timemeanconc + cffields(ids)%instantconc(:,:myDim_nod2D)
+         cffields(ids)%tmeanconc = cffields(ids)%tmeanconc + cffields(ids)%instantconc(:,:myDim_nod2D)
       ENDDO
       ! sources minus sinks in model
       DO i=1, size(cffieldssms)
          ids=cffieldssms(i)
-         cffields(ids)%timemeanconc = cffields(ids)%timemeanconc + cffields(ids)%instantconc(:,:myDim_nod2D)
-         cffields(ids)%timemeanmass = cffields(ids)%timemeanmass + cffields(ids)%instantmass(:,:myDim_nod2D)
+         cffields(ids)%tmeanconc = cffields(ids)%tmeanconc + cffields(ids)%instantconc(:,:myDim_nod2D)
+         cffields(ids)%tmeanmass = cffields(ids)%tmeanmass + cffields(ids)%instantmass(:,:myDim_nod2D)
       ENDDO
       ! cell volume change
       DO i=1, size(cffieldsvol)
          ids = cffieldsvol(i)
-         cffields(ids)%timemeanconc = cffields(ids)%timemeanconc + cffields(ids)%instantconc(:,:myDim_nod2D)
+         cffields(ids)%tmeanconc = cffields(ids)%tmeanconc + cffields(ids)%instantconc(:,:myDim_nod2D)
       ENDDO
       
       IF (now_to_write) THEN
@@ -450,25 +453,25 @@ SUBROUTINE cfluxes_diags_output_tmean(mstep)
       ! directed fluxes through area
       DO i=1, size(cffieldsflux)
          ids = cffieldsflux(i)
-         cffields(ids)%timemeanconc = cffields(ids)%timemeanconc * weights
+         cffields(ids)%tmeanconc = cffields(ids)%tmeanconc * weights
          !                - send -                   - receive -            - size -             - type -              - sum -  -receiver-   -ensemble-    -check-
-         CALL MPI_REDUCE( cffields(ids)%timemeanconc, cffields(ids)%ensmconc, nlmax * myDim_nod2D, MPI_DOUBLE_PRECISION, MPI_SUM, 0          , COMM_COUPLE, mpierror)
+         CALL MPI_REDUCE( cffields(ids)%tmeanconc, cffields(ids)%ensmconc, nlmax * myDim_nod2D, MPI_DOUBLE_PRECISION, MPI_SUM, 0          , COMM_COUPLE, mpierror)
       ENDDO
       ! sources minus sinks in model
       DO i=1, size(cffieldssms)
          ids=cffieldssms(i)
-         cffields(ids)%timemeanconc = cffields(ids)%timemeanconc * weights
-         cffields(ids)%timemeanmass = cffields(ids)%timemeanmass * weights
+         cffields(ids)%tmeanconc = cffields(ids)%tmeanconc * weights
+         cffields(ids)%tmeanmass = cffields(ids)%tmeanmass * weights
          !                - send -                   - receive -            - size -             - type -              - sum -  -receiver-   -ensemble-    -check-
-         CALL MPI_REDUCE( cffields(ids)%timemeanconc, cffields(ids)%ensmconc, nlmax * myDim_nod2D, MPI_DOUBLE_PRECISION, MPI_SUM, 0          , COMM_COUPLE, mpierror)
-         CALL MPI_REDUCE( cffields(ids)%timemeanmass, cffields(ids)%ensmmass, nlmax * myDim_nod2D, MPI_DOUBLE_PRECISION, MPI_SUM, 0          , COMM_COUPLE, mpierror)
+         CALL MPI_REDUCE( cffields(ids)%tmeanconc, cffields(ids)%ensmconc, nlmax * myDim_nod2D, MPI_DOUBLE_PRECISION, MPI_SUM, 0          , COMM_COUPLE, mpierror)
+         CALL MPI_REDUCE( cffields(ids)%tmeanmass, cffields(ids)%ensmmass, nlmax * myDim_nod2D, MPI_DOUBLE_PRECISION, MPI_SUM, 0          , COMM_COUPLE, mpierror)
       ENDDO
       ! cell volume change
       DO i=1, size(cffieldsvol)
          ids = cffieldsvol(i)
-         cffields(ids)%timemeanconc = cffields(ids)%timemeanconc * weights
+         cffields(ids)%tmeanconc = cffields(ids)%tmeanconc * weights
          !                - send -                   - receive -            - size -             - type -              - sum -  -receiver-   -ensemble-    -check-
-         CALL MPI_REDUCE( cffields(ids)%timemeanconc, cffields(ids)%ensmconc, nlmax * myDim_nod2D, MPI_DOUBLE_PRECISION, MPI_SUM, 0          , COMM_COUPLE, mpierror)
+         CALL MPI_REDUCE( cffields(ids)%tmeanconc, cffields(ids)%ensmconc, nlmax * myDim_nod2D, MPI_DOUBLE_PRECISION, MPI_SUM, 0          , COMM_COUPLE, mpierror)
       ENDDO
       
       ! tracer fields
@@ -503,24 +506,24 @@ SUBROUTINE cfluxes_diags_output_tmean(mstep)
       ENDDO
 
       ! write ensemble mean output
-      IF (filterpe) call write_carbonfluxes_diags_out()
+      IF (filterpe) call write_cfluxes_diags_out()
       
-      ! reset timemean data to zero
+      ! reset tmean data to zero
       ! directed fluxes through area
       DO i=1, size(cffieldsflux)
          ids = cffieldsflux(i)
-         cffields(ids)%timemeanconc = 0.0
+         cffields(ids)%tmeanconc = 0.0
       ENDDO
       ! sources minus sinks in model
       DO i=1, size(cffieldssms)
          ids=cffieldssms(i)
-         cffields(ids)%timemeanconc = 0.0
-         cffields(ids)%timemeanmass = 0.0
+         cffields(ids)%tmeanconc = 0.0
+         cffields(ids)%tmeanmass = 0.0
       ENDDO
       ! cell volumne
       DO i=1, size(cffieldsvol)
          ids = cffieldsvol(i)
-         cffields(ids)%timemeanconc = 0.0
+         cffields(ids)%tmeanconc = 0.0
       ENDDO
       
       ENDIF ! now_to_write
@@ -530,13 +533,13 @@ SUBROUTINE cfluxes_diags_output_tmean(mstep)
 
 ! ****************************************************
 ! ***                                              ***
-! ***   carbonfluxes_diags_output_timemean_asml     ***
+! ***   cfluxes_diags_output_tmean_asml     ***
 ! ***                                              ***
 ! ****************************************************
 ! - compute time mean of SMS during assimilation step and write output
 ! - called from PDAF (prepoststep)
 
-SUBROUTINE carbonfluxes_diags_output_timemean_asml()
+SUBROUTINE cfluxes_diags_output_tmean_asml()
 
   USE mpi
   USE utils_pdaf, &
@@ -607,7 +610,7 @@ SUBROUTINE carbonfluxes_diags_output_timemean_asml()
       ENDDO 
 
       ! write time mean output
-      IF (filterpe) call write_carbonfluxes_diags_out_asml()
+      IF (filterpe) call write_cfluxes_diags_out_asml()
       
       ! reset time mean to zero
       DO i=1, size(cffieldsasml)
@@ -617,7 +620,7 @@ SUBROUTINE carbonfluxes_diags_output_timemean_asml()
       ENDDO  
       ENDIF ! now_to_write
   
-END SUBROUTINE carbonfluxes_diags_output_timemean_asml
+END SUBROUTINE cfluxes_diags_output_tmean_asml
 
 
 ! ********************************
@@ -645,11 +648,11 @@ END SUBROUTINE check
 
 ! ***********************************************
 ! ***                                         ***
-! ***   init_carbonfluxes_diags_out           ***
+! ***   init_cfluxes_diags_out           ***
 ! ***                                         ***
 ! ***********************************************
 ! Initializes netCDF output file for carbon flux diagnostics. 
-SUBROUTINE init_carbonfluxes_diags_out()
+SUBROUTINE init_cfluxes_diags_out()
       
   USE assim_pdaf_mod, &
        ONLY: DAoutput_path
@@ -777,15 +780,15 @@ SUBROUTINE init_carbonfluxes_diags_out()
 
       ENDIF ! .not. file_exists
 
-END SUBROUTINE init_carbonfluxes_diags_out
+END SUBROUTINE init_cfluxes_diags_out
 
 ! ***********************************************
 ! ***                                         ***
-! ***   write_carbonfluxes_diags_out          ***
+! ***   write_cfluxes_diags_out          ***
 ! ***                                         ***
 ! ***********************************************
 ! Writes carbon flux diagnostics to netCDF during model step
-SUBROUTINE write_carbonfluxes_diags_out()
+SUBROUTINE write_cfluxes_diags_out()
 
 USE g_clock, &
    ONLY: month, cyearnew, daynew, num_day_in_month, fleapyear
@@ -898,16 +901,16 @@ deallocate(data3_g)
 
 ! close file:
 IF (writepe) call check (nf90_close(fileid))
-END SUBROUTINE write_carbonfluxes_diags_out
+END SUBROUTINE write_cfluxes_diags_out
 
 
 ! ***********************************************
 ! ***                                         ***
-! ***   write_carbonfluxes_diags_out_asml     ***
+! ***   write_cfluxes_diags_out_asml     ***
 ! ***                                         ***
 ! ***********************************************
 ! Writes carbon flux diagnostics to netCDF during assimilation step
-SUBROUTINE write_carbonfluxes_diags_out_asml()
+SUBROUTINE write_cfluxes_diags_out_asml()
 
 USE g_clock, &
    ONLY: month, cyearnew, daynew, num_day_in_month, fleapyear
@@ -974,7 +977,7 @@ deallocate(data3_g)
 
 ! close file:
 IF (writepe) call check (nf90_close(fileid))
-END SUBROUTINE write_carbonfluxes_diags_out_asml
+END SUBROUTINE write_cfluxes_diags_out_asml
 
 
 ! ***********************************************

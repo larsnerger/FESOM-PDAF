@@ -21,7 +21,7 @@ MODULE mod_atmos_ens_stochasticity
        ONLY: mype_filter, mype_model, mype_world, MPIerr, &
              COMM_filter, filterpe, task_id, COMM_model
   USE assim_pdaf_mod, &
-       ONLY: dim_ens, dim_state_p, path_atm_cov, forget
+       ONLY: dim_ens, dim_state_p, forget
   USE fesom_pdaf, &
        ONLY: cyearnew, cyearold, step_per_day, exchange_nod, &
        myDim_nod2D, eDim_nod2D, &
@@ -44,6 +44,7 @@ MODULE mod_atmos_ens_stochasticity
   INTEGER,          save  :: nfields_cvrfile         ! Number of atmospheric forcing fields in covariance netCDF file
   INTEGER,          save  :: nfields                 ! Number of activated atmospheric forcing fields
   REAL,ALLOCATABLE        :: perturbation(:)         ! Vector containing perturbation field for local ensemble member
+  character(len=150) :: path_atm_cov
   
   REAL,ALLOCATABLE, save  :: perturbation_humi (:)   ! Final perturbations for each variable
   REAL,ALLOCATABLE, save  :: perturbation_prec (:)
@@ -81,15 +82,16 @@ MODULE mod_atmos_ens_stochasticity
   CHARACTER(len=200) :: fname_atm      ! filename to write atmospheric stochasticity at time step
   CHARACTER(len=200) :: fname_restart  ! filename to write restart information
 
-LOGICAL :: disturb_xwind           ! which atmospheric fields to be perturbed
-LOGICAL :: disturb_ywind           ! (set in namelist)
-LOGICAL :: disturb_humi
-LOGICAL :: disturb_qlw
-LOGICAL :: disturb_qsr
-LOGICAL :: disturb_tair
-LOGICAL :: disturb_prec
-LOGICAL :: disturb_snow
-LOGICAL :: disturb_mslp
+    ! which atmospheric fields to be perturbed (set in namelist)
+    logical :: disturb_xwind=.false.
+    logical :: disturb_ywind=.false.
+    logical :: disturb_humi=.false.
+    logical :: disturb_qlw=.false.
+    logical :: disturb_qsr=.false.
+    logical :: disturb_tair=.false.
+    logical :: disturb_prec=.false.
+    logical :: disturb_snow=.false.
+    logical :: disturb_mslp=.false.
 
 LOGICAL :: atmos_stochasticity_ON   ! if any atmospheric fields to be perturbed
 
@@ -1162,8 +1164,6 @@ SUBROUTINE compute_ipsr()
 USE fesom_pdaf, &
    ONLY: mesh_fesom, myDim_nod2D,eDim_nod2D, &
    timenew, daynew, pi
-! USE o_param, &
-!    ONLY: pi
 USE parallel_pdaf_mod, &
    ONLY: filterpe, COMM_couple
    

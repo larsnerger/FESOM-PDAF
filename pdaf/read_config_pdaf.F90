@@ -22,11 +22,11 @@ subroutine read_config_pdaf()
        type_forget, &
        forget, locweight, cradius, sradius, &
        type_trans, type_sqrt, step_null, &
-       eff_dim_obs, loc_radius, loctype, loc_ratio, &
+       loctype, &
        path_init, file_init, file_inistate, read_inistate, &
        twin_experiment, dim_obs_max, use_global_obs, DAoutput_path, &
        this_is_pdaf_restart, &
-       path_atm_cov, days_since_DAstart, assimilateBGC, assimilatePHY, &
+       days_since_DAstart, assimilateBGC, assimilatePHY, &
        start_from_ENS_spinup, resetforget, &
        ! initial ensemble perturbation
        varscale, perturb_ssh, perturb_u, &
@@ -35,6 +35,8 @@ subroutine read_config_pdaf()
        ! Temp-Salt-Profiles:
        path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix, &
        proffiles_o, start_year_o, end_year_o
+  use adaptive_lradius_pdaf, &
+       only: loc_ratio
   use output_config_pdaf, &       ! Output
        only: setoutput
   use mod_postprocess, &     ! Postprocessing
@@ -105,11 +107,10 @@ subroutine read_config_pdaf()
        disturb_prec, disturb_snow, disturb_mslp, &
        atmos_stochasticity_ON, write_atmos_st, &
        varscale_wind, varscale_tair, &
-       varscale_humi, varscale_qlw
+       varscale_humi, varscale_qlw, path_atm_cov
   use mod_perturbation_pdaf, &
        only: perturb_scale, &
        perturb_params_bio, perturb_params_phy
-  
 
 
   implicit none

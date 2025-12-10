@@ -1,7 +1,6 @@
-!$Id: adaptive_lradius_pdaf.F90 2466 2021-02-25 12:46:34Z lnerger $
-!>  Routine to compute adaptive localization radius
+!>  Module for adaptive localization radius
 !!
-!! The routine computes an adaptive localization
+!! The routines computes an adaptive localization
 !! radius following Kirchgessner et al., MWR (2014).
 !!
 !! The routine is called by each filter process.
@@ -9,17 +8,50 @@
 !! __Revision history:__
 !! * 2012    - Lars Nerger - Initial code for FESOM
 !! * 2025-12 - Lars Nerger - Reviison for PDAF3
-!! * other revisions - see repository log
 !!
 module adaptive_lradius_pdaf
+
+  implicit none
+  public
+  save
+
+  real, allocatable :: eff_dim_obs(:) ! Effective observation dimension
+  real :: loc_ratio                   ! Choose cradius so the effective observation dim. is loc_ratio times dim_ens
+
 contains
 
+!-------------------------------------------------------
+!>  Routine to initialize computation of adaptive localization
+!!
+  subroutine init_adaptive_lradius_pdaf(dim, loc_ratio_in)
+
+    implicit none
+
+    ! *** Arguments ***
+    integer, intent(in) :: dim
+    real, intent(in) :: loc_ratio_in
+
+    ! Allocate array for effective observation dimension
+    allocate(eff_dim_obs(dim))
+
+    ! Initialize loc_ratio
+    loc_ratio = loc_ratio_in
+
+  end subroutine init_adaptive_lradius_pdaf
+
+
+!-------------------------------------------------------
+!>  Routine to compute adaptive localization radius
+!!
+!! The routine computes an adaptive localization
+!! radius following Kirchgessner et al., MWR (2014).
+!!
   subroutine get_adaptive_lradius_pdaf(thisobs, domain_p, lradius, loc_radius)
 
     use PDAF, &
          only: PDAF_local_weight, obs_f
     use assim_pdaf_mod, &           ! Variables for assimilation
-         only: locweight, loctype, loc_ratio, dim_ens, eff_dim_obs
+         only: locweight, dim_ens
     use fesom_pdaf, &
          only: mesh_fesom, pi, mydim_nod2d, r_earth, r2g
     use parallel_pdaf_mod, &        ! Parallelization variables
@@ -149,13 +181,10 @@ contains
 !!
   subroutine adaptive_lradius_stats_pdaf() 
 
+    use mpi
     use parallel_pdaf_mod, &
          only: mype_filter, npes=>npes_filter, &
-         comm => COMM_filter, &
-         MPI_REAL8, MPIerr, &
-         MPI_INTEGER, MPI_SUM, MPI_MAX, MPI_MIN 
-    use assim_pdaf_mod, &       ! Variables for assimilation
-         only: eff_dim_obs, loctype
+         comm => COMM_filter, MPIerr
     use fesom_pdaf, &
          only: mesh_fesom, dim_p => mydim_nod2d
 
@@ -172,43 +201,33 @@ contains
 ! *** Compute statistics for effective observation dimensions ***
 ! ***************************************************************
 
-    if (loctype==1) then
+    max_eff_dim_obs = 0.0
+    min_eff_dim_obs = 1.0e16
+    sum_eff_dim_obs = 0.0
 
-       max_eff_dim_obs = 0.0
-       min_eff_dim_obs = 1.0e16
-       sum_eff_dim_obs = 0.0
+    do i = 1, dim_p
+       if (eff_dim_obs(i) > max_eff_dim_obs) max_eff_dim_obs = eff_dim_obs(i)
+       if (eff_dim_obs(i) < min_eff_dim_obs) min_eff_dim_obs = eff_dim_obs(i)
+       sum_eff_dim_obs = sum_eff_dim_obs + eff_dim_obs(i)
+    end do
+    call MPI_Reduce(sum_eff_dim_obs, avg_eff_dim_obs_g, 1, MPI_REAL8, MPI_SUM, &
+         0, COMM, MPIerr)
+    call MPI_Reduce(max_eff_dim_obs, max_eff_dim_obs_g, 1, MPI_REAL8, MPI_MAX, &
+         0, COMM, MPIerr)
+    call MPI_Reduce(min_eff_dim_obs, min_eff_dim_obs_g, 1, MPI_REAL8, MPI_MIN, &
+         0, COMM, MPIerr)
 
-       do i = 1, dim_p
-          if (eff_dim_obs(i) > max_eff_dim_obs) max_eff_dim_obs = eff_dim_obs(i)
-          if (eff_dim_obs(i) < min_eff_dim_obs) min_eff_dim_obs = eff_dim_obs(i)
-          sum_eff_dim_obs = sum_eff_dim_obs + eff_dim_obs(i)
-       end do
-       if (npes>1) then
-          call MPI_Reduce(sum_eff_dim_obs, avg_eff_dim_obs_g, 1, MPI_REAL8, MPI_SUM, &
-               0, COMM, MPIerr)
-          call MPI_Reduce(max_eff_dim_obs, max_eff_dim_obs_g, 1, MPI_REAL8, MPI_MAX, &
-               0, COMM, MPIerr)
-          call MPI_Reduce(min_eff_dim_obs, min_eff_dim_obs_g, 1, MPI_REAL8, MPI_MIN, &
-               0, COMM, MPIerr)
-       else
-          ! This is a work around for working with nullmpi.F90
-          avg_eff_dim_obs_g = sum_eff_dim_obs
-          min_eff_dim_obs_g = min_eff_dim_obs
-          max_eff_dim_obs_g = max_eff_dim_obs
-       end if
+    if (mype_filter==0) then
+       avg_eff_dim_obs_g = avg_eff_dim_obs_g / real(mesh_fesom%nod2D)
 
-       if (mype_filter==0) then
-          avg_eff_dim_obs_g = avg_eff_dim_obs_g / real(mesh_fesom%nod2D)
-
-          write (*, '(8x, a)') &
-               '--- Effective observation dimensions for local analysis:'
-          write (*, '(12x, a, f12.2)') &
-               'min. effective observation dimension:       ', min_eff_dim_obs_g
-          write (*, '(12x, a, f12.2)') &
-               'max. effective observation dimension:       ', max_eff_dim_obs_g
-          write (*, '(12x, a, f12.2)') &
-               'avg. effective observation dimension:       ', avg_eff_dim_obs_g
-       end if
+        write (*, '(a, 8x, a)') &
+             'FESOM-PDAF', '--- Effective observation dimensions for local analysis:'
+        write (*, '(a, 12x, a, f12.2)') &
+             'FESOM-PDAF', 'min. effective observation dimension:       ', min_eff_dim_obs_g
+        write (*, '(a, 12x, a, f12.2)') &
+             'FESOM-PDAF', 'max. effective observation dimension:       ', max_eff_dim_obs_g
+        write (*, '(a, 12x, a, f12.2)') &
+             'FESOM-PDAF', 'avg. effective observation dimension:       ', avg_eff_dim_obs_g
     end if
 
   end subroutine adaptive_lradius_stats_pdaf

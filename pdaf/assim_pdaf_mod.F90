@@ -14,9 +14,6 @@ module assim_pdaf_mod
   implicit none
   save
 
-  real, allocatable :: timemean(:)     ! daily mean local state vector (mean of model forecast steps and analysis step)
-  real, allocatable :: timemean_s(:)
-
 ! *** Variables specific for FESOM-PDAF ***
 
   character(len=100) :: nmlfile ='namelist.fesom.pdaf'    ! name of namelist file
@@ -56,11 +53,8 @@ module assim_pdaf_mod
   logical :: perturb_DIN   = .true.
   logical :: perturb_O2    = .true.
 
-  character(len=150) :: path_atm_cov
-
   ! Variables for adaptive localization radius
-  real, allocatable :: eff_dim_obs(:) ! Effective observation dimension
-  real, allocatable :: loc_radius(:)  ! Effective observation dimension
+  real, allocatable :: loc_radius(:)  ! Varying localizatino radius
   integer :: loctype                  ! Type of localization
                                       ! (0) Fixed radius defined by cradius
                                       ! (1) Variable radius for constant effective observation dimension
@@ -133,27 +127,9 @@ module assim_pdaf_mod
      real, allocatable :: volelem(:)   ! volume of FESOM element
   end type obs_PP
 
-  ! whether to compute monthly means:
-  logical :: compute_monthly_ff
-  logical :: compute_monthly_aa
-  logical :: compute_monthly_mm
-  logical :: compute_monthly_sf
-  logical :: compute_monthly_sa
-  logical :: compute_monthly_sm
-
-  real, allocatable :: state_fcst(:,:)       ! state prior to assimilation, saved to use for correction
+!  real, allocatable :: state_fcst(:,:)       ! state prior to assimilation, saved to use for correction
   real, allocatable :: state_fcst_SSH_p(:,:) ! state prior to assimilation, saved to use for correction
   real, allocatable :: stdev_SSH_f_p(:)      ! forecast ensemble standard deviation at grid points for
-
-  real, allocatable :: monthly_state_f(:)       ! forecasted monthly state
-  real, allocatable :: monthly_state_a(:)       ! analyzed monthly state
-  real, allocatable :: monthly_state_m(:)       ! monthly time-mean state
-  real, allocatable :: monthly_state_ens_f(:,:)
-  real, allocatable :: monthly_state_ens_a(:,:)
-
-  real, allocatable :: monthly_state_sf(:)       ! forecasted monthly standard deviation
-  real, allocatable :: monthly_state_sa(:)       ! analyzed monthly standard deviation
-  real, allocatable :: monthly_state_sm(:)       ! monthly time-mean standard deviation
 
 
 ! -----------------------------------------------------------------

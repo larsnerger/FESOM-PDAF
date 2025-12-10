@@ -52,9 +52,6 @@ module fesom_pdaf
 
   implicit none
 
-!  REAL, PARAMETER :: pi=3.14159265358979
-!  REAL, PARAMETER :: pi=3.141592653589793   ! Pi
-
   ! FESOM mesh:
   type(t_mesh), pointer, save :: mesh_fesom
   integer, parameter :: nlmax = 46            ! CORE2 mesh: deepest wet cells at mesh_fesom%nl-2

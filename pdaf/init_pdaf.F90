@@ -16,7 +16,10 @@ contains
   subroutine init_pdaf(nsteps, mesh)
 
     use mpi
-    use PDAF                        ! PDAF interface definitions
+    use PDAF, only: &                                                       ! PDAF functions
+         PDAF3_init, PDAF_set_iparam, PDAF_init_forecast, &
+         PDAFomi_get_domain_limits_unstr, PDAF_reset_forget
+    use timer, only: timeit
     use statevector_pdaf, only: setup_statevector, sfields
     use parallel_pdaf_mod, &                                                ! Parallelization variables for assimilation
          only: n_modeltasks, task_id, COMM_filter, COMM_couple, filterpe, &
@@ -28,21 +31,23 @@ contains
          delt_obs_ocn, &
          DA_couple_type, type_forget, &
          forget, locweight, cradius, sradius, &
-         type_trans, type_sqrt, eff_dim_obs, loc_radius, loctype, &
+         type_trans, type_sqrt, loc_ratio, loc_radius, &
          twin_experiment, dim_obs_max, use_global_obs,  &
-         path_atm_cov, this_is_pdaf_restart, start_from_ENS_spinup, timemean, timemean_s, &
+         this_is_pdaf_restart, start_from_ENS_spinup, &
          resetforget, &
          proffiles_o, path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix, & ! EN4 profile data processing:
-         n_sweeps, type_sweep, assimilateBGC, assimilatePHY, & ! Weak coupling of FESOM-REcoM:
+         n_sweeps, type_sweep, assimilateBGC, assimilatePHY, &              ! Weakly coupled DA of FESOM-REcoM
          cda_phy, cda_bio, &
-         state_p_init, ens_p_init  ! Initial state:
+         state_p_init, ens_p_init                                           ! Initial state
     use fesom_pdaf, &
          only: mesh_fesom, topography_p, t_mesh, &
          myDim_nod2D, MPI_COMM_FESOM, myList_edge2D, myDim_edge2D, myDim_elem2D, &
          timeold, daynew, cyearold, yearnew, yearold
     use statevector_pdaf, &
          only: id, nfields, phymin, phymax, bgcmin, bgcmax
-    use mod_perturbation_pdaf, &           ! BGC parameter perturbation
+    use adaptive_lradius_pdaf, &
+         only: init_adaptive_lradius_pdaf
+    use mod_perturbation_pdaf, &                                            ! BGC parameter perturbation
          only: perturb_scale, perturb_params_bio, perturb_params_phy, &
          perturb_lognormal, perturb_scaleD, &
          do_perturb_param_bio, do_perturb_param_phy
@@ -63,22 +68,22 @@ contains
          rms_obs_S, rms_obs_T, &
          path_obs_prof, file_prof_prefix, file_prof_suffix, &
          bias_obs_prof, prof_exclude_diff
-
     use mod_atmos_ens_stochasticity, &
          only: disturb_xwind, disturb_ywind, disturb_humi, &
          disturb_qlw, disturb_qsr, disturb_tair, &
          disturb_prec, disturb_snow, disturb_mslp, &
          init_atmos_ens_stochasticity, init_atmos_stochasticity_output,&
-         atmos_stochasticity_ON
+         atmos_stochasticity_ON, path_atm_cov
+    use means_pdaf, &
+         only: init_means_pdaf
     use mod_postprocess, &
          only: isPP, doPP
-    use timer, only: timeit
     use mod_nc_out_routines, &
          only: netCDF_init
     use output_config_pdaf, &
          only: configure_output, setoutput
     use cfluxes_diags_pdaf, &
-         only: init_carbonfluxes_diags_out, init_carbonfluxes_diags_arrays
+         only: init_cfluxes_diags_out, init_cfluxes_diags_arrays
 
     implicit none
 
@@ -87,15 +92,13 @@ contains
     type(t_mesh), intent(in), target :: mesh
 
 ! *** Local variables ***
-    integer :: i,b,memb,n,k,s,nz ! Counters
-    integer :: filter_param_i(7) ! Integer parameter array for filter
-    real    :: filter_param_r(2) ! Real parameter array for filter
+    integer :: i                 ! Counter
+    integer :: filter_param_i(2) ! Integer parameter array for filter
+    real    :: filter_param_r(1) ! Real parameter array for filter
     integer :: status_pdaf       ! PDAF status flag
     integer :: doexit, steps     ! required arguments in call to PDAF; not defined here
     real    :: timenow           ! required arguments in call to PDAF; not defined here
     character(len=6) :: cdaval   ! Flag whether strongly-coupled DA is done
-    integer, parameter :: int0=0 ! Zero
-    real, allocatable :: aux(:)  ! Temporary array
 
     ! External subroutines
     external :: init_ens_pdaf            ! Ensemble initialization
@@ -207,17 +210,6 @@ contains
     cradius = 0.0     ! Cut-off radius
     sradius = cradius ! Support radius
 
-! *** Configuration for atmospheric stochasticity:
-    disturb_xwind=.true.
-    disturb_ywind=.true.
-    disturb_humi=.true.
-    disturb_qlw=.true.
-    disturb_qsr=.true.
-    disturb_tair=.true.
-    disturb_prec=.true.
-    disturb_snow=.true.
-    disturb_mslp=.true.
-
 ! *** Configuration of output frequency:
     setoutput( 1)=.false. ! daily forecast and analysis ensemble members
     setoutput( 2)=.false. ! daily forecast and analysis ensemble mean
@@ -289,7 +281,6 @@ contains
 ! ***********************************************************************************************
 
     if (DA_couple_type == 0) then
-
        ! Set filter communicator to the communicator of FESOM
        COMM_filter = MPI_COMM_FESOM
 
@@ -347,44 +338,15 @@ contains
   
 ! *** init m-fields and carbon diagnostic arrays
 
-    allocate(timemean(dim_state_p))
-    timemean = 0.0
+    call init_means_pdaf(dim_state_p)
   
-    allocate(timemean_s(dim_state_p))
-    timemean_s = 0.0
-  
-    call init_carbonfluxes_diags_arrays()
+    call init_cfluxes_diags_arrays()
 
   
 ! *************************************************
 ! *** Perturb model parameters for ensemble run ***
 ! *************************************************
 
-! Selected parameters to disturb chlorophyll and biomass:
-! alfa       = 0.14   ! Initial slope of P I curve small phytoplankton
-! alfa_d     = 0.19   ! Initial slope of P I curve Diatoms
-! P_cm        = 3.0   ! Small phytoplankton maximum rate of phtotosynthesis
-! P_cm_d      = 3.5   ! Diatom maximum rate of phtotosynthesis
-! Chl2N_max   = 3.78  ! Small phytoplankton maximum Chlorophyll a to nitrogen ratio
-! Chl2N_max_d = 4.2   ! Diatom maximum Chlorophyll a to nitrogen ratio
-! deg_Chl     = 0.1   ! degradation rate constant
-! deg_Chl_d   = 0.1   ! degradation rate constant
-! graz_max, graz_max2 ! maximum grazing rates
-! grazEff, grazEff2   ! grazing effeciency of ZooPlankton
-
-! Selected parameters to disturb dissolved tracers, most importantly DIC:
-! VDet, VDet_zoo2, Vdet_a   ! Sinking speed detritus
-! k_din, k_din_d            ! Nitrate uptake
-! res_phy, res_phy_d        ! Respiration
-! res_het, res_zoo2
-! biosynth
-! calc_diss_rate, calc_diss_rate2 ! Dissolution during sinking
-! rho_N, rho_C1             ! Remineralization of dissolved organic material
-!                             (DON -> DIN; DOC --> DIC)
-! lossN, lossN_d            ! Loss terms phytoplankton (PhyN --> DON)
-! lossC, lossC_d
-! reminN, reminC            ! Remineralization of detritus
-! calc_prod_ratio           ! How much of small phytoplankton are calcifiers
 
     if (perturb_params_bio) then
        if (dim_ens <= 1) then
@@ -434,29 +396,20 @@ contains
 
 ! *****************************************************
 ! *** Call PDAF initialization routine on all PEs.  ***
-! ***                                               ***
-! *** For all filters, first the arrays of integer  ***
-! *** and real number parameters are initialized.   ***
-! *** Subsequently, PDAF_init is called.            ***
 ! *****************************************************
 
-    ! *** All other filters                       ***
-    ! *** SEIK, LSEIK, ETKF, LETKF, ESTKF, LESTKF ***
     filter_param_i(1) = dim_state_p ! State dimension
     filter_param_i(2) = dim_ens     ! Size of ensemble
-    filter_param_i(3) = 0           ! Smoother lag (not implemented here)
-    filter_param_i(4) = 0           ! Not used
-    filter_param_i(5) = type_forget ! Type of forgetting factor
-    filter_param_i(6) = type_trans  ! Type of ensemble transformation
-    filter_param_i(7) = type_sqrt   ! Type of transform square-root (SEIK-sub4/ESTKF)
     filter_param_r(1) = forget      ! Forgetting factor
 
     call PDAF3_init(filtertype, subtype, step_null, &
-         filter_param_i, 7,&
+         filter_param_i, 2,&
          filter_param_r, 1, &
          init_ens_pdaf, screen, status_pdaf)
 
-    if (this_is_pdaf_restart .or. start_from_ENS_spinup) deallocate(state_p_init,ens_p_init)
+    call PDAF_set_iparam(5, type_forget, status_pdaf) ! Type of forgetting factor
+    call PDAF_set_iparam(6, type_trans, status_pdaf)  ! Type of ensemble transformation
+    call PDAF_set_iparam(7, type_sqrt, status_pdaf)   ! Type of transform square-root (SEIK-sub2/ESTKF)
 
 ! *** Check whether initialization of PDAF was successful ***
     if (status_pdaf /= 0) then
@@ -466,7 +419,9 @@ contains
        call abort_parallel()
     end if
 
-  
+    if (this_is_pdaf_restart .or. start_from_ENS_spinup) deallocate(state_p_init,ens_p_init)
+
+
 ! ***************************************
 ! *** Get domain limiting coordinates ***
 ! ***************************************
@@ -498,7 +453,7 @@ contains
        endif
      
        ! carbon flux diagnostics
-       call init_carbonfluxes_diags_out() ! if no file exists, file is created
+       call init_cfluxes_diags_out()
 
 
 ! **********************************
@@ -507,7 +462,7 @@ contains
 
        call MPI_BARRIER(MPI_COMM_WORLD, MPIerr)
 
-       ! Initialize ensmeble forecasting
+       ! Initialize ensemble forecasting
        call PDAF_init_forecast(next_observation_pdaf, distribute_state_pdaf, &
             prepoststep_pdaf, status_pdaf)
 
@@ -516,7 +471,8 @@ contains
 ! *** Allocate arrays for effective observation dimension and localization radius ***
 ! ***********************************************************************************
   
-       allocate(eff_dim_obs(mydim_nod2d))
+       call init_adaptive_lradius_pdaf(mydim_nod2d, loc_ratio)
+
        allocate(loc_radius(mydim_nod2d))
 
 
