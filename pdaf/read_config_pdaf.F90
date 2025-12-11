@@ -1,33 +1,27 @@
-! PDAF in AWI-CM2 / Fesom 2.0
-
+!> Read namelists and print configuration
+!!
+!! This routine read thes namelist file with
+!! parameters controlling data assimilation with
+!! PDAF. Afterwards the configuration values are 
+!! displayed.
+!!
+!! 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
+!!
 subroutine read_config_pdaf()
 
-! !DESCRIPTION:
-! This routine read the namelist file with
-! parameters controlling data assimilation with
-! PDAF.
-! 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
-
-! !USES:
-
-
-! general assimilation settings
   use parallel_pdaf_mod, &
        only: mype_model, n_modeltasks, task_id
   use assim_pdaf_mod, &
-       only: dim_state, dim_state_p, dim_ens, dim_lag, &
+       only: dim_state, dim_state_p, dim_ens, dim_lag, dim_bias, &
        screen, filtertype, subtype, &
-       delt_obs_ocn, &
-       dim_bias, DA_couple_type, &
-       type_forget, &
-       forget, locweight, cradius, sradius, &
-       type_trans, type_sqrt, step_null, &
-       loctype, &
-       path_init, file_init, file_inistate, read_inistate, &
+       delt_obs_ocn, steps_first_fcst, &
+       type_forget, forget, resetforget, &
+       do_omi_obsstats, type_trans, type_sqrt, &
+       locweight, loctype, cradius, sradius, &
+       step_null, path_init, file_init, file_inistate, read_inistate, &
        twin_experiment, dim_obs_max, use_global_obs, DAoutput_path, &
-       this_is_pdaf_restart, &
-       days_since_DAstart, assimilateBGC, assimilatePHY, &
-       start_from_ENS_spinup, resetforget, &
+       this_is_pdaf_restart, start_from_ENS_spinup, days_since_DAstart, &
+       assimilateBGC, assimilatePHY, DA_couple_type, &
        ! initial ensemble perturbation
        varscale, perturb_ssh, perturb_u, &
        perturb_v, perturb_temp, perturb_salt, &
@@ -41,11 +35,9 @@ subroutine read_config_pdaf()
        only: setoutput
   use mod_postprocess, &     ! Postprocessing
        only: isPP, yearPP, pathsim
-       ! clock
   use g_clock, &
        only: yearold, yearnew
-  
-  
+
   ! physics observations
   use obs_sst_pdafomi, &
        only: assim_o_sst, rms_obs_sst, path_obs_sst, file_sst_prefix, file_sst_suffix, &
@@ -115,7 +107,6 @@ subroutine read_config_pdaf()
 
   implicit none
 
-
 ! Local variables
   character(len=100) :: nmlfile ='namelist.fesom.pdaf'    ! name of namelist file
   character(len=32)  :: handle             ! Handle for command line parser
@@ -123,81 +114,111 @@ subroutine read_config_pdaf()
   character(len=4) :: year_string          ! Current year as string
   
        
-  namelist /pdaf/ filtertype, subtype, screen, &
+  namelist /pdaf/ filtertype, subtype, &
+       delt_obs_ocn, steps_first_fcst, screen, &
        type_forget, forget, resetforget, dim_bias, &
        cradius, locweight, sradius, DA_couple_type, &
-       n_modeltasks, use_global_obs, &
-       path_init, file_init, step_null, printconfig, &
-       file_inistate, read_inistate, &
+       use_global_obs, printconfig, &
        type_trans, type_sqrt, dim_lag, &
-       loctype, loc_ratio, delt_obs_ocn, &     
-       dim_obs_max, &
-       twin_experiment, &
-       DAoutput_path, &
-       this_is_pdaf_restart, &
-       days_since_DAstart, start_from_ENS_spinup, &
-       assimilatePHY, &
-       ! initial ensemble perturbation:
-       varscale, perturb_ssh, perturb_u, &
+       loctype, loc_ratio, do_omi_obsstats, &     
+       dim_obs_max, twin_experiment, &
+       assimilatePHY, assimilateBGC
+
+  ! Initialization
+  namelist /init/ varscale, path_init, file_init, &
+       step_null, days_since_DAstart, &
+       file_inistate, read_inistate, &
+       this_is_pdaf_restart, start_from_ENS_spinup, &
+       perturb_ssh, perturb_u, &
        perturb_v, perturb_temp, perturb_salt, &
-       perturb_DIC, perturb_Alk, perturb_DIN, perturb_O2, &
-       ! Salt SMOS:
-       ASSIM_o_sss, path_obs_sss, file_sss_prefix, file_sss_suffix, &
-       rms_obs_sss, sss_fixed_rmse, &
-       sss_exclude_ice, sss_exclude_diff, &
-       ! Salt CCI:
-       ASSIM_o_sss_cci, path_obs_sss_cci, file_sss_cci_prefix, file_sss_cci_suffix, &
-       rms_obs_sss_cci, sss_cci_fixed_rmse, &
-       sss_cci_exclude_ice, sss_cci_exclude_diff, &
-       ! SSH:
+       perturb_DIC, perturb_Alk, perturb_DIN, perturb_O2
+
+  ! parameter perturbation:
+  namelist /perturb_BGC/ &
+       perturb_scale, perturb_params_bio, perturb_params_phy
+
+  ! Observations: SSH CMEMS:
+  namelist /obs_SSH_CMEMS/ &
        ASSIM_o_ssh, path_obs_ssh, file_ssh_prefix, file_ssh_suffix, &
-       rms_obs_ssh, ssh_fixed_rmse, bias_obs_ssh, lradius_ssh, &
-       ! SST:
+       rms_obs_ssh, ssh_fixed_rmse, bias_obs_ssh, lradius_ssh
+
+  ! Observations: SST:
+  namelist /obs_SST_OSTIA/ &
        ASSIM_o_sst, path_obs_sst, file_sst_prefix, file_sst_suffix, &
        rms_obs_sst, sst_fixed_rmse, bias_obs_sst, &
-       sst_exclude_ice, sst_exclude_diff, &
-       ! Profiles:
+       sst_exclude_ice, sst_exclude_diff
+
+  ! Observations: Salt SMOS:
+  namelist /obs_SSS_SMOS/ &
+       ASSIM_o_sss, path_obs_sss, file_sss_prefix, file_sss_suffix, &
+       rms_obs_sss, sss_fixed_rmse, &
+       sss_exclude_ice, sss_exclude_diff
+
+  ! Observations: Salt CCI:
+  namelist /obs_SSS_CCI/ &
+       ASSIM_o_sss_cci, path_obs_sss_cci, file_sss_cci_prefix, file_sss_cci_suffix, &
+       rms_obs_sss_cci, sss_cci_fixed_rmse, &
+       sss_cci_exclude_ice, sss_cci_exclude_diff
+
+  ! Observations: Profiles:
+  namelist /obs_EN4/ &
        ASSIM_o_en4_t, ASSIM_o_en4_S, &
        path_obs_prof, file_prof_prefix, file_prof_suffix, &
        rms_obs_S, rms_obs_T, &
        path_obs_rawprof, file_rawprof_prefix, proffiles_o, &
-       start_year_o, end_year_o, &
-       ! parameter perturbation:
-       perturb_scale, perturb_params_bio, perturb_params_phy, &
-       ! BioGeoChemistry:
-       assimilateBGC, &
-       ! Chl-a CCI:
+       start_year_o, end_year_o
+
+  ! Observations: Chl-a CCI:
+  namelist /obs_Chl_CCI/ &
        assim_o_chl_cci, rms_obs_chl_cci, path_obs_chl_cci, &
        file_chl_cci_prefix, file_chl_cci_suffix, &
        chl_cci_exclude_ice, chl_cci_exclude_diff, &
        bias_obs_chl_cci, chl_cci_fixed_rmse, chl_logarithmic, &
-       path_bias, file_bias_prefix, &
-       ! DIC GLODAP:
+       path_bias, file_bias_prefix
+
+  ! Observations: DIC GLODAP:
+  namelist /obs_DIC_GLODAP/ &
        assim_o_DIC_glodap, path_obs_DIC_glodap, &
-       rms_obs_DIC_glodap, DIC_glodap_exclude_diff, &
-       ! Alk GLODAP:
+       rms_obs_DIC_glodap, DIC_glodap_exclude_diff
+
+  ! Observations: Alk GLODAP:
+  namelist /obs_Alk_GLODAP/ &
        assim_o_Alk_glodap, path_obs_Alk_glodap, &
-       rms_obs_Alk_glodap, Alk_glodap_exclude_diff, &
-       ! pCO2 SOCAT:
+       rms_obs_Alk_glodap, Alk_glodap_exclude_diff
+
+  ! Observations: pCO2 SOCAT:
+  namelist /obs_pCO2_SOCAT/ &
        assim_o_pCO2_SOCAT, path_obs_pCO2_SOCAT, &
-       rms_obs_pCO2_SOCAT, pCO2_SOCAT_exclude_diff, &
-       ! O2 COMFORT:
+       rms_obs_pCO2_SOCAT, pCO2_SOCAT_exclude_diff
+
+  ! Observations: O2 COMFORT:
+  namelist /obs_O2_comf/ &
        assim_o_o2_comf, path_obs_o2_comf, &
-       rms_obs_o2_comf, o2_comf_exclude_diff, &
-       ! DIN COMFORT:
+       rms_obs_o2_comf, o2_comf_exclude_diff
+
+  ! Observations: DIN COMFORT:
+  namelist /obs_N_comf/ &
        assim_o_n_comf, path_obs_n_comf, &
-       rms_obs_n_comf, n_comf_exclude_diff, &
-       ! O2 ARGO:
+       rms_obs_n_comf, n_comf_exclude_diff
+
+  ! Observations: O2 ARGO:
+  namelist /obs_O2_argo/ &
        assim_o_o2_argo, path_obs_o2_argo, &
-       rms_obs_o2_argo, o2_argo_exclude_diff, &
-       ! DIN ARGO:
+       rms_obs_o2_argo, o2_argo_exclude_diff
+
+  ! Observations: DIN ARGO:
+  namelist /obs_N_argo/ &
        assim_o_N_argo, path_obs_N_argo, &
-       rms_obs_N_argo, N_argo_exclude_diff, &
-       ! O2 MERGED:
+       rms_obs_N_argo, N_argo_exclude_diff
+
+  ! Observations: O2 MERGED:
+  namelist /obs_O2_merged/ &
        assim_o_o2_merged, path_obs_o2_merged, &
        rms_obs_o2_merged, o2_merged_exclude_diff, &
-       o2_merged_excl_absolute, o2_merged_excl_relative, &
-       ! DIN MERGED:
+       o2_merged_excl_absolute, o2_merged_excl_relative
+
+  ! Observations: DIN MERGED:
+  namelist /obs_N_merged/ &
        assim_o_n_merged, path_obs_n_merged, &
        rms_obs_n_merged, n_merged_exclude_diff, &
        n_merged_excl_absolute, n_merged_excl_relative
@@ -213,8 +234,10 @@ subroutine read_config_pdaf()
   namelist /pp/ &
        isPP, yearPP, pathsim
        
+  ! File I/O
   namelist /pdafoutput/ &
-       setoutput
+       DAoutput_path, setoutput
+
               
 ! ****************************************************
 ! ***   Initialize PDAF parameters from namelist   ***
@@ -227,19 +250,48 @@ subroutine read_config_pdaf()
 
   open (20,file=nmlfile)
   read (20,NML =pdaf)
+  rewind(20)
+  read (20,NML =init)
+  rewind(20)
+  read (20,NML =perturb_BGC)
+  rewind(20)
+  read (20,NML =atmos_stoch)
+  rewind(20)  
+  read (20,NML =pp)
+  rewind(20)
+  read (20,NML =pdafoutput)
+  rewind(20)
+  read (20,NML =obs_SSH_CMEMS)
+  rewind(20)
+  read (20,NML =obs_SST_OSTIA)
+  rewind(20)
+  read (20,NML =obs_SSS_SMOS)
+  rewind(20)
+  read (20,NML =obs_SSS_CCI)
+  rewind(20)
+  read (20,NML =obs_EN4)
+  rewind(20)
+  read (20,NML =obs_Chl_CCI)
+  rewind(20)
+  read (20,NML =obs_DIC_GLODAP)
+  rewind(20)
+  read (20,NML =obs_Alk_GLODAP)
+  rewind(20)
+  read (20,NML =obs_pCO2_SOCAT)
+  rewind(20)
+  read (20,NML =obs_O2_comf)
+  rewind(20)
+  read (20,NML =obs_N_comf)
+  rewind(20)
+  read (20,NML =obs_O2_argo)
+  rewind(20)
+  read (20,NML =obs_N_argo)
+  rewind(20)
+  read (20,NML =obs_O2_merged)
+  rewind(20)
+  read (20,NML =obs_N_merged)
+  rewind(20)
   close(20)
-
-  open (30,file=nmlfile)
-  read (30,NML =atmos_stoch)
-  close(30)
-  
-  open (40,file=nmlfile)
-  read (40,NML =pp)
-  close(40)
-  
-  open (50,file=nmlfile)
-  read (50,NML =pdafoutput)
-  close(50)
 
 ! *** Add trailing slash to paths ***
   call add_slash(path_obs_sst)
@@ -291,6 +343,7 @@ file_chl_cci_prefix = 'CCI_OC_'//trim(year_string)//'_dist72_'
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'n_modeltasks',         n_modeltasks
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'dim_ens     ',         dim_ens
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'delt_obs_ocn',         delt_obs_ocn
+     write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'steps_first_fcst',     steps_first_fcst
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'step_null   ',         step_null
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'days_since_DAstart',   days_since_DAstart
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'screen      ',         screen
@@ -307,7 +360,27 @@ file_chl_cci_prefix = 'CCI_OC_'//trim(year_string)//'_dist72_'
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'use_global_obs',       use_global_obs
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'dim_lag     ',         dim_lag
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'DA_couple_type  ',     DA_couple_type
-     
+          
+     ! Updated state variables
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'assimilatePHY',        assimilatePHY
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'assimilateBGC',        assimilateBGC
+
+     ! initial ensemble covariance
+     write (*,'(a,5x,a20,1x,1x,a)')     'FESOM-PDAF',   'path_init   ',         trim(path_init)
+     write (*,'(a,5x,a20,1x,1x,a)')     'FESOM-PDAF',   'file_init   ',         trim(file_init)
+     write (*,'(a,5x,a20,1x,1x,l)')     'FESOM-PDAF',   'this_is_pdaf_restart', this_is_pdaf_restart
+     write (*,'(a,5x,a20,1x,1x,l)')     'FESOM-PDAF',   'start_from_ENS_spinup',start_from_ENS_spinup
+     write (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'varscale    ', varscale
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_ssh',  perturb_ssh
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_u',    perturb_u
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_v',    perturb_v
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_temp', perturb_temp
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_salt', perturb_salt
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_DIC',  perturb_DIC
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_Alk',  perturb_Alk
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_DIN',  perturb_DIN
+     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_O2',   perturb_O2
+
      ! Pre-processing of TS-profile data
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'proffiles_o  ',        proffiles_o
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'start_year_o ',        start_year_o
@@ -420,21 +493,6 @@ file_chl_cci_prefix = 'CCI_OC_'//trim(year_string)//'_dist72_'
      write (*,'(a,5x,a20,1x,f11.3)') 'FESOM-PDAF',   'N_merged_excl_absolute', n_merged_excl_absolute
      write (*,'(a,5x,a20,1x,f11.3)') 'FESOM-PDAF',   'N_merged_excl_relative', n_merged_excl_relative
           
-     ! initial ensemble covariance
-     write (*,'(a,5x,a20,1x,1x,a)')     'FESOM-PDAF',   'path_init   ',         trim(path_init)
-     write (*,'(a,5x,a20,1x,1x,a)')     'FESOM-PDAF',   'file_init   ',         trim(file_init)
-     write (*,'(a,5x,a20,1x,1x,l)')     'FESOM-PDAF',   'this_is_pdaf_restart', this_is_pdaf_restart
-     write (*,'(a,5x,a20,1x,1x,l)')     'FESOM-PDAF',   'start_from_ENS_spinup',start_from_ENS_spinup
-     write (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'varscale    ', varscale
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_ssh',  perturb_ssh
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_u',    perturb_u
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_v',    perturb_v
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_temp', perturb_temp
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_salt', perturb_salt
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_DIC',  perturb_DIC
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_Alk',  perturb_Alk
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_DIN',  perturb_DIN
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_O2',   perturb_O2
      
      ! Twin experiment
      write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'twin_experiment', twin_experiment
@@ -465,10 +523,6 @@ file_chl_cci_prefix = 'CCI_OC_'//trim(year_string)//'_dist72_'
      write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_params_bio',   perturb_params_bio
      write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'perturb_params_phy',   perturb_params_phy
      write (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'perturb_scale',        perturb_scale
-     
-     ! Updated state variables
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'assimilatePHY',        assimilatePHY
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'assimilateBGC',        assimilateBGC
      
      ! Postprocessing
      write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'isPP',                 isPP

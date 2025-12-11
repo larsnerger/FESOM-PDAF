@@ -36,9 +36,9 @@ contains
        write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'initialize model:', time_tot(3), 's'
        write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'initialize PDAF :', time_tot(4), 's'
        write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'main part:       ', time_tot(5), 's'
-       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'PDAF analysis:    ', time_tot(6), 's'
-       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'means in assimilate_pdaf:    ', time_tot(7), 's'
-       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'carbon fluxes output:        ', time_tot(8), 's'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'PDAF analysis:           ', time_tot(6), 's'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'means in assimilate_pdaf:', time_tot(7), 's'
+       write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'carbon fluxes output:    ', time_tot(8), 's'
        write (*, '(a,8x,a,F11.3,1x,a)') 'NEMO-PDAF', 'total:         ', time_tot(1), 's'
     end if
 

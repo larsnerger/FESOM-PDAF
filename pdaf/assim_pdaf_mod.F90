@@ -22,6 +22,7 @@ module assim_pdaf_mod
   integer :: step_null = 0 ! time step at initialization of PDAF
                            ! - if model (re)starts on 1st-Jan, step_null must be zero
                            ! - if model (re)starts later during year, step_null must be adapted (done in slurm-job-script)
+  integer :: steps_first_fcst = 1   ! Number of time steps at beginning of DA process
   integer :: days_since_DAstart = 1 ! days since start of assimilation; counted onwards at model restarts
   integer :: delt_obs_ocn           ! time step interval between assimilation steps
   integer :: istep_asml             ! assimilation time step at end of an forecast phase (FESOM's "mstep" + step_null);
@@ -55,10 +56,10 @@ module assim_pdaf_mod
 
   ! Variables for adaptive localization radius
   real, allocatable :: loc_radius(:)  ! Varying localizatino radius
-  integer :: loctype                  ! Type of localization
+  integer :: loctype=0                ! Type of localization
                                       ! (0) Fixed radius defined by cradius
                                       ! (1) Variable radius for constant effective observation dimension
-  real :: loc_ratio                   ! Choose cradius so the effective observation dim. is loc_ratio times dim_ens
+  real :: loc_ratio=1.0               ! Choose cradius so the effective observation dim. is loc_ratio times dim_ens
 
   ! Observation exclusions
   integer :: depth_excl_no
@@ -142,8 +143,8 @@ module assim_pdaf_mod
   real    :: model_err_amp     !< Amplitude for model error
 
 ! Settings for observations - available as command line options
-  integer :: delt_obs          !< time step interval between assimilation steps
-  logical :: twin_experiment   !< Whether to run an twin experiment with synthetic observations
+  integer :: delt_obs=1        !< time step interval between assimilation steps
+  logical :: twin_experiment=.false.   !< Whether to run an twin experiment with synthetic observations
   integer :: observe_ens=0     !< (0) apply H also to ensemble mean; (1) apply H only to ensemble states
   integer :: type_obs_init=1   !< init obs. (0) before or (1) after call to prepostsstep
   logical :: do_omi_obsstats=.false. !< Whether to let OMI compute observation statistics

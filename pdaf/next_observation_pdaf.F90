@@ -16,9 +16,12 @@
 !!
 SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
 
-  USE parallel_pdaf_mod, ONLY: mype_model, task_id
-  USE assim_pdaf_mod, ONLY: delt_obs_ocn, step_null, assim_time
-  USE recom_config, ONLY: secondsperday
+  USE parallel_pdaf_mod, &
+       ONLY: mype_model, task_id
+  USE assim_pdaf_mod, &
+       ONLY: delt_obs_ocn, step_null, assim_time, steps_first_fcst
+  USE recom_config, &
+       ONLY: secondsperday
 
   IMPLICIT NONE
 
@@ -34,9 +37,9 @@ SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
 ! *************************************************************
 
   IF (stepnow==step_null) THEN
-      ! at start, one assimilation step right away
-      nsteps=1
-      assim_time = INT( REAL(nsteps) / REAL(delt_obs_ocn) * REAL(secondsperday))
+     ! at start, one assimilation step right away
+     nsteps = steps_first_fcst
+     assim_time = INT( REAL(nsteps) / REAL(delt_obs_ocn) * REAL(secondsperday))
   ELSE
       ! daily assimilation steps during model time loop
       nsteps=delt_obs_ocn
