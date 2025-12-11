@@ -108,7 +108,7 @@ contains
     integer :: ncpus_ocn          ! number of processes for each ocean task
 #endif
   
-    call timeit(7, 'ini')
+    call timeit(8, 'ini')
     call timeit(1, 'new')
     call timeit(2, 'new')
   

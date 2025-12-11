@@ -37,8 +37,7 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        only: step_null, filtertype, dim_lag, loctype, &
        forget, resetforget, DAoutput_path, proffiles_o, &
        this_is_pdaf_restart, days_since_DAstart, delt_obs_ocn, &
-       depth_excl, depth_excl_no, &
-       stdev_SSH_f_p, state_fcst_SSH_p
+       depth_excl, depth_excl_no
   use cfluxes_diags_pdaf, &
        only: factor_mass, factor_conc, cffields, cffieldsasml, &
        id_s_asml_alk, id_s_asml_dic, id_s_asml_deadmatter, id_s_asml_livingmatter, &
@@ -49,9 +48,7 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        volo_full_glob, inv_volo_full_glob, &
        cellvol, mydim_nod2d, &
        myList_edge2D, myDim_edge2D, myList_nod2D, &
-       gather_nod, hnode_new, &
-       tiny_chl, tiny, chl2N_max, chl2N_max_d, NCmax, &    ! RECOM  
-       NCmax_d, SiCmax, Redfield, SecondsPerDay, &         ! RECOM
+       gather_nod, hnode_new, SecondsPerDay, & 
        yearnew, num_day_in_month, fleapyear, month, &      ! clock
        day_in_month, timenew                               ! clock
   use statevector_pdaf, &
@@ -60,9 +57,6 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        only: monthly_event_assimstep
   use means_pdaf, &
        only: update_means_pdaf, reset_means_pdaf, &
-       compute_monthly_aa, compute_monthly_ff, &
-       compute_monthly_sa, compute_monthly_sf, &
-       compute_monthly_mm, compute_monthly_sm, &
        monthly_state_f, monthly_state_a, monthly_state_m, &
        monthly_stddev_f, monthly_stddev_a, monthly_stddev_m
   use adaptive_lradius_pdaf, &
@@ -96,7 +90,7 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         only: assim_o_n_merged, n_merged_excl_absolute, n_merged_excl_relative, &
               mean_n_p
   use corrections_pdaf, &
-       only: correct_state
+       only: correct_state, store_stddev
               
   use netcdf
 
@@ -132,19 +126,10 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   real, allocatable :: ens_stddev(:) ! estimated RMS errors
   integer :: istart, iend             ! stard and end index of a field in state vector
   integer :: pdaf_status              ! status flag
-
-! Count how many excessively large updates are limited to treshold
-  integer, allocatable :: count_lim_salt0_g(:) , count_lim_salt0_p(:)       
-  integer, allocatable :: count_lim_ssh_g(:)   , count_lim_ssh_p(:)
-  integer, allocatable :: count_lim_tempM2_g(:), count_lim_tempM2_p(:) 
-  
-  real :: tiny_N, tiny_C               ! Min Phy N, C
-  real :: tiny_N_d, tiny_C_d, tiny_Si  ! Min Dia N, C, Si
-  real :: tiny_R                       ! Min ZoC
   
   real, allocatable :: stdev_p(:)  ! ensemble standard deviation at grid proints
   real :: stdevglob_temp           ! global full ocean average of ensemble standard deviation for temperature field
-                                                                    ! regional average of local ensemble standard deviation
+  ! regional average of local ensemble standard deviation
   real :: stdev_surf_p(nfields,nlmax), stdev_surf_g(nfields,nlmax)  ! on surfaces
   real :: stdev_volo_p(nfields),       stdev_volo_g(nfields)        ! on full ocean volume
   
@@ -185,15 +170,6 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
         forana = 'for'
      end if
   end if
-  
-  
-  ! allocate correction-counters at initial time; never de-allocated; reset to zero during each analysis
-  allocate(count_lim_salt0_g  (dim_ens))
-  allocate(count_lim_salt0_p  (dim_ens))
-  allocate(count_lim_ssh_g    (dim_ens))
-  allocate(count_lim_ssh_p    (dim_ens))
-  allocate(count_lim_tempM2_g (dim_ens))
-  allocate(count_lim_tempM2_p (dim_ens))
 
   ! initialize numbers
   invdim_ens = 1.0 / real(dim_ens)
@@ -207,148 +183,11 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   call monthly_event_assimstep(write_now)
 
 
-! ****************************
-! *** Corrections          ***
-! ****************************
+! ***************************************************
+! *** Corrections to state vector fields          ***
+! ***************************************************
 
   call correct_state(step, dim_ens, ens_p)
-
-!   ! variables allocated and saved during forecast; and deallocated after analysis
-!   if (.not.allocated(stdev_SSH_f_p)) allocate(stdev_SSH_f_p(sfields(id%SSH)%dim))
-!   if (.not.allocated(state_fcst_SSH_p)) allocate(state_fcst_SSH_p(sfields(id%SSH)%dim, dim_ens))
-! 
-!   Corrections: if ((step-step_null)<0) then
-! 
-!      ! *** store forecast state fields temporarily to compare with analysis afterwards ***    
-!      do member = 1, dim_ens
-!         state_fcst_SSH_p(1 : sfields(id%SSH)%dim, member) &
-!              = ens_p(1 + sfields(id%SSH)%off : sfields(id%SSH)%dim + sfields(id%SSH)%off, member)
-!      enddo
-! 
-!   else if ((step-step_null)>0) then Corrections
-!      ! *** correcting assimilated state fields ***
-! 
-!      ! *** salinity must be > 0 ***
-!      count_lim_salt0_p = 0
-!    
-!      do member = 1, dim_ens
-!         do i = 1, sfields(id%salt)%dim
-!            if (ens_p(i+ sfields(id%salt)%off,member) < 0.0D0) then
-!               ens_p(i+ sfields(id%salt)%off,member) = 0.0D0
-!               count_lim_salt0_p(member) = count_lim_salt0_p(member)+1
-!            end if
-!         end do
-!      end do
-! 
-!      call MPI_Allreduce(count_lim_salt0_p, count_lim_salt0_g, dim_ens, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-!      if (mype_filter == 0) &
-!           write(*, *) 'FESOM-PDAF', &
-!           '--- Updated salinity limited to zero: ', (count_lim_salt0_g(member), member = 1, dim_ens)
-!    
-!      ! *** SSH state update must be <= 2*sigma
-!      count_lim_ssh_p = 0
-! 
-!      do member = 1, dim_ens
-!         do i = 1, sfields(id%SSH)%dim
-! 
-!            diffm = ens_p(sfields(id%SSH)%off+i, member) - state_fcst_SSH_p(i, member)
-! 
-!            if (abs(diffm) > 2.0*stdev_SSH_f_p(i)) then
-!               ens_p(sfields(id% SSH)%off+i,member) = state_fcst_SSH_p(i,member) + sign(2.0*stdev_SSH_f_p(i),diffm)
-!               count_lim_ssh_p(member) = count_lim_ssh_p(member)+1
-!            end if
-! 
-!         end do
-!      end do
-!    
-!      call MPI_Allreduce(count_lim_ssh_p, count_lim_ssh_g, dim_ens, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-!      if (mype_filter == 0) &
-!           write(*,*) 'FESOM-PDAF', &
-!           '--- SSH updates limited to 2x standard deviation: ', (count_lim_ssh_g(member), member = 1, dim_ens)
-! 
-!      ! *** temperature must be > -2 degC ***
-!      count_lim_tempM2_p = 0
-!    
-!      do member = 1, dim_ens
-!         do i = 1, sfields(id%temp)%dim
-!            if (ens_p(i+ sfields(id% temp)%off,member) < -2.0) then
-!               ens_p(i+ sfields(id% temp)%off,member) = -2.0
-! 
-!               count_lim_tempM2_p(member) = count_lim_tempM2_p(member)+1
-!            end if
-!         end do
-!      end do
-!    
-!      call MPI_Allreduce(count_lim_tempM2_p, count_lim_tempM2_g, dim_ens, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-!      if (mype_filter == 0) &
-!           write(*,*) 'FESOM-PDAF', &
-!           '--- Updated temperature limited to -2 degC: ', (count_lim_tempM2_g(member), member = 1, dim_ens)
-! 
-!      ! *** BGC fields must be larger than "tiny" ***
-!      if (mype_filter == 0) &
-!           write(*, *) 'FESOM-PDAF', '--- reset BGC to tiny'
-!    
-!      tiny_N   = tiny_chl/chl2N_max      ! Chl2N_max   = 0.00001/ 3.15d0 [mg CHL/mmol N] Maximum CHL-a:N ratio = 0.3 gCHL gN^{-1}
-!      tiny_N_d = tiny_chl/chl2N_max_d    ! Chl2N_max_d = 0.00001/ 4.2d0
-!      tiny_C   = tiny_N  /NCmax          ! NCmax       = 0.2d0           [mmol N/mmol C] Maximum cell quota of nitrogen (N:C)
-!      tiny_C_d = tiny_N_d/NCmax_d        ! NCmax_d     = 0.2d0 
-!      tiny_Si  = tiny_C_d/SiCmax         ! SiCmax      = 0.8d0
-!      tiny_R   = tiny * Redfield
-!    
-!      do member = 1, dim_ens
-!         do i = 1, myDim_nod2D
-!            do k = 1, mesh_fesom%nlevels_nod2D(i)-1 ! loop through all wet nodes
-! 
-!               s = (i-1) * (nlmax) + k ! index in state vector
-! 
-!               do f=1,nfields
-!                  ! biogeochemical model tracers
-!                  if ((sfields(f)%bgc) .and. (sfields(f)% trnumfesom > 0)) then
-!                     ens_p(sfields(f)%off+s,member) = max(tiny,ens_p(sfields(f)%off+s,member))
-!                  endif
-!               enddo
-! 
-!               ! small phytoplankton
-!               ens_p(s+ sfields(id% PhyN   )%off,member) = max(tiny_N  ,ens_p(s+ sfields(id% PhyN   )%off,member))
-!               ens_p(s+ sfields(id% PhyC   )%off,member) = max(tiny_C  ,ens_p(s+ sfields(id% PhyC   )%off,member))
-!               ens_p(s+ sfields(id% PhyChl )%off,member) = max(tiny_chl,ens_p(s+ sfields(id% PhyChl )%off,member))
-!               ens_p(s+ sfields(id% PhyCalc)%off,member) = max(tiny    ,ens_p(s+ sfields(id% PhyCalc)%off,member))
-! 
-!               ! diatoms
-!               ens_p(s+ sfields(id% DiaN   )%off,member) = max(tiny_N_d,ens_p(s+ sfields(id% DiaN   )%off,member))
-!               ens_p(s+ sfields(id% DiaC   )%off,member) = max(tiny_C_d,ens_p(s+ sfields(id% DiaC   )%off,member))
-!               ens_p(s+ sfields(id% DiaChl )%off,member) = max(tiny_chl,ens_p(s+ sfields(id% DiaChl )%off,member))
-!               ens_p(s+ sfields(id% DiaSi  )%off,member) = max(tiny_Si ,ens_p(s+ sfields(id% DiaSi  )%off,member))
-! 
-!               ! zooplankton 1
-!               ens_p(s+ sfields(id% Zo1N   )%off,member) = max(tiny    ,ens_p(s+ sfields(id% Zo1N   )%off,member))
-!               ens_p(s+ sfields(id% Zo1C   )%off,member) = max(tiny_R  ,ens_p(s+ sfields(id% Zo1C   )%off,member))
-! 
-!               ! zooplankton 2
-!               ens_p(s+ sfields(id% Zo2N   )%off,member) = max(tiny    ,ens_p(s+ sfields(id% Zo2N   )%off,member))
-!               ens_p(s+ sfields(id% Zo2C   )%off,member) = max(tiny_R  ,ens_p(s+ sfields(id% Zo2C   )%off,member))
-! 
-!            enddo ! k=1,nlmax
-!         enddo ! i=1,my_Dim_nod2D
-!      enddo ! member=1,dim_ens
-! 
-!   end if Corrections
-
-
-! *******************************
-! *** Compute ensemble mean   ***
-! *******************************
-
-!   if (mype_filter==0) write (*,'(a, 8x,a)') 'FESOM-PDAF', '--- compute ensemble mean'
-!   
-!   ! Local: 
-!   state_p = 0.0
-!   do member = 1, dim_ens
-!      do i = 1, dim_p
-!         state_p(i) = state_p(i) + ens_p(i,member)
-!      end do
-!   end do
-!   state_p(:) = invdim_ens * state_p(:)
 
 
 ! ************************************************************
@@ -592,36 +431,24 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   debug = .false.
   write_debug = .false.
   if (debug .and. mype_world==0) write_debug = .true.
+
   
+  ! *** Compute ensemble standard deviation field at grid points ***
+
   if (mype_filter == 0) &
       write(*, *) 'FESOM-PDAF', '--- compute ensemble standard deviation'
-  
-  ! Compute standard deviation of ensemble at grid points
-  ! ---------------------------------------------------------------------------------------
-  ! --- stdev_p (dim_p)    | standard deviation of ensemble at grid points for state vector
-  ! ---------------------------------------------------------------------------------------
+
   allocate(stdev_p(dim_p))
 
-
+  ! Note: This stddev is different from Frauke's code: we normalize with
+  ! dim_ens-1 while Frauke uses dim_ens
   CALL PDAF_diag_variance(dim_p, dim_ens, state_p, ens_p, stdev_p, &
      stddev_g, 0, 0, COMM_filter, pdaf_status)
-  stdev_p = sqrt(stdev_p*real(dim_ens-1)*invdim_ens)
+  stdev_p = sqrt(stdev_p)
 
+  ! Store standard deviation of SSH used for corrections after analysis step
+  CALL store_stddev(step, stdev_p)
 
-! 
-!   stdev_p(:) = 0.0
-!   do member=1, dim_ens
-!      do i=1, dim_p
-!         stdev_p(i) = stdev_p(i) & 
-!                 + ((ens_p(i,member) - state_p(i)) * (ens_p(i,member) - state_p(i)))
-!      enddo ! j=1, dim_p
-!   enddo ! member=1, dim_ens
-!   stdev_p = sqrt(invdim_ens * stdev_p)
-  
-  ! if forecast: STD of SSH is saved and used for corrections at next analysis step
-  if ((step-step_null) < 0) then
-     stdev_SSH_f_p = stdev_p( sfields(id%SSH)%off+1 : sfields(id%SSH)%off+sfields(id%SSH)%dim )
-  endif
   
   ! -----------------------------------------------------------------------------------------------------
   ! --- stdev_surf_g (nfields)    | layerwise surface mean of grid-point ensemble STD for each field area-weighted
@@ -907,13 +734,8 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! *** finishing up ***
 ! ********************
 
-  deallocate(count_lim_salt0_g, count_lim_salt0_p, &
-       count_lim_ssh_g, count_lim_ssh_p, count_lim_tempM2_g, count_lim_tempM2_p)
-
   ! variables deallocated after analysis step
   if ((step-step_null) >= 0) then
-     if (allocated(stdev_SSH_f_p))    deallocate(stdev_SSH_f_p)
-     if (allocated(state_fcst_SSH_p)) deallocate(state_fcst_SSH_p)
      if (allocated(mean_O2_p ))       deallocate(mean_O2_p )
      if (allocated(mean_n_p))         deallocate(mean_n_p)
      if (allocated(mean_chl_cci_p))   deallocate(mean_chl_cci_p)

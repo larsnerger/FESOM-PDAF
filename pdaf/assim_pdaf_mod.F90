@@ -127,9 +127,6 @@ module assim_pdaf_mod
      real, allocatable :: volelem(:)   ! volume of FESOM element
   end type obs_PP
 
-!  real, allocatable :: state_fcst(:,:)       ! state prior to assimilation, saved to use for correction
-  real, allocatable :: state_fcst_SSH_p(:,:) ! state prior to assimilation, saved to use for correction
-  real, allocatable :: stdev_SSH_f_p(:)      ! forecast ensemble standard deviation at grid points for
 
 
 ! -----------------------------------------------------------------

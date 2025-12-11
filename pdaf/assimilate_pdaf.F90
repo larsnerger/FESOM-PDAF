@@ -25,6 +25,8 @@ contains
          only: timenew, daynew
     use means_pdaf, &
          only: do_means_pdaf
+    use cfluxes_diags_pdaf, &
+         only: cfluxes_diags_output_tmean
 
     implicit none
 
@@ -101,6 +103,14 @@ contains
     call timeit(7, 'new')
     call do_means_pdaf()
     call timeit(7, 'old')
+
+! *********************************
+! *** output carbon fluxes      ***
+! *********************************
+
+    call timeit(8, 'new')
+    CALL cfluxes_diags_output_tmean(istep)
+    call timeit(8, 'old')
 
   end subroutine assimilate_pdaf
 
