@@ -44,16 +44,12 @@ use cpl_driver
   use init_pdaf_mod, only: init_pdaf
   use assimilate_pdaf_mod, only: assimilate_pdaf
   use finalize_pdaf_mod, only: finalize_pdaf
-  use cfluxes_diags_pdaf, only: cfluxes_diags_output_tmean
 #endif
 
 IMPLICIT NONE
 
 integer :: n, nsteps, offset, row, i, provided
 real(kind=WP)     :: t0, t1, t2, t3, t4, t5, t6, t7, t8, t0_ice, t1_ice, t0_frc, t1_frc
-#ifdef use_PDAF
-real(kind=WP)     :: t4b
-#endif
 real(kind=WP)     :: rtime_fullice,    rtime_write_restart, rtime_write_means, rtime_compute_diag, rtime_read_forcing
 real(kind=real32) :: rtime_setup_mesh, rtime_setup_ocean, rtime_setup_forcing 
 real(kind=real32) :: rtime_setup_ice,  rtime_setup_other, rtime_setup_restart
@@ -289,8 +285,6 @@ type(t_mesh),   save,  target  :: mesh
         
 #ifdef use_PDAF
         CALL assimilate_PDAF(mstep) ! mstep: starting at 1 at each model (re)start
-        t4b = MPI_Wtime()
-        CALL cfluxes_diags_output_tmean(mstep)
 #endif
 
 #if defined (__recom)
@@ -316,11 +310,7 @@ type(t_mesh),   save,  target  :: mesh
         
         rtime_fullice       = rtime_fullice       + t2 - t1
         rtime_compute_diag  = rtime_compute_diag  + t4 - t3
-#ifdef use_PDAF
-        rtime_write_means   = rtime_write_means   + t5 - t4b
-#else
         rtime_write_means   = rtime_write_means   + t5 - t4
-#endif
         rtime_write_restart = rtime_write_restart + t6 - t5
         rtime_read_forcing  = rtime_read_forcing  + t1_frc - t0_frc
 
