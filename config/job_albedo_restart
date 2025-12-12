@@ -3,7 +3,7 @@
 #SBATCH --partition=mpp
 #SBATCH --ntasks=288
 #SBATCH --cpus-per-task=1
-#SBATCH --time=02:00:00
+#SBATCH --time=00:30:00
 #SBATCH --hint=nomultithread
 #SBATCH --qos=12h
 #SBATCH --job-name=BGCJan10
@@ -169,30 +169,36 @@ do
             fi
         fi
         
-        info "Preparing start_dir."
+        # Prepare the run directory
+	info "Preparing a new run directory."
+	mkdir -p ${run_dir}/../start
+	    #cp -r ${start_dir}/* ${run_dir}/../start
+	cp -r ${start_dir}/namelist* ${run_dir}/../start
+
+	        info "Preparing start_dir."
 	# Set namelists from jobscript settings
-        sed -i `grep -n dim_ens              ${start_dir}/namelist.fesom.pdaf | cut -d ':' -f 1`"c dim_ens=$NENS"                            ${start_dir}/namelist.fesom.pdaf
+        sed -i `grep -n dim_ens              ${run_dir}/../start/namelist.fesom.pdaf | cut -d ':' -f 1`"c dim_ens=$NENS"                            ${run_dir}/../start/namelist.fesom.pdaf
         
-        sed -i `grep -n restart_length_unit  ${start_dir}/namelist.config     | cut -d ':' -f 1`"c restart_length_unit='${rst_freq_unit}'"   ${start_dir}/namelist.config
+        sed -i `grep -n restart_length_unit  ${run_dir}/../start/namelist.config     | cut -d ':' -f 1`"c restart_length_unit='${rst_freq_unit}'"   ${run_dir}/../start/namelist.config
         
-        sed -i `grep -n restart_length=     ${start_dir}/namelist.config      | cut -d ':' -f 1`"c restart_length=${rst_freq_number}"        ${start_dir}/namelist.config
+        sed -i `grep -n restart_length=     ${run_dir}/../start/namelist.config      | cut -d ':' -f 1`"c restart_length=${rst_freq_number}"        ${run_dir}/../start/namelist.config
         
-	sed -i `grep -n run_length=          ${start_dir}/namelist.config     | cut -d ':' -f 1`"c run_length=${rst_freq_number}"            ${start_dir}/namelist.config
+	sed -i `grep -n run_length=          ${run_dir}/../start/namelist.config     | cut -d ':' -f 1`"c run_length=${rst_freq_number}"            ${run_dir}/../start/namelist.config
         
-        sed -i `grep -n run_length_unit      ${start_dir}/namelist.config     | cut -d ':' -f 1`"c run_length_unit='${rst_freq_unit}'"       ${start_dir}/namelist.config
+        sed -i `grep -n run_length_unit      ${run_dir}/../start/namelist.config     | cut -d ':' -f 1`"c run_length_unit='${rst_freq_unit}'"       ${run_dir}/../start/namelist.config
 	    
 	# Set namelists based on DA start date
-        sed -i `grep -n this_is_pdaf_restart ${start_dir}/namelist.fesom.pdaf | cut -d ':' -f 1`"c this_is_pdaf_restart=.false."             ${start_dir}/namelist.fesom.pdaf
+        sed -i `grep -n this_is_pdaf_restart ${run_dir}/../start/namelist.fesom.pdaf | cut -d ':' -f 1`"c this_is_pdaf_restart=.false."             ${run_dir}/../start/namelist.fesom.pdaf
 	    
-        sed -i `grep -n step_null            ${start_dir}/namelist.fesom.pdaf | cut -d ':' -f 1`"c step_null=${step_null}"                   ${start_dir}/namelist.fesom.pdaf
+        sed -i `grep -n step_null            ${run_dir}/../start/namelist.fesom.pdaf | cut -d ':' -f 1`"c step_null=${step_null}"                   ${run_dir}/../start/namelist.fesom.pdaf
 	    
-        sed -i `grep -n days_since_DAstart   ${start_dir}/namelist.fesom.pdaf | cut -d ':' -f 1`"c days_since_DAstart=${days_since_DAstart}" ${start_dir}/namelist.fesom.pdaf
+        sed -i `grep -n days_since_DAstart   ${run_dir}/../start/namelist.fesom.pdaf | cut -d ':' -f 1`"c days_since_DAstart=${days_since_DAstart}" ${run_dir}/../start/namelist.fesom.pdaf
         
         if $BGC_init_ens
 	    then
-		    sed -i `grep -n start_from_ENS_spinup ${start_dir}/namelist.fesom.pdaf | cut -d ':' -f 1`"c start_from_ENS_spinup=.true."  ${start_dir}/namelist.fesom.pdaf
+		    sed -i `grep -n start_from_ENS_spinup ${run_dir}/../start/namelist.fesom.pdaf | cut -d ':' -f 1`"c start_from_ENS_spinup=.true."  ${run_dir}/../start/namelist.fesom.pdaf
             else
-		    sed -i `grep -n start_from_ENS_spinup ${start_dir}/namelist.fesom.pdaf | cut -d ':' -f 1`"c start_from_ENS_spinup=.false." ${start_dir}/namelist.fesom.pdaf
+		    sed -i `grep -n start_from_ENS_spinup ${run_dir}/../start/namelist.fesom.pdaf | cut -d ':' -f 1`"c start_from_ENS_spinup=.false." ${run_dir}/../start/namelist.fesom.pdaf
 	    fi
         
         # Path to JRA forcing
@@ -207,21 +213,16 @@ do
           info "No atmospheric forcing for this year!"
         fi
         
-        sed -i `grep -n  nm_xwind_file  ${start_dir}/namelist.forcing | cut -d ':' -f 1`"c  nm_xwind_file ='${jrapath}/uas.'"  ${start_dir}/namelist.forcing
-        sed -i `grep -n  nm_ywind_file  ${start_dir}/namelist.forcing | cut -d ':' -f 1`"c  nm_ywind_file ='${jrapath}/vas.'"  ${start_dir}/namelist.forcing
-        sed -i `grep -n  nm_humi_file   ${start_dir}/namelist.forcing | cut -d ':' -f 1`"c  nm_humi_file  ='${jrapath}/huss.'" ${start_dir}/namelist.forcing
-        sed -i `grep -n  nm_qsr_file    ${start_dir}/namelist.forcing | cut -d ':' -f 1`"c  nm_qsr_file   ='${jrapath}/rsds.'" ${start_dir}/namelist.forcing
-        sed -i `grep -n  nm_qlw_file    ${start_dir}/namelist.forcing | cut -d ':' -f 1`"c  nm_qlw_file   ='${jrapath}/rlds.'" ${start_dir}/namelist.forcing
-        sed -i `grep -n  nm_tair_file   ${start_dir}/namelist.forcing | cut -d ':' -f 1`"c  nm_tair_file  ='${jrapath}/tas.'"  ${start_dir}/namelist.forcing
-        sed -i `grep -n  nm_prec_file   ${start_dir}/namelist.forcing | cut -d ':' -f 1`"c  nm_prec_file  ='${jrapath}/prra.'" ${start_dir}/namelist.forcing
-        sed -i `grep -n  nm_snow_file   ${start_dir}/namelist.forcing | cut -d ':' -f 1`"c  nm_snow_file  ='${jrapath}/prsn.'" ${start_dir}/namelist.forcing
-        sed -i `grep -n  nm_mslp_file   ${start_dir}/namelist.forcing | cut -d ':' -f 1`"c  nm_mslp_file  ='${jrapath}/psl.'"  ${start_dir}/namelist.forcing
+        sed -i `grep -n  nm_xwind_file  ${run_dir}/../start/namelist.forcing | cut -d ':' -f 1`"c  nm_xwind_file ='${jrapath}/uas.'"  ${run_dir}/../start/namelist.forcing
+        sed -i `grep -n  nm_ywind_file  ${run_dir}/../start/namelist.forcing | cut -d ':' -f 1`"c  nm_ywind_file ='${jrapath}/vas.'"  ${run_dir}/../start/namelist.forcing
+        sed -i `grep -n  nm_humi_file   ${run_dir}/../start/namelist.forcing | cut -d ':' -f 1`"c  nm_humi_file  ='${jrapath}/huss.'" ${run_dir}/../start/namelist.forcing
+        sed -i `grep -n  nm_qsr_file    ${run_dir}/../start/namelist.forcing | cut -d ':' -f 1`"c  nm_qsr_file   ='${jrapath}/rsds.'" ${run_dir}/../start/namelist.forcing
+        sed -i `grep -n  nm_qlw_file    ${run_dir}/../start/namelist.forcing | cut -d ':' -f 1`"c  nm_qlw_file   ='${jrapath}/rlds.'" ${run_dir}/../start/namelist.forcing
+        sed -i `grep -n  nm_tair_file   ${run_dir}/../start/namelist.forcing | cut -d ':' -f 1`"c  nm_tair_file  ='${jrapath}/tas.'"  ${run_dir}/../start/namelist.forcing
+        sed -i `grep -n  nm_prec_file   ${run_dir}/../start/namelist.forcing | cut -d ':' -f 1`"c  nm_prec_file  ='${jrapath}/prra.'" ${run_dir}/../start/namelist.forcing
+        sed -i `grep -n  nm_snow_file   ${run_dir}/../start/namelist.forcing | cut -d ':' -f 1`"c  nm_snow_file  ='${jrapath}/prsn.'" ${run_dir}/../start/namelist.forcing
+        sed -i `grep -n  nm_mslp_file   ${run_dir}/../start/namelist.forcing | cut -d ':' -f 1`"c  nm_mslp_file  ='${jrapath}/psl.'"  ${run_dir}/../start/namelist.forcing
 
-        # Prepare the run directory
-	    info "Preparing a new run directory."
-	    mkdir -p ${run_dir}/../start
-	    #cp -r ${start_dir}/* ${run_dir}/../start
-	    cp -r ${start_dir}/namelist* ${run_dir}/../start
 
         for((i=1;i<=$NENS;i++))
         do
