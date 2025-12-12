@@ -2,24 +2,27 @@
 
 ! 2020-04 - Longjiang Mu - Initial commit for AWI-CM3
 
-SUBROUTINE ignore_nod_pdaf()
+! Note: This was not tested in the revision for PDAF3 with
+! a newer version of FESOM 2.
 
-  USE parallel_pdaf_mod, ONLY: mype_filter
-  USE assim_pdaf_mod, &
-       ONLY: depth_excl, depth_excl_no
-  USE fesom_pdaf, &
-      ONLY: myDim_nod2D, myList_edge2D, myDim_edge2D, myDim_elem2D, &
+subroutine ignore_nod_pdaf()
+
+  use parallel_pdaf_mod, only: mype_filter
+  use assim_pdaf_mod, &
+       only: depth_excl, depth_excl_no
+  use fesom_pdaf, &
+      only: myDim_nod2D, myList_edge2D, myDim_edge2D, myDim_elem2D, &
        mesh_fesom
 
-  INTEGER :: i, j, el, ed, elnodes(3) ! Counter
-  CHARACTER(4) :: mype_string
-  INTEGER, ALLOCATABLE :: depth_excl_tmp(:), depth_excl_tmp2(:) 
+  integer :: i, j, el, ed, elnodes(3) ! Counter
+  character(4) :: mype_string
+  integer, allocatable :: depth_excl_tmp(:), depth_excl_tmp2(:) 
 
 ! nodes excluding
   ! get dimension
   depth_excl_no=0
 ! boundary
-  DO ed=1, myDim_edge2D
+  do ed=1, myDim_edge2D
     if(myList_edge2D(ed) > mesh_fesom%edge2D_in) then
       do i = 1, 2
         if (mesh_fesom%edges(i,ed)<=myDim_nod2D) then
@@ -27,7 +30,7 @@ SUBROUTINE ignore_nod_pdaf()
         endif
       enddo
     endif
-  END DO
+  end do
 !  WRITE(mype_string,'(i4.4)') mype_filter
 !  open(mype_filter,file='nodes_excl.'//mype_string)
 !  write(mype_filter,*)mesh_fesom%bc_index_nod2D 
@@ -60,16 +63,16 @@ SUBROUTINE ignore_nod_pdaf()
   !  ENDIF
   !END DO
 
-  IF (depth_excl_no==0) RETURN
+  if (depth_excl_no==0) return
 
-  ALLOCATE(depth_excl_tmp2(depth_excl_no))
-  ALLOCATE(depth_excl_tmp(depth_excl_no))
+  allocate(depth_excl_tmp2(depth_excl_no))
+  allocate(depth_excl_tmp(depth_excl_no))
   depth_excl_tmp = 0
   depth_excl_tmp2 = 0
 
   ! get data
   depth_excl_no=0
-  DO ed=1,myDim_edge2D
+  do ed=1,myDim_edge2D
     if(myList_edge2D(ed) > mesh_fesom%edge2D_in) then
        do i = 1, 2
           if (mesh_fesom%edges(i,ed)<=myDim_nod2D) then
@@ -78,7 +81,7 @@ SUBROUTINE ignore_nod_pdaf()
           endif
        end do
     endif
-  END DO
+  end do
 
   do el = 1, myDim_elem2D
     elnodes = mesh_fesom%elem2D_nodes(:,el)
@@ -109,7 +112,7 @@ SUBROUTINE ignore_nod_pdaf()
   !END DO  
   
 ! remove duplicates
-  IF (depth_excl_no>1) THEN 
+  if (depth_excl_no>1) then 
       depth_excl_no=1
       depth_excl_tmp2(1) = depth_excl_tmp(1)
       outer: do i=2,size(depth_excl_tmp)
@@ -123,28 +126,28 @@ SUBROUTINE ignore_nod_pdaf()
       end do outer
 
       ! save to depth_excl
-      ALLOCATE(depth_excl(depth_excl_no))
+      allocate(depth_excl(depth_excl_no))
       do j=1,depth_excl_no
         depth_excl(j) = depth_excl_tmp2(j)
       end do
 
       call mysort
-  ELSE 
-      ALLOCATE(depth_excl(1))
+  else 
+      allocate(depth_excl(1))
       depth_excl(1)=depth_excl_tmp(1)
-  ENDIF
+  endif
 
-  IF (ALLOCATED(depth_excl_tmp)) DEALLOCATE(depth_excl_tmp)
-  IF (ALLOCATED(depth_excl_tmp2)) DEALLOCATE(depth_excl_tmp2)
+  if (allocated(depth_excl_tmp)) deallocate(depth_excl_tmp)
+  if (allocated(depth_excl_tmp2)) deallocate(depth_excl_tmp2)
 
 !  WRITE(mype_string,'(i4.4)') mype_filter
 !  open(mype_filter,file='nodes_excl.'//mype_string)
 !  write(mype_filter,*) depth_excl
 !  close(mype_filter)  
-END SUBROUTINE ignore_nod_pdaf
+end subroutine ignore_nod_pdaf
 
 subroutine mysort()
-  USE assim_pdaf_mod, ONLY: depth_excl, depth_excl_no
+  use assim_pdaf_mod, only: depth_excl, depth_excl_no
   integer::  min,i,j,tmp
 
   do i=1,depth_excl_no-1

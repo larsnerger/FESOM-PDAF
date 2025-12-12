@@ -17,8 +17,9 @@
 subroutine l2g_state_pdaf(step, domain, dim_l, state_l, dim_p, state_p)
 
   use assim_pdaf_mod, &                 ! Variables for assimilation
-       only: id_lstate_in_pstate, isweep, &
-             cda_bio, cda_phy, type_sweep
+       only: id_lstate_in_pstate
+  use coupled_da_mod, &                 ! Variables for coupled DA
+       only: isweep, type_sweep, cda_bio, cda_phy
   use statevector_pdaf, &               ! Statevector variables
        only: nfields, sfields, sfields_l
 

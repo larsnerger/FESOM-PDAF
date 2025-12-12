@@ -19,7 +19,9 @@
 subroutine init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
 
   use assim_pdaf_mod, &
-       only: id_lstate_in_pstate, coords_l, isweep
+       only: id_lstate_in_pstate, coords_l
+  use coupled_da_mod, &
+       only: isweep
   use parallel_pdaf_mod, &
        only: abort_parallel
   use fesom_pdaf, &

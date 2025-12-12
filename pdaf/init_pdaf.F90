@@ -29,16 +29,15 @@ contains
          only: dim_state, dim_state_p, dim_ens, dim_lag, &
          step_null, istep_asml, assim_time, screen, filtertype, subtype, &
          delt_obs_ocn, &
-         DA_couple_type, type_forget, &
-         forget, locweight, cradius, sradius, &
+         type_forget, forget, locweight, cradius, sradius, &
          type_trans, type_sqrt, loc_ratio, loc_radius, &
          twin_experiment, dim_obs_max, use_global_obs,  &
          this_is_pdaf_restart, start_from_ENS_spinup, &
          resetforget, &
          proffiles_o, path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix, & ! EN4 profile data processing:
-         n_sweeps, type_sweep, assimilateBGC, assimilatePHY, &              ! Weakly coupled DA of FESOM-REcoM
-         cda_phy, cda_bio, &
          state_p_init, ens_p_init                                           ! Initial state
+    use coupled_da_mod, &
+         only: cda_phy, cda_bio, cda_set_sweeps, DA_couple_type, cda_reset_filter_comm
     use fesom_pdaf, &
          only: mesh_fesom, topography_p, t_mesh, &
          myDim_nod2D, MPI_COMM_FESOM, myList_edge2D, myDim_edge2D, myDim_elem2D, &
@@ -117,6 +116,17 @@ contains
     ! Get process-ID in task of model compartment
     call MPI_Comm_Rank(MPI_COMM_FESOM, mype_submodel, MPIerr)
 
+    ! In case of coupled Ocean-atmosphere DA reset communicator
+    call cda_reset_filter_comm(MPI_COMM_FESOM)
+
+    ! Set pointer to FESOM mesh variable
+    mesh_fesom => mesh
+
+    writepe = .false.
+    if (filterpe) then
+       if (mype_filter==0) writepe = .true.
+    endif
+
     if (mype_submodel==0) then
        write (*,'(1x,a, i5)') 'FESOM-PDAF: INITIALIZE PDAF, task: ', task_id
     end if
@@ -127,40 +137,28 @@ contains
 ! ***              used in call to PDAF_init             ***
 ! **********************************************************
 
+    ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    ! +++ Here some default values are specified mainly to   +++
+    ! +++ show which configuration variable can be modified  +++
+    ! +++                                                    +++ 
+    ! +++ For an experiment, all configuration values should +++
+    ! +++ be changed in the namelist file that can be        +++
+    ! +++ archived with an assimialtion run.                 +++
+    ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 ! *** IO options ***
-    screen     = 2    ! Write screen output (1) for output, (2) add timings
+    screen = 2             ! Write screen output (1) for output, (2) add timings
 
 ! *** Filter specific variables
-    filtertype = 7    ! Type of filter
-                      !   (6) ESTKF
-                      !   (7) LESTKF
-                      !   (11) GENOBS: Generate synthetic observations
-    dim_ens = n_modeltasks ! Size of ensemble for all ensemble filters
-                      ! Number of EOFs to be used for SEEK
-    dim_lag = 0       ! Size of lag in smoother
-    subtype = 0       ! subtype of filter: 
-                      !   ESTKF:
-                      !     (0) Standard form of ESTKF
-                      !   LESTKF:
-                      !     (0) Standard form of LESTKF
-    type_trans = 0    ! Type of ensemble transformation
-                      !   SEIK/LSEIK and ESTKF/LESTKF:
-                      !     (0) use deterministic omega
-                      !     (1) use random orthonormal omega orthogonal to (1,...,1)^T
-                      !     (2) use product of (0) with random orthonormal matrix with
-                      !         eigenvector (1,...,1)^T
-                      !   ETKF/LETKF:
-                      !     (0) use deterministic symmetric transformation
-                      !     (2) use product of (0) with random orthonormal matrix with
-                      !         eigenvector (1,...,1)^T
-    type_forget = 0   ! Type of forgetting factor in SEIK/LSEIK/ETKF/LETKF/ESTKF/LESTKF
-                      !   (0) fixed
-                      !   (1) global adaptive
-                      !   (2) local adaptive for LSEIK/LETKF/LESTKF
-    forget  = 1.0     ! Forgetting factor
-    resetforget = .false. ! Whether to reset forgetting factor after initial phase
-    type_sqrt = 0     ! Type of transform matrix square-root
-                      !   (0) symmetric square root, (1) Cholesky decomposition
+    filtertype = 7         ! Type of filter
+    dim_ens = n_modeltasks ! Size of ensemble
+    dim_lag = 0            ! Size of lag in smoother
+    subtype = 0            ! subtype of filter: 
+    type_trans = 0         ! Type of ensemble transformation
+    type_forget = 0        ! Type of forgetting factor
+    forget  = 1.0          ! Forgetting factor
+    resetforget = .false.  ! Whether to reset forgetting factor after initial phase
+    type_sqrt = 0          ! Type of transform matrix square-root
  
 
 ! **********************************************************
@@ -168,19 +166,16 @@ contains
 ! **********************************************************
 
 ! *** Forecast length (time interval between analysis steps) ***
-    delt_obs_ocn = 32   ! Number of time steps between analysis/assimilation steps
-    assim_time   = 2700 ! Time-of-day for assimilation step in seconds
+    delt_obs_ocn = 32      ! Number of time steps between analysis/assimilation steps
+    assim_time   = 2700    ! Time-of-day for assimilation step in seconds
   
-    step_null = 0 ! read from namelist: 0 at beginning of each year
-    istep_asml = step_null
-
-! *** Set weakly- or strongly-coupled DA of FESOM (ocean) and atmospheric component
-    DA_couple_type = 0 ! (0) for weakly- (1) for strongly-coupled DA
+    step_null = 0          ! read from namelist: 0 at beginning of each year
+    istep_asml = step_null ! Assimilation step counter
 
 ! *** Whether to generate profile observation files
-    proffiles_o = 0  ! (0) don't generate them; 
-                     ! (1) generate distributed profile files
-                     ! (2) generate global profile file
+    proffiles_o = 0        ! (0) don't generate them; 
+                           ! (1) generate distributed profile files
+                           ! (2) generate global profile file
 
 ! *** Set assimilation variables
     assim_o_sst     = .false.
@@ -190,127 +185,61 @@ contains
 
 ! *** specifications for observations ***
     ! This error is the standard deviation for the Gaussian distribution 
-    rms_obs_sst = 0.8 ! error for satellite SST observations
-    rms_obs_sss = 0.5 ! error for satellite SSS observations (SMOS)
-    rms_obs_sss_cci = 0.5 ! error for satellite SSS observations (CCI)
-    rms_obs_ssh = 0.05 ! error for satellite SSH observations
-    rms_obs_T = 0.8    ! error for temperature profile observations
-    rms_obs_S = 0.5    ! error for salinity profile observations
-    bias_obs_ssh = 0.0    ! observation bias  
-    bias_obs_prof = 0.0   ! observation bias  
+    rms_obs_sst = 0.8         ! error for satellite SST observations
+    rms_obs_sss = 0.5         ! error for satellite SSS observations (SMOS)
+    rms_obs_sss_cci = 0.5     ! error for satellite SSS observations (CCI)
+    rms_obs_ssh = 0.05        ! error for satellite SSH observations
+    rms_obs_T = 0.8           ! error for temperature profile observations
+    rms_obs_S = 0.5           ! error for salinity profile observations
+
+    bias_obs_ssh = 0.0        ! observation bias  
+    bias_obs_prof = 0.0       ! observation bias  
     sst_exclude_ice = .true.  ! Exclude SST observations at point with sea ice and T>0
-    sst_exclude_diff = 0.0     ! Exclude SST observations if difference from ensemble mean is >sst_exclude_diff
-    prof_exclude_diff = 0.0    ! Exclude profile T observations if difference from ensemble mean is >prof_exclude_diff
-    use_global_obs = 1 ! Use global full obs. (1) or full obs. limited to process domains (0)
-    twin_experiment = .false.  ! Whether to run a twin experiment assimilating synthetic observations
-    dim_obs_max = 80000        ! Expected maximum number of observations for synthetic obs.
+    sst_exclude_diff = 0.0    ! Exclude SST observations if difference from ensemble mean is >sst_exclude_diff
+    prof_exclude_diff = 0.0   ! Exclude profile T observations if difference from ensemble mean is >prof_exclude_diff
+    use_global_obs = 1        ! Use global full obs. (1) or full obs. limited to process domains (0)
+
+    twin_experiment = .false. ! Whether to run a twin experiment assimilating synthetic observations
+    dim_obs_max = 80000       ! Expected maximum number of observations for synthetic obs.
+
+! *** Coupled physics-BGC DA
+    cda_phy = 'weak'          ! whether physics is updated from BGC assimilation
+    cda_bio = 'weak'          ! whether BGC is updated from physics assimilation
 
 ! *** Localization settings
-    locweight = 0     ! Type of localization weight
-    cradius = 0.0     ! Cut-off radius
-    sradius = cradius ! Support radius
+    locweight = 4             ! Type of localization weight
+    cradius = 2.0e5           ! Cut-off radius
+    sradius = cradius         ! Support radius
 
 ! *** Configuration of output frequency:
-    setoutput( 1)=.false. ! daily forecast and analysis ensemble members
-    setoutput( 2)=.false. ! daily forecast and analysis ensemble mean
-    setoutput( 3)=.true.  ! monthly forecast and analysis ensemble mean of updated variables
-    setoutput( 4)=.false. ! daily m-fields ensemble mean
-    setoutput( 5)=.false. ! initial fields ensemble mean
-    setoutput( 6)=.false. ! initial fields ensemble members
-    setoutput( 7)=.true.  ! monthly m-fields ensemble mean
-    setoutput( 8)=.false. ! daily m-fields of assimilated variables ensemble mean
-    setoutput( 9)=.true.  ! daily m-fields of assimilate-able BGC variables ensemble mean
-    setoutput(10)=.true.  ! daily m-fields of CO2 flux and pCO2 ensemble mean
-    setoutput(11)=.true.  ! daily m-fields of variables defining the CO2 flux
-    setoutput(12)=.false. ! initial fields standard deviation
-    setoutput(13)=.false. ! daily forecast of standard deviation
-    setoutput(14)=.true.  ! monthly forecast of standard deviation
-    setoutput(15)=.true.  ! monthly forecast and analysis of standard deviation for updated fields
-    setoutput(16)=.true.  ! monthly mm-fields of standard deviation
-    setoutput(17)=.true.  ! if COMF-O2 assimilated: daily O2 forecast
+    setoutput( 1)=.false.     ! daily forecast and analysis ensemble members
+    setoutput( 2)=.false.     ! daily forecast and analysis ensemble mean
+    setoutput( 3)=.false.     ! monthly forecast and analysis ensemble mean of updated variables
+    setoutput( 4)=.false.     ! daily m-fields ensemble mean
+    setoutput( 5)=.false.     ! initial fields ensemble mean
+    setoutput( 6)=.false.     ! initial fields ensemble members
+    setoutput( 7)=.false.     ! monthly m-fields ensemble mean
+    setoutput( 8)=.false.     ! daily m-fields of assimilated variables ensemble mean
+    setoutput( 9)=.false.     ! daily m-fields of assimilate-able BGC variables ensemble mean
+    setoutput(10)=.false.     ! daily m-fields of CO2 flux and pCO2 ensemble mean
+    setoutput(11)=.false.     ! daily m-fields of variables defining the CO2 flux
+    setoutput(12)=.false.     ! initial fields standard deviation
+    setoutput(13)=.false.     ! daily forecast of standard deviation
+    setoutput(14)=.false.     ! monthly forecast of standard deviation
+    setoutput(15)=.false.     ! monthly forecast and analysis of standard deviation for updated fields
+    setoutput(16)=.false.     ! monthly mm-fields of standard deviation
+    setoutput(17)=.false.     ! if COMF-O2 assimilated: daily O2 forecast
 
 ! *** Read PDAF configuration from namelist ***
     call read_config_pdaf()
 
 
-! **************************************************************************
-! *** Configuration for FESOM-REcom coupling: Define local analysis loop ***
-! **************************************************************************
+! *********************************************************
+! *** For coupled DA in FESOM-REcoM:                    ***
+! *** Define number and types of local analysis sweeps  ***
+! *********************************************************
 
-    cda_phy = 'weak'  ! whether physics is updated from BGC assimilation
-    cda_bio = 'weak'  ! whether BGC is updated from physics assimilation
-
-    if ((assimilateBGC) .and. (assimilatePHY)) then
-       ! Observations of both physics and BGC are assimilated
-       n_sweeps = 2
-       type_sweep(1) = 'phy'
-       type_sweep(2) = 'bio'
-    else
-       ! Less than two observation categories
-       n_sweeps = 1
-       if (assimilatePHY) then
-          ! Only observations of physics are assimilated
-          type_sweep(1) = 'phy'
-       elseif (assimilateBGC) then
-          ! Only observations of BGC are assimilated
-          type_sweep(1) = 'bio'
-       else
-          ! No observation active (free run); set sweep to physics
-          type_sweep(1) = 'phy'
-       end if
-    end if
-
-    if (mype_world == 0) then
-       write (*,'(a,2x,a)') 'FESOM-PDAF', '*** Setup for coupled DA FESOM-REcoM ***'
-       write (*, '(a,4x,a,i5)') 'FESOM-PDAF', 'Number of local analysis sweeps', n_sweeps
-       write (*, '(a,4x,a)') 'FESOM-PDAF','Type of sweeps:'
-       do i = 1, n_sweeps
-          if (trim(type_sweep(i))=='phy') then
-             cdaval = cda_phy
-          else
-             cdaval = cda_bio
-          end if
-          write (*, '(a,8x,a,i3,3x,a,a,3x,a,a)') &
-               'FESOM-PDAF', 'sweep', i, ' observation type: ', trim(type_sweep(i)), 'CDA: ', trim(cdaval)
-       end do
-    end if
-
-
-! ***********************************************************************************************
-! ***   For weakly-coupled assimilation of FESOM and atmosphere re-define filter communicator ***
-! ***********************************************************************************************
-
-    if (DA_couple_type == 0) then
-       ! Set filter communicator to the communicator of FESOM
-       COMM_filter = MPI_COMM_FESOM
-
-       if (filterpe) then
-          call MPI_Comm_Size(COMM_filter, npes_filter, MPIerr)
-          call MPI_Comm_Rank(COMM_filter, mype_filter, MPIerr)
-
-          if (mype_filter==0) then
-             write (*,'(a)') 'FESOM-Atmos-PDAF: Initialize weakly-coupled data assimilation'
-          endif
-       endif
-    else
-       if (filterpe) then
-          if (mype_filter==0) then
-             write (*,'(a)') 'FESOM-Atmpos-PDAF: Initialize strongly-coupled data assimilation'
-          end if
-       end if
-    end if
-
-    writepe = .false.
-    if (filterpe) then
-       if (mype_filter==0) writepe = .true.
-    endif
-
-
-! ******************************************
-! *** Set pointer to FESOM mesh variable ***
-! ******************************************
-
-    mesh_fesom => mesh
+    call cda_set_sweeps()
 
 
 ! ***************************
@@ -336,10 +265,14 @@ contains
        call abort_parallel()
     end if
   
-! *** init m-fields and carbon diagnostic arrays
+! ***************************************
+! *** Initializations for diagnostics ***
+! ***************************************
 
+    ! Initialize time-mean fields (over all time steps)
     call init_means_pdaf(dim_state_p)
   
+    ! Initialize carbon flux diagnostics
     call init_cfluxes_diags_arrays()
 
   
@@ -347,23 +280,14 @@ contains
 ! *** Perturb model parameters for ensemble run ***
 ! *************************************************
 
-
-    if (perturb_params_bio) then
-       if (dim_ens <= 1) then
-          if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Ensemble Size 1: Not perturbing BGC parameters'
-       elseif (dim_ens>1) then
-          if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Perturbing BGC parameters'
-          call do_perturb_param_bio()
-       endif
+    if (perturb_params_bio .and. dim_ens>1) then
+       if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Perturbing BGC parameters'
+       call do_perturb_param_bio()
     endif
 
-    if (perturb_params_phy) then
-       if (dim_ens <= 1) then
-          if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Ensemble Size 1: Not perturbing PHY parameters'
-       elseif (dim_ens>1) then
-          if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Perturbing PHY parameters'
-          call do_perturb_param_phy()
-       endif
+    if (perturb_params_phy .and. dim_ens>1) then
+       if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Perturbing PHY parameters'
+       call do_perturb_param_phy()
     endif
 
 
@@ -389,7 +313,7 @@ contains
        state_p_init = topography_p * state_p_init
    
        call MPI_GATHER(state_p_init, dim_state_p, MPI_DOUBLE_PRECISION, &   ! send
-            ens_p_init,   dim_state_p, MPI_DOUBLE_PRECISION, &   ! receive
+            ens_p_init, dim_state_p, MPI_DOUBLE_PRECISION, &                ! receive
             0, COMM_COUPLE, mpierr)
     endif
 
@@ -411,7 +335,7 @@ contains
     call PDAF_set_iparam(6, type_trans, status_pdaf)  ! Type of ensemble transformation
     call PDAF_set_iparam(7, type_sqrt, status_pdaf)   ! Type of transform square-root (SEIK-sub2/ESTKF)
 
-! *** Check whether initialization of PDAF was successful ***
+    ! *** Check whether initialization of PDAF was successful ***
     if (status_pdaf /= 0) then
        write (*,'(/1x,a6,i3,a43,i4,a1/)') &
             'ERROR ', status_pdaf, &
@@ -419,7 +343,9 @@ contains
        call abort_parallel()
     end if
 
-    if (this_is_pdaf_restart .or. start_from_ENS_spinup) deallocate(state_p_init,ens_p_init)
+    if (this_is_pdaf_restart .or. start_from_ENS_spinup) then
+       deallocate(state_p_init,ens_p_init)
+    end if
 
 
 ! ***************************************
@@ -432,14 +358,10 @@ contains
     call PDAFomi_get_domain_limits_unstr(myDim_nod2d, mesh_fesom%geo_coord_nod2D)
 
   
-! *****************************
-! *** Post processing setup ***
-! *****************************
 
-    if (isPP) then
-       call doPP(nsteps)
-    else
-
+    if (.not. isPP) then
+       
+    ! *** Assimilation run ***
 
 ! ******************************
 ! *** Initialize file output ***
@@ -508,6 +430,12 @@ contains
        if (resetforget .and. (this_is_pdaf_restart .or. start_from_ENS_spinup)) then
           call PDAF_reset_forget(forget)
        endif
+
+    else
+
+       ! *** Post processing setup ***
+
+       call doPP(nsteps)
 
     endif ! isPP
 

@@ -47,49 +47,50 @@
 !! * 2019-06 - Lars Nerger - Initial code
 !! * Later revisions - see repository log
 !!
-MODULE obs_Alk_glodap_pdafomi
+module obs_Alk_glodap_pdafomi
 
-  USE parallel_pdaf_mod, &
-       ONLY: mype_filter, writepe ! Rank of filter process
-  USE PDAF, &
-       ONLY: obs_f, obs_l         ! Declaration of observation data types
-  USE assim_pdaf_mod, &
-       ONLY: n_sweeps, &          ! Variables for coupled data assimilation
-       obs_PP                     ! Type variable for postprocessing
+  use parallel_pdaf_mod, &
+       only: mype_filter, writepe
+  use PDAF, &                     ! Declaration of observation data types
+       only: obs_f, obs_l
+  use coupled_da_mod, &           ! Variables for coupled DA
+       only: n_sweeps 
+  use assim_pdaf_mod, &
+       only: obs_PP
  
-  IMPLICIT NONE
-  SAVE
+  implicit none
+  save
 
   ! Variables which are inputs to the module (usually set in init_pdaf)
-  LOGICAL :: assim_o_Alk_glodap   !< Whether to assimilate
+  logical :: assim_o_Alk_glodap   !< Whether to assimilate
 
   ! Further variables specific for profile observations
-  CHARACTER(len=110) :: path_obs_Alk_glodap  = ''      !< Path to profile observations
-  CHARACTER(len=110) :: file_Alk_glodap
+  character(len=110) :: path_obs_Alk_glodap  = ''      !< Path to profile observations
+  character(len=110) :: file_Alk_glodap
 
-  REAL    :: rms_obs_Alk_glodap      ! Observation error
-  REAL    :: bias_obs_Alk_glodap     ! Observation bias
+  real    :: rms_obs_Alk_glodap      ! Observation error
+  real    :: bias_obs_Alk_glodap     ! Observation bias
 
-  REAL    :: lradius_Alk_glodap      ! Localization radius
-  REAL    :: sradius_Alk_glodap      ! Support radius for localization function
+  real    :: lradius_Alk_glodap      ! Localization radius
+  real    :: sradius_Alk_glodap      ! Support radius for localization function
 
-  REAL    :: Alk_glodap_exclude_diff ! Limit difference beyond which observations are excluded (0.0 to deactivate)
+  real    :: Alk_glodap_exclude_diff ! Limit difference beyond which observations are excluded (0.0 to deactivate)
 
-  REAL, ALLOCATABLE :: mean_Alk_p (:)             ! ensemble mean for observation exclusion
-  REAL, ALLOCATABLE :: loc_radius_Alk_glodap(:)   ! localization radius array
+  real, allocatable :: mean_Alk_p (:)             ! ensemble mean for observation exclusion
+  real, allocatable :: loc_radius_Alk_glodap(:)   ! localization radius array
   
-  REAL, ALLOCATABLE :: ivariance_obs_g(:)           ! global-earth inverse observation variances
+  real, allocatable :: ivariance_obs_g(:)           ! global-earth inverse observation variances
 
-  REAL, parameter   :: refdens  = 1.026        ! reference density of water for unit conversion
-  REAL, parameter   :: irefdens = 0.975        ! inverse """
-  REAL, parameter   :: third = 0.3333333333333333
+  real, parameter   :: refdens  = 1.026        ! reference density of water for unit conversion
+  real, parameter   :: irefdens = 0.975        ! inverse """
+  real, parameter   :: third = 0.3333333333333333
 
-  INTEGER, PARAMETER :: val1 =1
-  INTEGER, PARAMETER :: val2 =2
-  INTEGER, PARAMETER :: val3 =3
-  INTEGER, PARAMETER :: dens1=4
-  INTEGER, PARAMETER :: dens2=5
-  INTEGER, PARAMETER :: dens3=6
+  integer, parameter :: val1 =1
+  integer, parameter :: val2 =2
+  integer, parameter :: val3 =3
+  integer, parameter :: dens1=4
+  integer, parameter :: dens2=5
+  integer, parameter :: dens3=6
 
 ! ***********************************************************************
 ! *** The following two data types are used in PDAFomi                ***
@@ -144,21 +145,21 @@ MODULE obs_Alk_glodap_pdafomi
 
 ! Declare instances of observation data types used here
 ! We use generic names here, but one could renamed the variables
-  TYPE(obs_f), TARGET, PUBLIC :: thisobs      ! full observation
-  TYPE(obs_l), TARGET, PUBLIC :: thisobs_l    ! local observation
+  type(obs_f), target, public :: thisobs      ! full observation
+  type(obs_l), target, public :: thisobs_l    ! local observation
 
 ! For postprocessing:
   type(obs_PP) :: thisobs_PP
   type(obs_PP) :: thisobs_PP_f
   
-  LOGICAL :: isPP = .false.                 ! T: for postprocessing of simulation output
+  logical :: isPP = .false.                 ! T: for postprocessing of simulation output
                                             ! F: for assimilation
 !$OMP THREADPRIVATE(thisobs_l)
 
 
 !-------------------------------------------------------------------------------
 
-CONTAINS
+contains
 
 !> Initialize information on the module-type observation
 !!
@@ -187,57 +188,57 @@ CONTAINS
 !!
 !! Further variables are set when the routine PDAFomi_gather_obs is called.
 !!
-  SUBROUTINE init_dim_obs_Alk_glodap(step, dim_obs)
+  subroutine init_dim_obs_Alk_glodap(step, dim_obs)
 
-    USE PDAF, &
-         ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
-    USE assim_pdaf_mod, &
-         ONLY: use_global_obs, cradius, sradius
-    USE fesom_pdaf, &
+    use PDAF, &
+         only: PDAFomi_gather_obs, PDAFomi_set_debug_flag
+    use assim_pdaf_mod, &
+         only: use_global_obs, cradius, sradius
+    use fesom_pdaf, &
          only: mesh_fesom, nlmax, mydim_nod2d, pi, &
          myDim_nod2D, &
          month, day_in_month, yearnew, timenew, daynew
-    USE statevector_pdaf, &
-         ONLY: id, sfields
-    USE parallel_pdaf_mod, &
-         ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
+    use statevector_pdaf, &
+         only: id, sfields
+    use parallel_pdaf_mod, &
+         only: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
          
-    USE netcdf
+    use netcdf
 
-    IMPLICIT NONE
+    implicit none
     save
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)    :: step      !< Current time step
-    INTEGER, INTENT(inout) :: dim_obs   !< Dimension of full observation vector
+    integer, intent(in)    :: step      !< Current time step
+    integer, intent(inout) :: dim_obs   !< Dimension of full observation vector
 
 ! *** Local variables ***
-    INTEGER :: i, s, k, j          ! Counters
-    INTEGER :: dim_obs_p                      ! Number of process local observations
-    CHARACTER(len=2) :: mype_string           ! String for process rank
-    CHARACTER(len=4) :: year_string           ! String for yearly observation data path
-    CHARACTER(len=2) :: mon_string            ! String for daily observation files
-    CHARACTER(len=2) :: day_string            ! String for daily observation files
-    LOGICAL           :: FileExists
-    CHARACTER(len=300):: filename             ! PE-local complete path+filename
+    integer :: i, s, k, j          ! Counters
+    integer :: dim_obs_p                      ! Number of process local observations
+    character(len=2) :: mype_string           ! String for process rank
+    character(len=4) :: year_string           ! String for yearly observation data path
+    character(len=2) :: mon_string            ! String for daily observation files
+    character(len=2) :: day_string            ! String for daily observation files
+    logical           :: FileExists
+    character(len=300):: filename             ! PE-local complete path+filename
     
-    REAL, ALLOCATABLE :: obs_p(:)             ! PE-local observed observation values
-    REAL, ALLOCATABLE :: ocoord_p(:,:)        ! PE-local coordinates of observations
-    REAL, ALLOCATABLE :: lon_p(:),lat_p(:)
-    REAL, ALLOCATABLE :: ivariance_obs_p(:)   ! PE-local array of observation errors
-    INTEGER, ALLOCATABLE :: nod1_p(:), &
+    real, allocatable :: obs_p(:)             ! PE-local observed observation values
+    real, allocatable :: ocoord_p(:,:)        ! PE-local coordinates of observations
+    real, allocatable :: lon_p(:),lat_p(:)
+    real, allocatable :: ivariance_obs_p(:)   ! PE-local array of observation errors
+    integer, allocatable :: nod1_p(:), &
                             nod2_p(:), &
                             nod3_p(:)         ! Array of observation pe-local indices on FESOM grid
-    INTEGER, ALLOCATABLE :: nl_p(:)           ! Array of observation layer indices
+    integer, allocatable :: nl_p(:)           ! Array of observation layer indices
     
-    INTEGER :: ncstat                         ! Status for NetCDF functions
-    INTEGER :: ncid, dimid                    ! NetCDF IDs
-    INTEGER :: id_obs, id_nod1, id_nod2, &
+    integer :: ncstat                         ! Status for NetCDF functions
+    integer :: ncid, dimid                    ! NetCDF IDs
+    integer :: id_obs, id_nod1, id_nod2, &
                id_nod3, id_nl, id_lon, &
                id_lat, id_depth, id_elem
                
-    INTEGER :: cnt_ex_dry_p, cnt_ex_dry       ! Number of excluded observations due to model topography ("dry nodes")
-    INTEGER :: nzmin                          ! Number of wet vertical model layers at observation location considering model topography
+    integer :: cnt_ex_dry_p, cnt_ex_dry       ! Number of excluded observations due to model topography ("dry nodes")
+    integer :: nzmin                          ! Number of wet vertical model layers at observation location considering model topography
 
 ! *********************************************
 ! *** Initialize full observation dimension ***
@@ -265,45 +266,45 @@ CONTAINS
 ! **********************************
 
     ! Initialize complete file name
-    WRITE(mype_string,'(i2.2)') mype_filter
-    WRITE(year_string,'(i4.4)') yearnew
-    WRITE(mon_string, '(i2.2)') month
-    WRITE(day_string, '(i2.2)') day_in_month
+    write(mype_string,'(i2.2)') mype_filter
+    write(year_string,'(i4.4)') yearnew
+    write(mon_string, '(i2.2)') month
+    write(day_string, '(i2.2)') day_in_month
     
-    file_Alk_glodap = TRIM(year_string//'-'//mon_string//'-'//day_string//'.'//mype_string//'.nc')
+    file_Alk_glodap = trim(year_string//'-'//mon_string//'-'//day_string//'.'//mype_string//'.nc')
     
     ! Message:
-    IF (step < 0) then
+    if (step < 0) then
         ! ---
         ! Postprocessing
         ! ---
         isPP = .true.
-        if (writepe) WRITE (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
+        if (writepe) write (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
             'FESOM-PDAF', 'Postprocessing of GLODAP ALK observations at', &
             day_in_month, '.', month, '.', yearnew, timenew/3600.0,&
             'h; read from file:', file_Alk_glodap
         thisobs%use_global_obs = 1
         thisobs%doassim = 1
-    ELSE
+    else
        ! ---
        ! Assimilation
        ! ---
-       if (writepe) WRITE (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
+       if (writepe) write (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
             'FESOM-PDAF', 'Assimilate GLODAP ALK observations at', &
             day_in_month, '.', month, '.', yearnew, timenew/3600.0,&
             'h; read from file:', file_Alk_glodap
        ! Store whether to use global observations
        thisobs%use_global_obs = use_global_obs
        ! Store whether to assimilate this observation type
-       IF (assim_o_Alk_glodap) thisobs%doassim = 1
-    ENDIF
+       if (assim_o_Alk_glodap) thisobs%doassim = 1
+    endif
 
     ! complete path + filename
-    filename=TRIM(path_obs_Alk_glodap)//year_string//'/dist72/'//file_Alk_glodap
-    INQUIRE(file=TRIM(filename), exist=FileExists)
-    IF (FileExists) THEN
+    filename=trim(path_obs_Alk_glodap)//year_string//'/dist72/'//file_Alk_glodap
+    inquire(file=trim(filename), exist=FileExists)
+    if (FileExists) then
        ! Exists: Open the pe-local NetCDF file for that day
-       ncstat = nf90_open(TRIM(filename), nf90_nowrite, ncid)
+       ncstat = nf90_open(trim(filename), nf90_nowrite, ncid)
        if (ncstat /= nf90_noerr) then
         print *, 'FESOM-PDAF - obs_Alk_glodap_pdafomi - Error opening NetCDF file'
        end if
@@ -318,15 +319,15 @@ CONTAINS
        if (ncstat /= nf90_noerr) then
           print *, 'FESOM-PDAF - obs_Alk_glodap_pdafomi - Error getting number of observations from NetCDF file'
        end if
-    ELSE
+    else
        ! Not existing:
        dim_obs_p=0
-    ENDIF ! FileExists
+    endif ! FileExists
     
     cnt_ex_dry_p = 0
     cnt_ex_dry   = 0
     
-    IF (dim_obs_p <= 0) THEN
+    if (dim_obs_p <= 0) then
       ! no observations
     
       allocate(obs_p(1))
@@ -350,7 +351,7 @@ CONTAINS
       endif
       
       
-    ELSE ! (i.e. dim_obs_p > 0)
+    else ! (i.e. dim_obs_p > 0)
     
       ! Allocate memory before reading from netCDF
       allocate(obs_p(dim_obs_p))
@@ -411,7 +412,7 @@ CONTAINS
       
       if (isPP) then
       
-      thisobs_PP%nz  = REAL(nl_p)
+      thisobs_PP%nz  = real(nl_p)
       thisobs_PP%lon = lon_p
       thisobs_PP%lat = lat_p
       
@@ -448,8 +449,8 @@ CONTAINS
       ocoord_p(2,:) = lat_p / 180.0 * PI
       
       ! *** Set constant observation error *** 
-      IF (mype_filter == 18) &
-         WRITE (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
+      if (mype_filter == 18) &
+         write (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
          '--- Use global GLODAP Alk observation error of ', rms_obs_Alk_glodap, ' mmol/m3'
       ! Set inverse observation error variance
       ivariance_obs_p = 1.0 / (rms_obs_Alk_glodap ** 2)
@@ -459,7 +460,7 @@ CONTAINS
       ! This array has as many rows as required for the observation operator
       ! 1 if observations are at grid points; >1 if interpolation is required
       allocate(thisobs%id_obs_p(6,dim_obs_p))
-      DO i = 1, dim_obs_p
+      do i = 1, dim_obs_p
         
         ! indices of observed nodes
         thisobs%id_obs_p(val1,i) = (nlmax) * (nod1_p(i)-1) + nl_p(i) + sfields(id%Alk)%off
@@ -473,11 +474,11 @@ CONTAINS
         
       ! *** exclude observations at dry nodes ***
       ! number of layers at nodes considering bottom topography: mesh_fesom% nlevels_nod2D
-        nzmin = MIN ( mesh_fesom% nlevels_nod2D( nod1_p(i) ), &
+        nzmin = min ( mesh_fesom% nlevels_nod2D( nod1_p(i) ), &
                       mesh_fesom% nlevels_nod2D( nod2_p(i) ), &
                       mesh_fesom% nlevels_nod2D( nod3_p(i) ))
                       
-        IF (nl_p(i) >= nzmin) THEN
+        if (nl_p(i) >= nzmin) then
            if (isPP) thisobs_PP%isExclObs(i) = 1
            ivariance_obs_p(i) = 1e-12
            cnt_ex_dry_p = cnt_ex_dry_p + 1
@@ -491,25 +492,25 @@ CONTAINS
                ivariance_obs_p(i) = 1e-12
                cnt_ex_dry_p = cnt_ex_dry_p + 1
         endif
-      END DO ! i=1,dim_obs_p      
-    ENDIF
+      end do ! i=1,dim_obs_p      
+    endif
     
-    CALL MPI_Allreduce(cnt_ex_dry_p, cnt_ex_dry, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_Allreduce(cnt_ex_dry_p, cnt_ex_dry, 1, MPI_INTEGER, MPI_SUM, &
             COMM_filter, MPIerr)
 
-    IF (mype_filter == 0) &
-            WRITE (*,'(a,5x,a,2x,i7)') 'REcoM-PDAF', &
+    if (mype_filter == 0) &
+            write (*,'(a,5x,a,2x,i7)') 'REcoM-PDAF', &
             '--- Alk GLODAP observations excluded due to topography: ', cnt_ex_dry
     
     ! **************************************
     ! *** Gather full observation arrays ***
     ! **************************************
 
-    CALL PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_p, &
+    call PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_p, &
                             thisobs%ncoord, lradius_Alk_glodap, dim_obs)
                               
-    IF (mype_filter == 0) &
-        WRITE (*, '(a, 5x, a, i)') 'FESOM-PDAF', &
+    if (mype_filter == 0) &
+        write (*, '(a, 5x, a, i)') 'FESOM-PDAF', &
         '--- Full GLODAP Alk observations have been gathered; dim_obs is ', dim_obs
         
     ! Global inverse variance array (thisobs%ivar_obs_f)
@@ -532,7 +533,7 @@ CONTAINS
     deallocate(obs_p,ivariance_obs_p,ocoord_p)
     deallocate(nod1_p,nod2_p,nod3_p,nl_p,lon_p,lat_p) 
 
-  END SUBROUTINE init_dim_obs_Alk_glodap
+  end subroutine init_dim_obs_Alk_glodap
 
 
 
@@ -548,36 +549,36 @@ CONTAINS
 !!
 !! The routine is called by all filter processes.
 !!
-  SUBROUTINE obs_op_Alk_glodap(dim_p, dim_obs, state_p, ostate)
+  subroutine obs_op_Alk_glodap(dim_p, dim_obs, state_p, ostate)
 
-    USE PDAF, &
-         ONLY: PDAFomi_obs_op_gridavg, &
+    use PDAF, &
+         only: PDAFomi_obs_op_gridavg, &
                PDAFomi_gather_obsstate
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in) :: dim_p                 !< PE-local state dimension
-    INTEGER, INTENT(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
-    REAL, INTENT(in)    :: state_p(dim_p)        !< PE-local model state
-    REAL, INTENT(inout) :: ostate(dim_obs)       !< Full observed state
+    integer, intent(in) :: dim_p                 !< PE-local state dimension
+    integer, intent(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
+    real, intent(in)    :: state_p(dim_p)        !< PE-local model state
+    real, intent(inout) :: ostate(dim_obs)       !< Full observed state
     
 ! *** Local variables ***
-    REAL, ALLOCATABLE   :: ostate_p(:)           !< Pe-local observed state
-    INTEGER :: i                                 !< Counters 
+    real, allocatable   :: ostate_p(:)           !< Pe-local observed state
+    integer :: i                                 !< Counters 
 
 ! ******************************************************
 ! *** Apply observation operator H on a state vector ***
 ! ******************************************************
 
-    IF (thisobs%doassim == 1) THEN
+    if (thisobs%doassim == 1) then
 
-       IF (thisobs%dim_obs_p>0) THEN
+       if (thisobs%dim_obs_p>0) then
        ! have obs
-          ALLOCATE(ostate_p(thisobs%dim_obs_p))
+          allocate(ostate_p(thisobs%dim_obs_p))
           
-          IF (isPP) then
-            DO i = 1, thisobs%dim_obs_p
+          if (isPP) then
+            do i = 1, thisobs%dim_obs_p
                 ! -- unit conversion:
                 !    from milli mol per m3 (model) --> micro mol per kg (observations)
                 ! -- average values of 3 grid points
@@ -585,10 +586,10 @@ CONTAINS
                                + state_p(thisobs%id_obs_p(val2,i)) * irefdens &
                                + state_p(thisobs%id_obs_p(val3,i)) * irefdens &
                                ) * third
-            END DO
-          ELSE
+            end do
+          else
             ! initialize observed pe-local state vector
-            DO i = 1, thisobs%dim_obs_p
+            do i = 1, thisobs%dim_obs_p
                 ! -- unit conversion:
                 !    from milli mol per m3 (model) --> micro mol per kg (observations)
                 ! -- average values of 3 grid points
@@ -603,16 +604,16 @@ CONTAINS
                 ! invalid / excluded model value: still, need to initialize with any value
                    ostate_p(i) = 2300
                 endif
-            END DO
-          ENDIF ! isPP
+            end do
+          endif ! isPP
                     
-       ELSE
+       else
        ! habe no obs
-          ALLOCATE(ostate_p(1))
-       END IF
+          allocate(ostate_p(1))
+       end if
 
        ! *** Global: Gather full observed state vector
-       CALL PDAFomi_gather_obsstate(thisobs, ostate_p, ostate)
+       call PDAFomi_gather_obsstate(thisobs, ostate_p, ostate)
        
        ! clean up
        deallocate(ostate_p)
@@ -623,9 +624,9 @@ CONTAINS
        ! For this the observation operator OBS_OP_F_GRIDAVG is used.
        ! CALL PDAFomi_obs_op_gridavg(thisobs, 3, state_p, ostate)
     
-    END IF ! (thisobs%doassim == 1)
+    end if ! (thisobs%doassim == 1)
 
-  END SUBROUTINE obs_op_Alk_glodap
+  end subroutine obs_op_Alk_glodap
 
 
 
@@ -645,26 +646,26 @@ CONTAINS
 !! different localization radius and localization functions
 !! for each observation type and  local analysis domain.
 !!
-  SUBROUTINE init_dim_obs_l_Alk_glodap(domain_p, step, dim_obs, dim_obs_l)
+  subroutine init_dim_obs_l_Alk_glodap(domain_p, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
-    USE PDAF, ONLY: PDAFomi_init_dim_obs_l
+    use PDAF, only: PDAFomi_init_dim_obs_l
 
     ! Include localization radius and local coordinates
-    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
+    use assim_pdaf_mod, only: coords_l, locweight, loctype
     
     ! Number of domains per sweep:
-    USE fesom_pdaf, ONLY: myDim_nod2D
+    use fesom_pdaf, only: myDim_nod2D
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)  :: domain_p     !< Index of current local analysis domain
-    INTEGER, INTENT(in)  :: step         !< Current time step
-    INTEGER, INTENT(in)  :: dim_obs      !< Full dimension of observation vector
-    INTEGER, INTENT(inout) :: dim_obs_l  !< Local dimension of observation vector
+    integer, intent(in)  :: domain_p     !< Index of current local analysis domain
+    integer, intent(in)  :: step         !< Current time step
+    integer, intent(in)  :: dim_obs      !< Full dimension of observation vector
+    integer, intent(inout) :: dim_obs_l  !< Local dimension of observation vector
 
-    IF (thisobs%doassim == 1) THEN
+    if (thisobs%doassim == 1) then
        
        ! ************************************************************
        ! *** Adapt observation error for coupled DA (double loop) ***
@@ -693,11 +694,11 @@ CONTAINS
        ! **********************************************
        ! *** Initialize local observation dimension ***
        ! **********************************************
-       CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
+       call PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
             locweight, lradius_Alk_glodap, sradius_Alk_glodap, dim_obs_l)
 
-    END IF
+    end if
 
-  END SUBROUTINE init_dim_obs_l_Alk_glodap
+  end subroutine init_dim_obs_l_Alk_glodap
 
-END MODULE obs_Alk_glodap_pdafomi
+end module obs_Alk_glodap_pdafomi

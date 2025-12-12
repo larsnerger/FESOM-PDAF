@@ -1,64 +1,79 @@
-MODULE output_config_pdaf
+module output_config_pdaf
 
 ! USES:
 
-  IMPLICIT NONE
+  implicit none
 
 ! *** Local Variables ***
 
   character(len=200) :: filename_std = ''       ! Full name of output file
 
-  LOGICAL :: w_daymemb    = .false.       ! whether to write any daily ensemble member states
-  LOGICAL :: w_dayensm    = .false.       ! whether to write any daily ensemble mean states
-  LOGICAL :: w_monmemb    = .false.       ! whether to write any monthly ensemble member states
-  LOGICAL :: w_monensm    = .false.       ! whether to write any monthly ensemble mean states
-  LOGICAL :: w_mm         = .false.       ! whether to write any m-fields (day-averages)
-  LOGICAL :: w_sm         = .false.       ! whether to write any m-fields (day-averages) of standard deviation
+  logical :: w_daymemb    = .false.       ! whether to write any daily ensemble member states
+  logical :: w_dayensm    = .false.       ! whether to write any daily ensemble mean states
+  logical :: w_monmemb    = .false.       ! whether to write any monthly ensemble member states
+  logical :: w_monensm    = .false.       ! whether to write any monthly ensemble mean states
+  logical :: w_mm         = .false.       ! whether to write any m-fields (day-averages)
+  logical :: w_sm         = .false.       ! whether to write any m-fields (day-averages) of standard deviation
 
 ! Field description:
 
 ! Indices of whether to write: 
-  INTEGER, PARAMETER :: ff=1, aa=2, mm=3, ii=4 ! forecast (ff), analysis (aa), mean (mm) and initial (ii)
-  INTEGER, PARAMETER :: sf=5, sa=6, si=7, sm=8 ! ensemble standard deviation snapshots: forecast (sf), analysis (sa), initial (si) and mean (sm)
-  INTEGER, PARAMETER :: oo=1, ee=2, dd=3       ! any output (oo), ensemble members (ee) and daily values (dd)
+  integer, parameter :: ff=1, aa=2, mm=3, ii=4 ! forecast (ff), analysis (aa), mean (mm) and initial (ii)
+  integer, parameter :: sf=5, sa=6, si=7, sm=8 ! ensemble standard deviation snapshots: forecast (sf), analysis (sa), initial (si) and mean (sm)
+  integer, parameter :: oo=1, ee=2, dd=3       ! any output (oo), ensemble members (ee) and daily values (dd)
 
-  LOGICAL :: setoutput(18)
+  logical :: setoutput(18) = .false.
+  ! Setoutput will be set ny the namelist 'pdafoutput' (or in init_pdaf)
+  !  setoutput( 1)     ! daily forecast and analysis ensemble members
+  !  setoutput( 2)     ! daily forecast and analysis ensemble mean
+  !  setoutput( 3)     ! monthly forecast and analysis ensemble mean of updated variables
+  !  setoutput( 4)     ! daily m-fields ensemble mean
+  !  setoutput( 5)     ! initial fields ensemble mean
+  !  setoutput( 6)     ! initial fields ensemble members
+  !  setoutput( 7)     ! monthly m-fields ensemble mean
+  !  setoutput( 8)     ! daily m-fields of assimilated variables ensemble mean
+  !  setoutput( 9)     ! daily m-fields of assimilate-able BGC variables ensemble mean
+  !  setoutput(10)     ! daily m-fields of CO2 flux and pCO2 ensemble mean
+  !  setoutput(11)     ! daily m-fields of variables defining the CO2 flux
+  !  setoutput(12)     ! initial fields standard deviation
+  !  setoutput(13)     ! daily forecast of standard deviation
+  !  setoutput(14)     ! monthly forecast of standard deviation
+  !  setoutput(15)     ! monthly forecast and analysis of standard deviation for updated fields
+  !  setoutput(16)     ! monthly mm-fields of standard deviation
+  !  setoutput(17)     ! if COMF-O2 assimilated: daily O2 forecast
                                              
-CONTAINS
+contains
 
-  SUBROUTINE configure_output()
+  subroutine configure_output()
 
-    USE assim_pdaf_mod, &
-         ONLY: assimilateBGC, assimilatePHY, &
-         cda_phy, cda_bio 
-    USE fesom_pdaf, &
-         ONLY: nlmax, mydim_nod2d
-    USE statevector_pdaf, &
+    use fesom_pdaf, &
+         only: nlmax, mydim_nod2d
+    use statevector_pdaf, &
          only: id, sfields, nfields, &
          phymin, phymax, bgcmin, bgcmax
-    USE parallel_pdaf_mod, &
-         ONLY: writepe, mype_world
-    USE obs_chl_cci_pdafomi,    ONLY: assim_o_chl_cci
-    USE obs_DIC_glodap_pdafomi, ONLY: assim_o_DIC_glodap
-    USE obs_Alk_glodap_pdafomi, ONLY: assim_o_Alk_glodap
-    USE obs_pCO2_SOCAT_pdafomi, ONLY: assim_o_pCO2_SOCAT
-    USE obs_o2_comf_pdafomi,    ONLY: assim_o_o2_comf
-    USE obs_n_comf_pdafomi,     ONLY: assim_o_n_comf
-    USE obs_o2_argo_pdafomi,    ONLY: assim_o_o2_argo
-    USE obs_n_argo_pdafomi,     ONLY: assim_o_n_argo
-    USE obs_o2_merged_pdafomi,  ONLY: assim_o_o2_merged
-    USE obs_sss_smos_pdafomi,   ONLY: assim_o_sss
-    USE obs_sss_cci_pdafomi,    ONLY: assim_o_sss_cci
-    USE obs_ssh_cmems_pdafomi,  ONLY: assim_o_ssh 
-    USE obs_sst_pdafomi,        ONLY: assim_o_sst 
-    USE obs_TSprof_EN4_pdafomi, ONLY: assim_o_en4_s
-    USE obs_TSprof_EN4_pdafomi, ONLY: assim_o_en4_t
+    use parallel_pdaf_mod, &
+         only: writepe, mype_world
+    use obs_chl_cci_pdafomi,    only: assim_o_chl_cci
+    use obs_DIC_glodap_pdafomi, only: assim_o_DIC_glodap
+    use obs_Alk_glodap_pdafomi, only: assim_o_Alk_glodap
+    use obs_pCO2_SOCAT_pdafomi, only: assim_o_pCO2_SOCAT
+    use obs_o2_comf_pdafomi,    only: assim_o_o2_comf
+    use obs_n_comf_pdafomi,     only: assim_o_n_comf
+    use obs_o2_argo_pdafomi,    only: assim_o_o2_argo
+    use obs_n_argo_pdafomi,     only: assim_o_n_argo
+    use obs_o2_merged_pdafomi,  only: assim_o_o2_merged
+    use obs_sss_smos_pdafomi,   only: assim_o_sss
+    use obs_sss_cci_pdafomi,    only: assim_o_sss_cci
+    use obs_ssh_cmems_pdafomi,  only: assim_o_ssh 
+    use obs_sst_pdafomi,        only: assim_o_sst 
+    use obs_TSprof_EN4_pdafomi, only: assim_o_en4_s
+    use obs_TSprof_EN4_pdafomi, only: assim_o_en4_t
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Local variables: ***
-    INTEGER :: i, b,p,s,j                      ! Counter
-    CHARACTER(len=12) :: outputmessage(8,3)
+    integer :: i, b,p,s,j                      ! Counter
+    character(len=12) :: outputmessage(8,3)
 
 
 ! *********************************************************
@@ -77,242 +92,242 @@ CONTAINS
 
 
 ! *** write daily forecast and analysis ensemble members  ***
-    IF (setoutput(1)) THEN
-       DO s=1, nfields
+    if (setoutput(1)) then
+       do s=1, nfields
           ! forecast
-          sfields(s)% output(ff,oo) = .True.
-          sfields(s)% output(ff,ee) = .True.
-          sfields(s)% output(ff,dd) = .True.
+          sfields(s)% output(ff,oo) = .true.
+          sfields(s)% output(ff,ee) = .true.
+          sfields(s)% output(ff,dd) = .true.
           ! analysis
-          sfields(s)% output(aa,oo) = .True.
-          sfields(s)% output(aa,ee) = .True.
-          sfields(s)% output(aa,dd) = .True.
-       ENDDO
-    ENDIF
+          sfields(s)% output(aa,oo) = .true.
+          sfields(s)% output(aa,ee) = .true.
+          sfields(s)% output(aa,dd) = .true.
+       enddo
+    endif
 
 ! *** write daily forecast and analysis ensemble mean  ***
-    IF (setoutput(2)) THEN
-       DO s=1, nfields
+    if (setoutput(2)) then
+       do s=1, nfields
           ! forecast
-          sfields(s)% output(ff,oo) = .True.
-          sfields(s)% output(ff,dd) = .True.
+          sfields(s)% output(ff,oo) = .true.
+          sfields(s)% output(ff,dd) = .true.
           ! analysis
-          sfields(s)% output(aa,oo) = .True.
-          sfields(s)% output(aa,dd) = .True.
-       ENDDO
-    ENDIF
+          sfields(s)% output(aa,oo) = .true.
+          sfields(s)% output(aa,dd) = .true.
+       enddo
+    endif
 
 ! *** write monthly forecast and analysis ensemble mean of updated variables ***
-    IF (setoutput(3)) THEN
-       DO s=1, nfields
+    if (setoutput(3)) then
+       do s=1, nfields
           ! forecast
-          IF (sfields(s)%updated)   sfields(s)% output(ff,oo) = .True.
+          if (sfields(s)%updated)   sfields(s)% output(ff,oo) = .true.
           ! analysis
-          IF (sfields(s)%updated)   sfields(s)% output(aa,oo) = .True.
-       ENDDO
-    ENDIF
+          if (sfields(s)%updated)   sfields(s)% output(aa,oo) = .true.
+       enddo
+    endif
 
 ! *** write daily m-fields ensemble mean  ***
-    IF (setoutput(4)) THEN
-       DO s=1, nfields
-          sfields(s)% output(mm,oo) = .True.
-          sfields(s)% output(mm,dd) = .True.
-       ENDDO
-    ENDIF
+    if (setoutput(4)) then
+       do s=1, nfields
+          sfields(s)% output(mm,oo) = .true.
+          sfields(s)% output(mm,dd) = .true.
+       enddo
+    endif
 
 ! *** write initial fields ensemble mean  ***
-    IF (setoutput(5)) THEN
-       DO s=1, nfields
-          sfields(s)% output(ii,oo) = .True.
-       ENDDO
-    ENDIF
+    if (setoutput(5)) then
+       do s=1, nfields
+          sfields(s)% output(ii,oo) = .true.
+       enddo
+    endif
 
 ! *** write initial fields ensemble members  ***
-    IF (setoutput(6)) THEN
-       DO s=1, nfields
-          sfields(s)% output(ii,oo) = .True.
-          sfields(s)% output(ii,ee) = .True.
-       ENDDO
-    ENDIF
+    if (setoutput(6)) then
+       do s=1, nfields
+          sfields(s)% output(ii,oo) = .true.
+          sfields(s)% output(ii,ee) = .true.
+       enddo
+    endif
 
 ! *** write monthly m-fields ensemble mean ***
-    IF (setoutput(7)) THEN
-       DO s=1, nfields
-          sfields(s)% output(mm,oo) = .True.
-       ENDDO
-    ENDIF
+    if (setoutput(7)) then
+       do s=1, nfields
+          sfields(s)% output(mm,oo) = .true.
+       enddo
+    endif
 
 ! *** write daily m-fields of assimilated variables ensemble mean ***
-    IF (setoutput(8)) THEN
+    if (setoutput(8)) then
        ! activate m-field output
-       IF (assim_o_sst)          sfields(id% temp)   % output(mm,oo) = .True.
-       IF (assim_o_sss)          sfields(id% salt)   % output(mm,oo) = .True.
-       IF (assim_o_sss_cci)      sfields(id% salt)   % output(mm,oo) = .True.
-       IF (assim_o_en4_t)        sfields(id% temp)   % output(mm,oo) = .True.
-       IF (assim_o_en4_s)        sfields(id% salt)   % output(mm,oo) = .True.
-       IF (assim_o_ssh)          sfields(id% SSH)    % output(mm,oo) = .True.
-       IF (assim_o_chl_cci)      sfields(id% PhyChl) % output(mm,oo) = .True.
-       IF (assim_o_chl_cci)      sfields(id% DiaChl) % output(mm,oo) = .True.
-       IF (assim_o_DIC_glodap)   sfields(id% DIC)    % output(mm,oo) = .True.
-       IF (assim_o_Alk_glodap)   sfields(id% Alk)    % output(mm,oo) = .True.
-       IF (assim_o_pCO2_SOCAT)   sfields(id% pCO2s)  % output(mm,oo) = .True.
-       IF (assim_o_o2_comf)      sfields(id% O2)     % output(mm,oo) = .True.
-       IF (assim_o_n_comf)       sfields(id% DIN)    % output(mm,oo) = .True.
-       IF (assim_o_o2_argo)      sfields(id% O2)     % output(mm,oo) = .True.
-       IF (assim_o_n_argo)       sfields(id% DIN)    % output(mm,oo) = .True.
-       IF (assim_o_o2_merged)    sfields(id% O2)     % output(mm,oo) = .True.
+       if (assim_o_sst)          sfields(id% temp)   % output(mm,oo) = .true.
+       if (assim_o_sss)          sfields(id% salt)   % output(mm,oo) = .true.
+       if (assim_o_sss_cci)      sfields(id% salt)   % output(mm,oo) = .true.
+       if (assim_o_en4_t)        sfields(id% temp)   % output(mm,oo) = .true.
+       if (assim_o_en4_s)        sfields(id% salt)   % output(mm,oo) = .true.
+       if (assim_o_ssh)          sfields(id% SSH)    % output(mm,oo) = .true.
+       if (assim_o_chl_cci)      sfields(id% PhyChl) % output(mm,oo) = .true.
+       if (assim_o_chl_cci)      sfields(id% DiaChl) % output(mm,oo) = .true.
+       if (assim_o_DIC_glodap)   sfields(id% DIC)    % output(mm,oo) = .true.
+       if (assim_o_Alk_glodap)   sfields(id% Alk)    % output(mm,oo) = .true.
+       if (assim_o_pCO2_SOCAT)   sfields(id% pCO2s)  % output(mm,oo) = .true.
+       if (assim_o_o2_comf)      sfields(id% O2)     % output(mm,oo) = .true.
+       if (assim_o_n_comf)       sfields(id% DIN)    % output(mm,oo) = .true.
+       if (assim_o_o2_argo)      sfields(id% O2)     % output(mm,oo) = .true.
+       if (assim_o_n_argo)       sfields(id% DIN)    % output(mm,oo) = .true.
+       if (assim_o_o2_merged)    sfields(id% O2)     % output(mm,oo) = .true.
 
        ! set to daily
-       IF (assim_o_sst)          sfields(id% temp)   % output(mm,dd) = .True.
-       IF (assim_o_sss)          sfields(id% salt)   % output(mm,dd) = .True.
-       IF (assim_o_sss_cci)      sfields(id% salt)   % output(mm,dd) = .True.
-       IF (assim_o_en4_t)        sfields(id% temp)   % output(mm,dd) = .True.
-       IF (assim_o_en4_s)        sfields(id% salt)   % output(mm,dd) = .True.
-       IF (assim_o_ssh)          sfields(id% SSH)    % output(mm,dd) = .True.
-       IF (assim_o_chl_cci)      sfields(id% PhyChl) % output(mm,dd) = .True.
-       IF (assim_o_chl_cci)      sfields(id% DiaChl) % output(mm,dd) = .True.
-       IF (assim_o_DIC_glodap)   sfields(id% DIC)    % output(mm,dd) = .True.
-       IF (assim_o_Alk_glodap)   sfields(id% Alk)    % output(mm,dd) = .True.
-       IF (assim_o_pCO2_SOCAT)   sfields(id% pCO2s)  % output(mm,dd) = .True.
-       IF (assim_o_o2_comf)      sfields(id% O2)     % output(mm,dd) = .True.
-       IF (assim_o_n_comf)       sfields(id% DIN)    % output(mm,dd) = .True.
-       IF (assim_o_o2_argo)      sfields(id% O2)     % output(mm,dd) = .True.
-       IF (assim_o_n_argo)       sfields(id% DIN)    % output(mm,dd) = .True.
-       IF (assim_o_o2_merged)    sfields(id% O2)     % output(mm,dd) = .True.
-    ENDIF
+       if (assim_o_sst)          sfields(id% temp)   % output(mm,dd) = .true.
+       if (assim_o_sss)          sfields(id% salt)   % output(mm,dd) = .true.
+       if (assim_o_sss_cci)      sfields(id% salt)   % output(mm,dd) = .true.
+       if (assim_o_en4_t)        sfields(id% temp)   % output(mm,dd) = .true.
+       if (assim_o_en4_s)        sfields(id% salt)   % output(mm,dd) = .true.
+       if (assim_o_ssh)          sfields(id% SSH)    % output(mm,dd) = .true.
+       if (assim_o_chl_cci)      sfields(id% PhyChl) % output(mm,dd) = .true.
+       if (assim_o_chl_cci)      sfields(id% DiaChl) % output(mm,dd) = .true.
+       if (assim_o_DIC_glodap)   sfields(id% DIC)    % output(mm,dd) = .true.
+       if (assim_o_Alk_glodap)   sfields(id% Alk)    % output(mm,dd) = .true.
+       if (assim_o_pCO2_SOCAT)   sfields(id% pCO2s)  % output(mm,dd) = .true.
+       if (assim_o_o2_comf)      sfields(id% O2)     % output(mm,dd) = .true.
+       if (assim_o_n_comf)       sfields(id% DIN)    % output(mm,dd) = .true.
+       if (assim_o_o2_argo)      sfields(id% O2)     % output(mm,dd) = .true.
+       if (assim_o_n_argo)       sfields(id% DIN)    % output(mm,dd) = .true.
+       if (assim_o_o2_merged)    sfields(id% O2)     % output(mm,dd) = .true.
+    endif
 
 ! *** write daily m-fields of assimilate-able BGC variables ensemble mean ***
-    IF (setoutput(9)) THEN
+    if (setoutput(9)) then
        ! activate m-field output
-       sfields(id% PhyChl) % output(mm,oo) = .True.
-       sfields(id% DiaChl) % output(mm,oo) = .True.
-       sfields(id% DIC)    % output(mm,oo) = .True.
-       sfields(id% Alk)    % output(mm,oo) = .True.
-       sfields(id% pCO2s)  % output(mm,oo) = .True.
-       sfields(id% O2)     % output(mm,oo) = .True.
-       sfields(id% DIN)    % output(mm,oo) = .True.
+       sfields(id% PhyChl) % output(mm,oo) = .true.
+       sfields(id% DiaChl) % output(mm,oo) = .true.
+       sfields(id% DIC)    % output(mm,oo) = .true.
+       sfields(id% Alk)    % output(mm,oo) = .true.
+       sfields(id% pCO2s)  % output(mm,oo) = .true.
+       sfields(id% O2)     % output(mm,oo) = .true.
+       sfields(id% DIN)    % output(mm,oo) = .true.
 
        ! set to daily
-       sfields(id% PhyChl) % output(mm,dd) = .True.
-       sfields(id% DiaChl) % output(mm,dd) = .True.
-       sfields(id% DIC)    % output(mm,dd) = .True.
-       sfields(id% Alk)    % output(mm,dd) = .True.
-       sfields(id% pCO2s)  % output(mm,dd) = .True.
-       sfields(id% O2)     % output(mm,dd) = .True.
-       sfields(id% DIN)    % output(mm,dd) = .True.
-    ENDIF
+       sfields(id% PhyChl) % output(mm,dd) = .true.
+       sfields(id% DiaChl) % output(mm,dd) = .true.
+       sfields(id% DIC)    % output(mm,dd) = .true.
+       sfields(id% Alk)    % output(mm,dd) = .true.
+       sfields(id% pCO2s)  % output(mm,dd) = .true.
+       sfields(id% O2)     % output(mm,dd) = .true.
+       sfields(id% DIN)    % output(mm,dd) = .true.
+    endif
   
 ! *** write daily m-fields of CO2 flux and pCO2 ensemble mean ***
-    IF (setoutput(10)) THEN
-       sfields(id% CO2f)  % output(mm,oo) = .True.
-       sfields(id% pCO2s) % output(mm,oo) = .True.
-       sfields(id% CO2f)  % output(mm,dd) = .True.
-       sfields(id% pCO2s) % output(mm,dd) = .True.
-    ENDIF
+    if (setoutput(10)) then
+       sfields(id% CO2f)  % output(mm,oo) = .true.
+       sfields(id% pCO2s) % output(mm,oo) = .true.
+       sfields(id% CO2f)  % output(mm,dd) = .true.
+       sfields(id% pCO2s) % output(mm,dd) = .true.
+    endif
 
 ! *** write daily m-fields of variables defining the CO2 flux ***
-    IF (setoutput(11)) THEN
-       sfields(id% CO2f     ) % output(mm,oo) = .True.
-       sfields(id% pCO2s    ) % output(mm,oo) = .True.
-       sfields(id% a_ice    ) % output(mm,oo) = .True.
-       sfields(id% alphaCO2 ) % output(mm,oo) = .True.
-       sfields(id% PistonVel) % output(mm,oo) = .True.
+    if (setoutput(11)) then
+       sfields(id% CO2f     ) % output(mm,oo) = .true.
+       sfields(id% pCO2s    ) % output(mm,oo) = .true.
+       sfields(id% a_ice    ) % output(mm,oo) = .true.
+       sfields(id% alphaCO2 ) % output(mm,oo) = .true.
+       sfields(id% PistonVel) % output(mm,oo) = .true.
 
-       sfields(id% CO2f     ) % output(mm,dd) = .True.
-       sfields(id% pCO2s    ) % output(mm,dd) = .True.
-       sfields(id% a_ice    ) % output(mm,dd) = .True.
-       sfields(id% alphaCO2 ) % output(mm,dd) = .True.
-       sfields(id% PistonVel) % output(mm,dd) = .True.
-    ENDIF
+       sfields(id% CO2f     ) % output(mm,dd) = .true.
+       sfields(id% pCO2s    ) % output(mm,dd) = .true.
+       sfields(id% a_ice    ) % output(mm,dd) = .true.
+       sfields(id% alphaCO2 ) % output(mm,dd) = .true.
+       sfields(id% PistonVel) % output(mm,dd) = .true.
+    endif
 
 ! *** write initial fields standard deviation  ***
-    IF (setoutput(12)) THEN
-       DO s=1, nfields
-          sfields(s)% output(si,oo) = .True.
-       ENDDO
-    ENDIF
+    if (setoutput(12)) then
+       do s=1, nfields
+          sfields(s)% output(si,oo) = .true.
+       enddo
+    endif
 
 ! *** write daily forecast of standard deviation ***
-    IF (setoutput(13)) THEN
-       DO s=1, nfields
-          sfields(s)% output(sf,oo) = .True.
-          sfields(s)% output(sf,dd) = .True.
-       ENDDO
-    ENDIF
+    if (setoutput(13)) then
+       do s=1, nfields
+          sfields(s)% output(sf,oo) = .true.
+          sfields(s)% output(sf,dd) = .true.
+       enddo
+    endif
 
 ! *** write monthly forecast of standard deviation ***
-    IF (setoutput(14)) THEN
-       DO s=1, nfields
-          sfields(s)% output(sf,oo) = .True.
-       ENDDO
-    ENDIF
+    if (setoutput(14)) then
+       do s=1, nfields
+          sfields(s)% output(sf,oo) = .true.
+       enddo
+    endif
 
 ! *** write monthly forecast and analysis of standard deviation for updated fields ***
-    IF (setoutput(15)) THEN
-       DO s=1, nfields
-          IF (sfields(s)%updated)   sfields(s)% output(sf,oo) = .True.
-          IF (sfields(s)%updated)   sfields(s)% output(sa,oo) = .True.
-       ENDDO
-    ENDIF
+    if (setoutput(15)) then
+       do s=1, nfields
+          if (sfields(s)%updated)   sfields(s)% output(sf,oo) = .true.
+          if (sfields(s)%updated)   sfields(s)% output(sa,oo) = .true.
+       enddo
+    endif
 
 ! *** write monthly mm-fields of standard deviation ***
-    IF (setoutput(16)) THEN
-       DO s=1, nfields
-          sfields(s)% output(sm,oo) = .True.
-       ENDDO
-    ENDIF
+    if (setoutput(16)) then
+       do s=1, nfields
+          sfields(s)% output(sm,oo) = .true.
+       enddo
+    endif
 
 ! *** write daily forecast fields for oxygen and DIN         ***
 ! (to reconstruct inno_omit)
-    IF (setoutput(17)) THEN
+    if (setoutput(17)) then
        ! Oxygen
-       sfields(id% O2) % output(ff,oo) = .True. ! activate
-       sfields(id% O2) % output(ff,dd) = .True. ! daily
+       sfields(id% O2) % output(ff,oo) = .true. ! activate
+       sfields(id% O2) % output(ff,dd) = .true. ! daily
        ! DIN
-       sfields(id% DIN) % output(ff,oo) = .True. ! activate
-       sfields(id% DIN) % output(ff,dd) = .True. ! daily
-    ENDIF
+       sfields(id% DIN) % output(ff,oo) = .true. ! activate
+       sfields(id% DIN) % output(ff,dd) = .true. ! daily
+    endif
 
 ! *** write daily analysis of assimilate-able BGC variables ensemble mean ***
-    IF (setoutput(18)) THEN
+    if (setoutput(18)) then
        ! activate m-field output
-       sfields(id% PhyChl) % output(aa,oo) = .True.
-       sfields(id% DiaChl) % output(aa,oo) = .True.
-       sfields(id% DIC)    % output(aa,oo) = .True.
-       sfields(id% Alk)    % output(aa,oo) = .True.
-       sfields(id% pCO2s)  % output(aa,oo) = .True.
-       sfields(id% O2)     % output(aa,oo) = .True.
-       sfields(id% DIN)    % output(aa,oo) = .True.
+       sfields(id% PhyChl) % output(aa,oo) = .true.
+       sfields(id% DiaChl) % output(aa,oo) = .true.
+       sfields(id% DIC)    % output(aa,oo) = .true.
+       sfields(id% Alk)    % output(aa,oo) = .true.
+       sfields(id% pCO2s)  % output(aa,oo) = .true.
+       sfields(id% O2)     % output(aa,oo) = .true.
+       sfields(id% DIN)    % output(aa,oo) = .true.
 
        ! set to daily
-       sfields(id% PhyChl) % output(aa,dd) = .True.
-       sfields(id% DiaChl) % output(aa,dd) = .True.
-       sfields(id% DIC)    % output(aa,dd) = .True.
-       sfields(id% Alk)    % output(aa,dd) = .True.
-       sfields(id% pCO2s)  % output(aa,dd) = .True.
-       sfields(id% O2)     % output(aa,dd) = .True.
-       sfields(id% DIN)    % output(aa,dd) = .True.
-    ENDIF
+       sfields(id% PhyChl) % output(aa,dd) = .true.
+       sfields(id% DiaChl) % output(aa,dd) = .true.
+       sfields(id% DIC)    % output(aa,dd) = .true.
+       sfields(id% Alk)    % output(aa,dd) = .true.
+       sfields(id% pCO2s)  % output(aa,dd) = .true.
+       sfields(id% O2)     % output(aa,dd) = .true.
+       sfields(id% DIN)    % output(aa,dd) = .true.
+    endif
 
 
 ! *** FINALIZE        ***
 
-    DO s=1, nfields
+    do s=1, nfields
        ! no monthly initial fields. monthly fields are written at last day of month, but initial fields at first day.
        ! because monthly initial fields make no sense, we set "daily" (dd=True) for all initial fields.
-       sfields(s)% output(ii,dd) = .True.
-       sfields(s)% output(si,dd) = .True.
+       sfields(s)% output(ii,dd) = .true.
+       sfields(s)% output(si,dd) = .true.
   
        ! do not compute full ensemble state for m-fields! this takes memory and time. simply use fesom-output instead.
        ! whatever settings made be before, we reset m-fields ens-member output to False, in the end.
-       sfields(s)% output(mm,ee) = .False.
+       sfields(s)% output(mm,ee) = .false.
   
        ! the standard deviation is written to ensemble-mean file
-       sfields(s)% output(si,ee) = .False.
-       sfields(s)% output(sf,ee) = .False.
-       sfields(s)% output(sa,ee) = .False.
-       sfields(s)% output(sm,ee) = .False.
-    ENDDO
+       sfields(s)% output(si,ee) = .false.
+       sfields(s)% output(sf,ee) = .false.
+       sfields(s)% output(sa,ee) = .false.
+       sfields(s)% output(sm,ee) = .false.
+    enddo
 
 
 ! *** which files are needed?           ***_
@@ -322,13 +337,13 @@ CONTAINS
     w_monmemb = .false.          
     w_monensm = .false.          
 
-    DO s=1, nfields
+    do s=1, nfields
   !                               -- output? -----------        -- ensemble members? ----------       -- daily? ----------------------
        w_daymemb = w_daymemb .or. any( sfields(s)%output(:,oo) .and. (      sfields(s)%output(:,ee)) .and. (      sfields(s)%output(:,dd)))  ! have any daily member states to write?
        w_dayensm = w_dayensm .or. any( sfields(s)%output(:,oo) .and. (.not. sfields(s)%output(:,ee)) .and. (      sfields(s)%output(:,dd)))  ! have any daily ensemble mean states to write?
        w_monmemb = w_monmemb .or. any( sfields(s)%output(:,oo) .and. (      sfields(s)%output(:,ee)) .and. (.not. sfields(s)%output(:,dd)))  ! have any monthly member states to write?
        w_monensm = w_monensm .or. any( sfields(s)%output(:,oo) .and. (.not. sfields(s)%output(:,ee)) .and. (.not. sfields(s)%output(:,dd)))  ! have any monthly ensemble mean states to write?
-    ENDDO
+    enddo
 
     w_dayensm = .true. ! daily file to protocol forgetting factor and global standard deviation
 
@@ -337,11 +352,11 @@ CONTAINS
     w_sm = any(sfields(:)%output(sm,oo))    ! any m-fields (day-mean) of standard deviation to be written?
 
     ! output message
-    IF (mype_world==0) THEN
+    if (mype_world==0) then
 
-       WRITE (*,'(/a,2x,a)') 'FESOM-PDAF', '*** Configuration of file output ***'
+       write (*,'(/a,2x,a)') 'FESOM-PDAF', '*** Configuration of file output ***'
 
-       DO s=1, nfields
+       do s=1, nfields
           outputmessage(aa,1) = 'Analysis'
           outputmessage(ff,1) = 'Forecast'
           outputmessage(mm,1) = 'M-Field'
@@ -351,18 +366,18 @@ CONTAINS
           outputmessage(si,1) = 'STD Initial'
           outputmessage(sm,1) = 'STD M-Field'
 
-          DO j=1,8
-             IF (sfields(s)%output(j,ee)) then
+          do j=1,8
+             if (sfields(s)%output(j,ee)) then
                 outputmessage(j,ee) = 'Ens-Memb'
-             ELSE
+             else
                 outputmessage(j,ee) = 'Ens-Mean'
-             ENDIF
-             IF (sfields(s)%output(j,dd)) then
+             endif
+             if (sfields(s)%output(j,dd)) then
                 outputmessage(j,dd) = 'Daily'
-             ELSE
+             else
                 outputmessage(j,dd) = 'Monthly'
-             ENDIF
-          ENDDO ! j=1,4
+             endif
+          enddo ! j=1,4
 
           outputmessage(ii,dd) = '-'
           outputmessage(si,dd) = '-'
@@ -370,18 +385,18 @@ CONTAINS
           if (.not. any(sfields(s)%output(:,oo))) then ! this field any output?
              write (*, '(a,4x,a,1x,a10,1x,a9)') 'FESOM-PDAF', 'Field', sfields(s)%variable, 'No Output'
           else
-             DO j=1,4
+             do j=1,4
                 if (sfields(s)%output(j,oo)) write (*, '(a,4x,a,1x,a10,1x,a12,1x,a10,1x,a10,1x,a10)') &
                      'FESOM-PDAF', 'Field', &
                      sfields(s)%variable, &
                      outputmessage(j, 1), &
                      outputmessage(j,ee), &
                      outputmessage(j,dd)
-             ENDDO ! j=1,8
+             enddo ! j=1,8
           endif ! this field any output?
-       ENDDO ! s=1, nfields
-    ENDIF ! writepe
+       enddo ! s=1, nfields
+    endif ! writepe
 
-  END SUBROUTINE configure_output
+  end subroutine configure_output
   
-END MODULE output_config_pdaf
+end module output_config_pdaf

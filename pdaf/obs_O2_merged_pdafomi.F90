@@ -45,52 +45,54 @@
 !! * 2019-06 - Lars Nerger - Initial code
 !! * Later revisions - see repository log
 !!
-MODULE obs_o2_merged_pdafomi
+module obs_o2_merged_pdafomi
 
-  USE parallel_pdaf_mod, &
-       ONLY: mype_filter, writepe ! Rank of filter process
-  USE PDAF, &
-       ONLY: obs_f, obs_l         ! Declaration of observation data types
-  USE assim_pdaf_mod, &
-       ONLY: n_sweeps, obs_PP     ! Variables for coupled data assimilation
- 
-  IMPLICIT NONE
-  SAVE
+  use parallel_pdaf_mod, &
+       only: mype_filter, writepe
+  use PDAF, &                     ! Declaration of observation data types
+       only: obs_f, obs_l
+  use coupled_da_mod, &           ! Variables for coupled DA
+       only: n_sweeps 
+  use assim_pdaf_mod, &
+       only: obs_PP
+
+  implicit none
+  save
 
   ! Variables which are inputs to the module (usually set in init_pdaf)
-  LOGICAL :: assim_o_o2_merged   !< Whether to assimilate
+  logical :: assim_o_o2_merged   !< Whether to assimilate
 
   ! Further variables specific for the profile observations
-  CHARACTER(len=110) :: path_obs_o2_merged  = ''      !< Path to profile observations
-  CHARACTER(len=110) :: file_o2_merged
+  character(len=110) :: path_obs_o2_merged  = ''      !< Path to profile observations
+  character(len=110) :: file_o2_merged
 
-  REAL    :: rms_obs_o2_merged      ! Observation error
-  REAL    :: bias_obs_o2_merged     ! Observation bias
+  real    :: rms_obs_o2_merged      ! Observation error
+  real    :: bias_obs_o2_merged     ! Observation bias
 
-  REAL    :: lradius_o2_merged      ! Localization radius
-  REAL    :: sradius_o2_merged      ! Support radius for localization function
+  real    :: lradius_o2_merged      ! Localization radius
+  real    :: sradius_o2_merged      ! Support radius for localization function
 
-  REAL    :: o2_merged_exclude_diff ! limit difference beyond which observations are excluded
+  real    :: o2_merged_exclude_diff ! limit difference beyond which observations are excluded
                                     ! using PDAF's inno_omit functionality
                                     ! set 0.0 to deactivate
-  REAL    :: o2_merged_excl_relative   ! relative difference to exclude observations based on forecast
-  REAL    :: o2_merged_excl_absolute   ! absolute difference to exclude observations based on forecast
+  real    :: o2_merged_excl_relative   ! relative difference to exclude observations based on forecast
+  real    :: o2_merged_excl_absolute   ! absolute difference to exclude observations based on forecast
 
-  REAL, ALLOCATABLE :: mean_O2_p(:)              ! ensemble mean for observation exclusion
-  REAL, ALLOCATABLE :: loc_radius_o2_merged(:)   ! localization radius array
+  real, allocatable :: mean_O2_p(:)              ! ensemble mean for observation exclusion
+  real, allocatable :: loc_radius_o2_merged(:)   ! localization radius array
   
-  REAL, ALLOCATABLE :: ivariance_obs_g(:)      ! global-earth inverse observation variances
+  real, allocatable :: ivariance_obs_g(:)      ! global-earth inverse observation variances
   
-  REAL, parameter   :: refdens  = 1.026        ! reference density of water for unit conversion
-  REAL, parameter   :: irefdens = 0.975        ! inverse """
-  REAL, parameter   :: third = 0.3333333333333333
+  real, parameter   :: refdens  = 1.026        ! reference density of water for unit conversion
+  real, parameter   :: irefdens = 0.975        ! inverse """
+  real, parameter   :: third = 0.3333333333333333
 
-  INTEGER, PARAMETER :: val1 =1
-  INTEGER, PARAMETER :: val2 =2
-  INTEGER, PARAMETER :: val3 =3
-  INTEGER, PARAMETER :: dens1=4
-  INTEGER, PARAMETER :: dens2=5
-  INTEGER, PARAMETER :: dens3=6
+  integer, parameter :: val1 =1
+  integer, parameter :: val2 =2
+  integer, parameter :: val3 =3
+  integer, parameter :: dens1=4
+  integer, parameter :: dens2=5
+  integer, parameter :: dens3=6
   
 ! ***********************************************************************
 ! *** The following two data types are used in PDAFomi                ***
@@ -145,13 +147,13 @@ MODULE obs_o2_merged_pdafomi
 
 ! Declare instances of observation data types used here
 ! We use generic names here, but one could renamed the variables
-  TYPE(obs_f), TARGET, PUBLIC :: thisobs      ! full observation
-  TYPE(obs_l), TARGET, PUBLIC :: thisobs_l    ! local observation
+  type(obs_f), target, public :: thisobs      ! full observation
+  type(obs_l), target, public :: thisobs_l    ! local observation
   
   type(obs_PP) :: thisobs_PP
   type(obs_PP) :: thisobs_PP_f
   
-  LOGICAL :: isPP = .false.                 ! T: for postprocessing of simulation output
+  logical :: isPP = .false.                 ! T: for postprocessing of simulation output
                                             ! F: for assimilation
 
 !$OMP THREADPRIVATE(thisobs_l)
@@ -159,7 +161,7 @@ MODULE obs_o2_merged_pdafomi
 
 !-------------------------------------------------------------------------------
 
-CONTAINS
+contains
 
 !> Initialize information on the module-type observation
 !!
@@ -188,179 +190,179 @@ CONTAINS
 !!
 !! Further variables are set when the routine PDAFomi_gather_obs is called.
 !!
-  SUBROUTINE init_dim_obs_o2_merged(step, dim_obs)
+  subroutine init_dim_obs_o2_merged(step, dim_obs)
 
-    USE PDAF, &
-         ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
-    USE assim_pdaf_mod, &
-         ONLY: use_global_obs, cradius, sradius
-    USE fesom_pdaf, &
+    use PDAF, &
+         only: PDAFomi_gather_obs, PDAFomi_set_debug_flag
+    use assim_pdaf_mod, &
+         only: use_global_obs, cradius, sradius
+    use fesom_pdaf, &
          only: mesh_fesom, nlmax, mydim_nod2d, &
          month, day_in_month, yearnew, timenew, daynew, pi
-    USE statevector_pdaf, &
-         ONLY: id, sfields
-    USE parallel_pdaf_mod, &
-         ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER, MPI_MAX
+    use statevector_pdaf, &
+         only: id, sfields
+    use parallel_pdaf_mod, &
+         only: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER, MPI_MAX
          
-    USE netcdf
+    use netcdf
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)    :: step      !< Current time step
-    INTEGER, INTENT(inout) :: dim_obs   !< Dimension of full observation vector
+    integer, intent(in)    :: step      !< Current time step
+    integer, intent(inout) :: dim_obs   !< Dimension of full observation vector
 
 ! *** Local variables ***
-    INTEGER :: i, s, k, j, &
+    integer :: i, s, k, j, &
                e, e_reps, e_found, n_found, &
                e_new, e1, n1, e2, n2, &
                esa, nsa                       ! Counters
-    CHARACTER(len=2) :: mype_string           ! String for process rank
-    CHARACTER(len=4) :: year_string           ! String for yearly observation data path
-    CHARACTER(len=2) :: mon_string            ! String for daily observation files
-    CHARACTER(len=2) :: day_string            ! String for daily observation files
+    character(len=2) :: mype_string           ! String for process rank
+    character(len=4) :: year_string           ! String for yearly observation data path
+    character(len=2) :: mon_string            ! String for daily observation files
+    character(len=2) :: day_string            ! String for daily observation files
     
-    CHARACTER(len=300) :: filename
-    LOGICAL            :: FileExists
+    character(len=300) :: filename
+    logical            :: FileExists
     
     ! observation data including duplicates at repeatedly sampled elements
-    INTEGER :: dim_obs_p_reps                         ! Number of process local observations
-    INTEGER :: dim_obs_reps                           ! Number of global observations
-    REAL, ALLOCATABLE :: obs_p_reps(:)                ! PE-local observation values
-    REAL, ALLOCATABLE :: lon_p_reps(:),lat_p_reps(:)  ! PE-local observed coords
-    INTEGER, ALLOCATABLE :: nod1_p_reps(:), &
+    integer :: dim_obs_p_reps                         ! Number of process local observations
+    integer :: dim_obs_reps                           ! Number of global observations
+    real, allocatable :: obs_p_reps(:)                ! PE-local observation values
+    real, allocatable :: lon_p_reps(:),lat_p_reps(:)  ! PE-local observed coords
+    integer, allocatable :: nod1_p_reps(:), &
                             nod2_p_reps(:), &
                             nod3_p_reps(:)            ! PE-local observed node/element indices
-    INTEGER, ALLOCATABLE :: elem_p_reps(:)
-    INTEGER, ALLOCATABLE :: nod1_g_reps(:), &
+    integer, allocatable :: elem_p_reps(:)
+    integer, allocatable :: nod1_g_reps(:), &
                             nod2_g_reps(:), &
                             nod3_g_reps(:)            ! Global observed node/element indices
-    INTEGER, ALLOCATABLE :: elem_g_reps(:)
-    INTEGER, ALLOCATABLE :: nlay_p_reps(:)
-    REAL, ALLOCATABLE    :: dep_p_reps(:)
+    integer, allocatable :: elem_g_reps(:)
+    integer, allocatable :: nlay_p_reps(:)
+    real, allocatable    :: dep_p_reps(:)
     
-    REAL    :: excl_relative_upper, excl_relative_lower ! relative upper and lower limits for exclusion
+    real    :: excl_relative_upper, excl_relative_lower ! relative upper and lower limits for exclusion
     
     !  Step 1: sorting of observations and trivial exclusion criteria
         ! observation data at element
-    REAL, ALLOCATABLE    :: x_p1(:,:), y_p1(:,:), z_p1(:,:)
-    REAL, ALLOCATABLE    :: obs_p_sort1(:,:)
-    REAL, ALLOCATABLE    :: dep_p_sort1(:,:)
+    real, allocatable    :: x_p1(:,:), y_p1(:,:), z_p1(:,:)
+    real, allocatable    :: obs_p_sort1(:,:)
+    real, allocatable    :: dep_p_sort1(:,:)
         ! observation statistics at element
-    INTEGER, ALLOCATABLE :: num_obs_p_sort1(:)
-    REAL, ALLOCATABLE    :: var_obs_p_sort1(:)
-    REAL, ALLOCATABLE    :: avg_obs_p_sort1(:)
-    INTEGER              :: dim_obs_p_sort1      ! PE-local number of observed elements
-    INTEGER              :: dim_obs_sort1        ! Global number of observed elements
+    integer, allocatable :: num_obs_p_sort1(:)
+    real, allocatable    :: var_obs_p_sort1(:)
+    real, allocatable    :: avg_obs_p_sort1(:)
+    integer              :: dim_obs_p_sort1      ! PE-local number of observed elements
+    integer              :: dim_obs_sort1        ! Global number of observed elements
         ! element indices
-    INTEGER, ALLOCATABLE :: nod1_p_sort1(:), &
+    integer, allocatable :: nod1_p_sort1(:), &
                             nod2_p_sort1(:), &
                             nod3_p_sort1(:)
-    INTEGER, ALLOCATABLE :: elem_p_sort1(:)
-    INTEGER, ALLOCATABLE :: nod1_g_sort1(:), &
+    integer, allocatable :: elem_p_sort1(:)
+    integer, allocatable :: nod1_g_sort1(:), &
                             nod2_g_sort1(:), &
                             nod3_g_sort1(:)
-    INTEGER, ALLOCATABLE :: elem_g_sort1(:)
-    INTEGER, ALLOCATABLE :: nlay_p_sort1(:)
+    integer, allocatable :: elem_g_sort1(:)
+    integer, allocatable :: nlay_p_sort1(:)
     
     !  Step 2: exclude outliers from observations
     !          exclude based on model topography
         ! observation data at element
-    REAL, ALLOCATABLE    :: x_p2(:,:), y_p2(:,:), z_p2(:,:)
-    REAL, ALLOCATABLE    :: obs_p_sort2(:,:)
-    REAL, ALLOCATABLE    :: dep_p_sort2(:,:)
+    real, allocatable    :: x_p2(:,:), y_p2(:,:), z_p2(:,:)
+    real, allocatable    :: obs_p_sort2(:,:)
+    real, allocatable    :: dep_p_sort2(:,:)
         ! observation statistics at element
-    INTEGER, ALLOCATABLE :: num_obs_p_sort2(:)
-    REAL, ALLOCATABLE    :: var_obs_p_sort2(:)
-    REAL, ALLOCATABLE    :: avg_obs_p_sort2(:)
-    INTEGER              :: dim_obs_p_sort2
+    integer, allocatable :: num_obs_p_sort2(:)
+    real, allocatable    :: var_obs_p_sort2(:)
+    real, allocatable    :: avg_obs_p_sort2(:)
+    integer              :: dim_obs_p_sort2
         ! element indices
-    INTEGER, ALLOCATABLE :: nod1_p_sort2(:), &
+    integer, allocatable :: nod1_p_sort2(:), &
                             nod2_p_sort2(:), &
                             nod3_p_sort2(:)
-    INTEGER, ALLOCATABLE :: elem_p_sort2(:)
-    INTEGER, ALLOCATABLE :: nod1_g_sort2(:), &
+    integer, allocatable :: elem_p_sort2(:)
+    integer, allocatable :: nod1_g_sort2(:), &
                             nod2_g_sort2(:), &
                             nod3_g_sort2(:)
-    INTEGER, ALLOCATABLE :: elem_g_sort2(:)
-    INTEGER, ALLOCATABLE :: nlay_p_sort2(:)
+    integer, allocatable :: elem_g_sort2(:)
+    integer, allocatable :: nlay_p_sort2(:)
     
     !  Step 3: define observation error from variance
     !          exclude observations based on model-observation difference
     !          compute average for grid element
         ! observation data at element
-    REAL, ALLOCATABLE    :: x_p_sortavg(:), y_p_sortavg(:), z_p_sortavg(:)
-    REAL, ALLOCATABLE    :: lon_p_sortavg(:), lat_p_sortavg(:)
-    REAL, ALLOCATABLE    :: obs_p_sortavg(:)
-    REAL, ALLOCATABLE    :: dep_p_sortavg(:)
+    real, allocatable    :: x_p_sortavg(:), y_p_sortavg(:), z_p_sortavg(:)
+    real, allocatable    :: lon_p_sortavg(:), lat_p_sortavg(:)
+    real, allocatable    :: obs_p_sortavg(:)
+    real, allocatable    :: dep_p_sortavg(:)
         ! observation statistics at element
-    INTEGER, ALLOCATABLE :: num_obs_p_sortavg(:)
-    REAL, ALLOCATABLE    :: var_obs_p_sortavg(:)
+    integer, allocatable :: num_obs_p_sortavg(:)
+    real, allocatable    :: var_obs_p_sortavg(:)
         ! element indices
-    INTEGER, ALLOCATABLE :: nod1_p_sortavg(:), &
+    integer, allocatable :: nod1_p_sortavg(:), &
                             nod2_p_sortavg(:), &
                             nod3_p_sortavg(:)
-    INTEGER, ALLOCATABLE :: elem_p_sortavg(:)
-    INTEGER, ALLOCATABLE :: nod1_g_sortavg(:), &
+    integer, allocatable :: elem_p_sortavg(:)
+    integer, allocatable :: nod1_g_sortavg(:), &
                             nod2_g_sortavg(:), &
                             nod3_g_sortavg(:)
-    INTEGER, ALLOCATABLE :: elem_g_sortavg(:)
-    INTEGER, ALLOCATABLE :: nlay_p_sortavg(:)
+    integer, allocatable :: elem_g_sortavg(:)
+    integer, allocatable :: nlay_p_sortavg(:)
     
     ! final unique observation data, trimmed arrays
-    INTEGER :: dim_obs_p                      ! Number of process local observations
+    integer :: dim_obs_p                      ! Number of process local observations
     
-    REAL, ALLOCATABLE :: obs_p(:)             ! PE-local observation values
-    REAL, ALLOCATABLE :: dep_p(:)
-    REAL, ALLOCATABLE :: var_obs_p(:)         ! PE-local observation variance
-    REAL, ALLOCATABLE :: ocoord_p(:,:)        ! PE-local coordinates of observations
-    REAL, ALLOCATABLE :: lon_p(:),lat_p(:)
-    REAL, ALLOCATABLE :: ivariance_obs_p(:)   ! PE-local array of inverse observation errors
-    INTEGER, ALLOCATABLE :: nod1_p(:), &
+    real, allocatable :: obs_p(:)             ! PE-local observation values
+    real, allocatable :: dep_p(:)
+    real, allocatable :: var_obs_p(:)         ! PE-local observation variance
+    real, allocatable :: ocoord_p(:,:)        ! PE-local coordinates of observations
+    real, allocatable :: lon_p(:),lat_p(:)
+    real, allocatable :: ivariance_obs_p(:)   ! PE-local array of inverse observation errors
+    integer, allocatable :: nod1_p(:), &
                             nod2_p(:), &
                             nod3_p(:)         ! Array of observation pe-local indices on FESOM grid
-    INTEGER, ALLOCATABLE :: elem_p(:)
-    INTEGER, ALLOCATABLE :: nod1_g(:), &
+    integer, allocatable :: elem_p(:)
+    integer, allocatable :: nod1_g(:), &
                             nod2_g(:), &
                             nod3_g(:)         ! Array of observation global indices on FESOM grid
-    INTEGER, ALLOCATABLE :: elem_g(:)
-    INTEGER, ALLOCATABLE :: nlay_p(:)         ! Array of observation layer indices
+    integer, allocatable :: elem_g(:)
+    integer, allocatable :: nlay_p(:)         ! Array of observation layer indices
     
     ! netCDF handles
-    INTEGER :: ncstat                         ! Status for NetCDF functions
-    INTEGER :: ncid, dimid                    ! NetCDF IDs
-    INTEGER :: id_obs, id_nod1, id_nod2, &
+    integer :: ncstat                         ! Status for NetCDF functions
+    integer :: ncid, dimid                    ! NetCDF IDs
+    integer :: id_obs, id_nod1, id_nod2, &
                id_nod3, id_nl, id_lon, &
                id_lat, id_depth, id_elem, &
                id_err
                
     ! exclusion count
-    INTEGER :: ecntex_topo_p, ecntex_topo   ! Observed Element Count Exclusion Topography
-    INTEGER :: ecntex_diff_p, ecntex_diff   ! Observed Element Count Exclusion Model-Observation-Difference
-    INTEGER :: ncntex_topo_p, ncntex_topo   ! Observation Count Exclusion Topography
-    INTEGER :: ncntex_diff_p, ncntex_diff   ! Observation Count Exclusion Model-Observation-Difference
-    INTEGER :: ncntex_onan_p, ncntex_onan   ! Observation Count Exclusion: Observation is FillValue
-    INTEGER :: ncntex_oneg_p, ncntex_oneg   ! Observation Count Exclusion: Observation is zero / negative
-    INTEGER :: ncntex_dnan_p, ncntex_dnan   ! Observation Count Exclusion: Depth is FillValue
-    INTEGER :: ncntex_dneg_p, ncntex_dneg   ! Observation Count Exclusion: Depth is zero / negative
-    INTEGER :: ncntex_outl_p, ncntex_outl   ! Observation Count Exclusion: Value is outlier
-    INTEGER :: ncntex_halo_p, ncntex_halo   ! Observation Count Exclusion: Node not on PE
+    integer :: ecntex_topo_p, ecntex_topo   ! Observed Element Count Exclusion Topography
+    integer :: ecntex_diff_p, ecntex_diff   ! Observed Element Count Exclusion Model-Observation-Difference
+    integer :: ncntex_topo_p, ncntex_topo   ! Observation Count Exclusion Topography
+    integer :: ncntex_diff_p, ncntex_diff   ! Observation Count Exclusion Model-Observation-Difference
+    integer :: ncntex_onan_p, ncntex_onan   ! Observation Count Exclusion: Observation is FillValue
+    integer :: ncntex_oneg_p, ncntex_oneg   ! Observation Count Exclusion: Observation is zero / negative
+    integer :: ncntex_dnan_p, ncntex_dnan   ! Observation Count Exclusion: Depth is FillValue
+    integer :: ncntex_dneg_p, ncntex_dneg   ! Observation Count Exclusion: Depth is zero / negative
+    integer :: ncntex_outl_p, ncntex_outl   ! Observation Count Exclusion: Value is outlier
+    integer :: ncntex_halo_p, ncntex_halo   ! Observation Count Exclusion: Node not on PE
     
     
     ! temporary variables during loops
-    LOGICAL :: is_included = .true. ! observation exclusion due to trivial criteria
-    LOGICAL :: is_unique            ! not a duplicate of previous observation
-    INTEGER :: nzmin                ! number of wet vertical model layers at observation location considering model topography
-    INTEGER :: num_obs_p_max        ! maximum number of observations at same element
-    INTEGER :: num_obs              ! number of observations at element
-    REAL    :: num_obs_inv
-    REAL, allocatable :: diffobs(:)
-    REAL    :: emean                ! mean of observations at element
-    REAL    :: evar                 ! variance of observations at element
-    REAL    :: emean_fcst           ! observed model forecast at sample location
+    logical :: is_included = .true. ! observation exclusion due to trivial criteria
+    logical :: is_unique            ! not a duplicate of previous observation
+    integer :: nzmin                ! number of wet vertical model layers at observation location considering model topography
+    integer :: num_obs_p_max        ! maximum number of observations at same element
+    integer :: num_obs              ! number of observations at element
+    real    :: num_obs_inv
+    real, allocatable :: diffobs(:)
+    real    :: emean                ! mean of observations at element
+    real    :: evar                 ! variance of observations at element
+    real    :: emean_fcst           ! observed model forecast at sample location
     
-    REAL :: deg2rad
-    REAL :: rad2deg
+    real :: deg2rad
+    real :: rad2deg
     
     deg2rad = PI/180.0
     rad2deg = 180.0/PI
@@ -402,46 +404,46 @@ CONTAINS
 
 
     ! Daily files: initialize complete file name
-    WRITE(mype_string,'(i2.2)') mype_filter
-    WRITE(year_string,'(i4.4)') yearnew
-    WRITE(mon_string, '(i2.2)') month
-    WRITE(day_string, '(i2.2)') day_in_month
+    write(mype_string,'(i2.2)') mype_filter
+    write(year_string,'(i4.4)') yearnew
+    write(mon_string, '(i2.2)') month
+    write(day_string, '(i2.2)') day_in_month
     
-    file_o2_merged = TRIM(year_string//'-'//mon_string//'-'//day_string//'.'//mype_string//'.nc')
+    file_o2_merged = trim(year_string//'-'//mon_string//'-'//day_string//'.'//mype_string//'.nc')
     
     ! Message:
-    IF (step < 0) then
+    if (step < 0) then
         ! ---
         ! Postprocessing
         ! ---
         isPP = .true.
-        if (writepe) WRITE (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
+        if (writepe) write (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
             'FESOM-PDAF', 'Postprocessing of merged O2 observations at', &
             day_in_month, '.', month, '.', yearnew, timenew/3600.0,&
             'h; read from file:', file_o2_merged
         thisobs%use_global_obs = 1
         thisobs%doassim = 1
-    ELSE
+    else
        ! ---
        ! Assimilation
        ! ---
-       if (writepe) WRITE (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
+       if (writepe) write (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
             'FESOM-PDAF', 'Assimilate merged O2 observations at', &
             day_in_month, '.', month, '.', yearnew, timenew/3600.0,&
             'h; read from file:', file_o2_merged
        ! Store whether to use global observations
        thisobs%use_global_obs = use_global_obs
        ! Store whether to assimilate this observation type
-       IF (assim_o_o2_merged) thisobs%doassim = 1
-    END IF
+       if (assim_o_o2_merged) thisobs%doassim = 1
+    end if
     
     ! complete filename
-    filename=TRIM(path_obs_o2_merged)//year_string//'/dist72/'//TRIM(file_o2_merged)
-    INQUIRE(file=TRIM(filename), exist=FileExists)
+    filename=trim(path_obs_o2_merged)//year_string//'/dist72/'//trim(file_o2_merged)
+    inquire(file=trim(filename), exist=FileExists)
     
-    IF (FileExists) THEN
+    if (FileExists) then
        ! Open the pe-local NetCDF file for that day
-       ncstat = nf90_open(TRIM(filename), nf90_nowrite, ncid)
+       ncstat = nf90_open(trim(filename), nf90_nowrite, ncid)
        if (ncstat /= nf90_noerr) then
         print *, 'FESOM-PDAF - obs_o2_merged_pdafomi - Error opening NetCDF file'
        end if
@@ -455,9 +457,9 @@ CONTAINS
        if (ncstat /= nf90_noerr) then
           print *, 'FESOM-PDAF - obs_o2_merged_pdafomi - Error getting number of observations from NetCDF file'
        end if
-    ELSE
+    else
        dim_obs_p_reps=0
-    ENDIF ! FileExists
+    endif ! FileExists
     
     ! ------------------------------------------
     ! init variables with zero or dim_obs_p_reps
@@ -477,7 +479,7 @@ CONTAINS
     
     ! &&&&&&&&&&&&&&&&&&&&&&&&&
     ! &&&&&&&&&&&&&&&&&&&&&&&&&
-    IF (dim_obs_p_reps <= 0) THEN
+    if (dim_obs_p_reps <= 0) then
     ! --> Have no observations
     
       dim_obs_p = 0
@@ -507,7 +509,7 @@ CONTAINS
     
     ! &&&&&&&&&&&&&&&&&&&&&&&&&
     ! &&&&&&&&&&&&&&&&&&&&&&&&&
-    ELSE ! (i.e. dim_obs_p > 0)
+    else ! (i.e. dim_obs_p > 0)
     ! --> Have observations
     
       ! Allocate memory before reading from netCDF
@@ -611,7 +613,7 @@ CONTAINS
       allocate(elem_p_sort1   (dim_obs_p_reps),source=0)
       allocate(nlay_p_sort1   (dim_obs_p_reps),source=0)
       dim_obs_p_sort1 = 0  ! number of observed elements
-      DO e_reps=1, dim_obs_p_reps ! go through repreated observations one-by-one
+      do e_reps=1, dim_obs_p_reps ! go through repreated observations one-by-one
          is_included = .true. ! trivial observation exclusion
          if ((obs_p_reps(e_reps) == -999) .or. &
              (obs_p_reps(e_reps) <=    0) .or. &
@@ -622,54 +624,54 @@ CONTAINS
              (nod3_p_reps(e_reps) <=   0)) then
              is_included = .false. 
          endif ! trivial observation exclusion
-         IF (is_included) THEN
+         if (is_included) then
             is_unique = .true.
             ! searching for previous occurence of elem(e_reps) and nlay(e_reps) within sorted arrays
-            DO e=1,dim_obs_p_sort1
-               IF ((elem_p_reps(e_reps)==elem_p_sort1(e)) .and. &
-                   (nlay_p_reps(e_reps)==nlay_p_sort1(e))) THEN
+            do e=1,dim_obs_p_sort1
+               if ((elem_p_reps(e_reps)==elem_p_sort1(e)) .and. &
+                   (nlay_p_reps(e_reps)==nlay_p_sort1(e))) then
                   is_unique = .false.
                   e_found   = e
-                  EXIT ! --> found previous occurence at e; stop searching.
-               ENDIF
-            ENDDO ! e=1,dim_obs_p_sort1
-            IF (.not. is_unique) THEN
+                  exit ! --> found previous occurence at e; stop searching.
+               endif
+            enddo ! e=1,dim_obs_p_sort1
+            if (.not. is_unique) then
             ! --> already have observations of elem(e_reps) at e_found
                 num_obs_p_sort1(e_found) = num_obs_p_sort1(e_found) + 1 ! number of observations at e, adding one.
-            ELSE
+            else
             ! --> is the first or only observation at elem(e_reps)
                dim_obs_p_sort1 = dim_obs_p_sort1 + 1 ! number of observed elements, adding one.
                num_obs_p_sort1(dim_obs_p_sort1) = 1  ! number of observations at e, adding first.
                elem_p_sort1   (dim_obs_p_sort1) = elem_p_reps (e_reps) ! index of observed element
                nlay_p_sort1   (dim_obs_p_sort1) = nlay_p_reps (e_reps) ! index of observed element
-            ENDIF ! is_unique
-         ENDIF ! is_included
-      ENDDO! e_reps=1, dim_obs_p_reps
-      num_obs_p_max = MAXVAL(num_obs_p_sort1)
+            endif ! is_unique
+         endif ! is_included
+      enddo! e_reps=1, dim_obs_p_reps
+      num_obs_p_max = maxval(num_obs_p_sort1)
       deallocate(num_obs_p_sort1,elem_p_sort1,nlay_p_sort1)
       
-      ENDIF
+      endif
       ! print pre-count
-      CALL MPI_Allreduce( &
+      call MPI_Allreduce( &
                    dim_obs_p_reps, dim_obs_reps, &
                    1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-      CALL MPI_Allreduce( &
+      call MPI_Allreduce( &
                    num_obs_p_max, n_found, &
                    1, MPI_INTEGER, MPI_MAX, COMM_filter, MPIerr)
-      CALL MPI_Allreduce( &
+      call MPI_Allreduce( &
                    dim_obs_p_sort1, dim_obs_sort1, &
                    1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-      IF (mype_filter == 0) then
-        WRITE (*,'(a,5x,a30,2x,i7)') 'FESOM-PDAF', &
+      if (mype_filter == 0) then
+        write (*,'(a,5x,a30,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged; dim_obs_reps:    ', dim_obs_reps
-        WRITE (*,'(a,5x,a30,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a30,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged; num_obs_max:     ', n_found
-        WRITE (*,'(a,5x,a30,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a30,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged; dim_obs_sort:    ', dim_obs_sort1
-        WRITE (*,'(a,5x,a30,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a30,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged; num x dim_sort:  ', n_found * dim_obs_sort1
-      ENDIF
-      IF (dim_obs_p_reps > 0) THEN
+      endif
+      if (dim_obs_p_reps > 0) then
       
       ! -----------------------------------------------
       !  Step 1: sorting and trivial exclusion criteria
@@ -702,7 +704,7 @@ CONTAINS
       n_found = 0
       
       ! go through repreated observations one-by-one:
-      do_elem_p_reps: DO e_reps=1, dim_obs_p_reps
+      do_elem_p_reps: do e_reps=1, dim_obs_p_reps
          
          ! trivial observation exclusion
          is_included = .true.
@@ -734,21 +736,21 @@ CONTAINS
             ncntex_halo_p = ncntex_halo_p +1 
          endif ! trivial observation exclusion
          
-         IF (is_included) THEN
+         if (is_included) then
             is_unique = .true.
             
             ! searching for previous occurence of elem(e_reps) and nlay(e_reps) within sorted arrays:
-            do_elem_p: DO e=1,dim_obs_p_sort1
+            do_elem_p: do e=1,dim_obs_p_sort1
                
-               IF ((elem_p_reps(e_reps)==elem_p_sort1(e)) .and. &
-                   (nlay_p_reps(e_reps)==nlay_p_sort1(e))) THEN
+               if ((elem_p_reps(e_reps)==elem_p_sort1(e)) .and. &
+                   (nlay_p_reps(e_reps)==nlay_p_sort1(e))) then
                   is_unique = .false.
                   e_found   = e
-                  EXIT ! --> found previous occurence at e; stop searching.
-               ENDIF
-            ENDDO do_elem_p ! counter e
+                  exit ! --> found previous occurence at e; stop searching.
+               endif
+            enddo do_elem_p ! counter e
             
-            IF (.not. is_unique) THEN
+            if (.not. is_unique) then
             ! --> already have observations of elem(e_reps) at e_found:
                 
                 ! number of observations at e, adding one:
@@ -759,14 +761,14 @@ CONTAINS
                 obs_p_sort1(e_found,n_found) = obs_p_reps(e_reps)
                 
                 ! transforming to cartesian coordinates:
-                x_p1(e_found,n_found) = COS(deg2rad*lat_p_reps(e_reps)) * COS(deg2rad*lon_p_reps(e_reps))
-                y_p1(e_found,n_found) = COS(deg2rad*lat_p_reps(e_reps)) * SIN(deg2rad*lon_p_reps(e_reps))
-                z_p1(e_found,n_found) = SIN(deg2rad*lat_p_reps(e_reps))
+                x_p1(e_found,n_found) = cos(deg2rad*lat_p_reps(e_reps)) * cos(deg2rad*lon_p_reps(e_reps))
+                y_p1(e_found,n_found) = cos(deg2rad*lat_p_reps(e_reps)) * sin(deg2rad*lon_p_reps(e_reps))
+                z_p1(e_found,n_found) = sin(deg2rad*lat_p_reps(e_reps))
                             
                 ! writing depth to array at e:
-                IF (isPP) dep_p_sort1(e_found,n_found) = dep_p_reps(e_reps)
+                if (isPP) dep_p_sort1(e_found,n_found) = dep_p_reps(e_reps)
                
-            ELSE
+            else
             ! --> is the first or only observation at elem(e_reps)
                
                ! number of observed elements, adding one:
@@ -786,9 +788,9 @@ CONTAINS
                ! observation data:
                obs_p_sort1 (e_new,1) = obs_p_reps (e_reps)
                ! transforming to cartesian coordinates:
-               x_p1 (e_new,1) = COS(deg2rad*lat_p_reps(e_reps)) * COS(deg2rad*lon_p_reps(e_reps))
-               y_p1 (e_new,1) = COS(deg2rad*lat_p_reps(e_reps)) * SIN(deg2rad*lon_p_reps(e_reps))
-               z_p1 (e_new,1) = SIN(deg2rad*lat_p_reps(e_reps))
+               x_p1 (e_new,1) = cos(deg2rad*lat_p_reps(e_reps)) * cos(deg2rad*lon_p_reps(e_reps))
+               y_p1 (e_new,1) = cos(deg2rad*lat_p_reps(e_reps)) * sin(deg2rad*lon_p_reps(e_reps))
+               z_p1 (e_new,1) = sin(deg2rad*lat_p_reps(e_reps))
                
                if (isPP) then
                   ! indices
@@ -800,9 +802,9 @@ CONTAINS
                   dep_p_sort1 (e_new,1) = dep_p_reps(e_reps)
                endif ! isPP
 
-            ENDIF ! is_unique
-         ENDIF ! is_included
-      ENDDO do_elem_p_reps ! counter e_reps
+            endif ! is_unique
+         endif ! is_included
+      enddo do_elem_p_reps ! counter e_reps
       
       ! clean up *_reps
       deallocate(nod1_p_reps,nod2_p_reps,nod3_p_reps,lon_p_reps,lat_p_reps,obs_p_reps,elem_p_reps,nlay_p_reps,dep_p_reps)
@@ -818,7 +820,7 @@ CONTAINS
       ! -----------------------------------------------
       
       ! maximum number of observations at same element
-      num_obs_p_max = MAXVAL(num_obs_p_sort1)
+      num_obs_p_max = maxval(num_obs_p_sort1)
       
       allocate(x_p2       (dim_obs_p_sort1,num_obs_p_max),source=0.0)
       allocate(y_p2       (dim_obs_p_sort1,num_obs_p_max),source=0.0)
@@ -843,12 +845,12 @@ CONTAINS
       
       e2 = 0      
       ! loop observed elements
-      DO e1=1, dim_obs_p_sort1
+      do e1=1, dim_obs_p_sort1
       
          ! model topography
          ! nlevels <- index of first dry layer at node
          ! nzmin   <- index of first incomplete element
-         nzmin = MIN (mesh_fesom% nlevels_nod2D( nod1_p_sort1(e1) ), &
+         nzmin = min (mesh_fesom% nlevels_nod2D( nod1_p_sort1(e1) ), &
                       mesh_fesom% nlevels_nod2D( nod2_p_sort1(e1) ), &
                       mesh_fesom% nlevels_nod2D( nod3_p_sort1(e1) ))
          if (nlay_p_sort1(e1) < nzmin) then
@@ -873,11 +875,11 @@ CONTAINS
             
             ! compute mean and variance of observations at e1
             num_obs     = num_obs_p_sort1(e1)
-            num_obs_inv = 1/REAL(num_obs)
+            num_obs_inv = 1/real(num_obs)
             allocate(diffobs(num_obs))
-            emean   = num_obs_inv * SUM (obs_p_sort1(e1,1:num_obs))
+            emean   = num_obs_inv * sum (obs_p_sort1(e1,1:num_obs))
             diffobs = obs_p_sort1(e1,1:num_obs) - emean
-            evar    = num_obs_inv * SUM (diffobs * diffobs)
+            evar    = num_obs_inv * sum (diffobs * diffobs)
             
             n2 = 0
             do n1=1, num_obs
@@ -891,7 +893,7 @@ CONTAINS
                    x_p2(e2,n2) = x_p1(e1,n1)
                    y_p2(e2,n2) = y_p1(e1,n1)
                    z_p2(e2,n2) = z_p1(e1,n1)
-                   IF (isPP) dep_p_sort2(e2,n2) = dep_p_sort1(e1,n1)
+                   if (isPP) dep_p_sort2(e2,n2) = dep_p_sort1(e1,n1)
                
                else
                    ! exlusion counter
@@ -909,7 +911,7 @@ CONTAINS
          endif ! model topography check
          ! number of observed elements after topography exclusions
          dim_obs_p_sort2 = e2
-      ENDDO ! loop observed elements
+      enddo ! loop observed elements
       
       ! ecntex_topo_p = dim_obs_p_sort1 - dim_obs_p_sort2
       
@@ -938,14 +940,14 @@ CONTAINS
       !          compute average for grid element
       ! -------------------------------------------------------------------
       
-      ALLOCATE(obs_p_sortavg    (dim_obs_p_sort2))
-      ALLOCATE(var_obs_p_sortavg(dim_obs_p_sort2))
-      ALLOCATE(num_obs_p_sortavg(dim_obs_p_sort2))
-      ALLOCATE(elem_p_sortavg(dim_obs_p_sort2))
-      ALLOCATE(nlay_p_sortavg(dim_obs_p_sort2))
-      ALLOCATE(nod1_p_sortavg(dim_obs_p_sort2),nod2_p_sortavg(dim_obs_p_sort2),nod3_p_sortavg(dim_obs_p_sort2))
-      ALLOCATE(x_p_sortavg(dim_obs_p_sort2),y_p_sortavg(dim_obs_p_sort2),z_p_sortavg(dim_obs_p_sort2))
-      ALLOCATE(lat_p_sortavg(dim_obs_p_sort2),lon_p_sortavg(dim_obs_p_sort2))
+      allocate(obs_p_sortavg    (dim_obs_p_sort2))
+      allocate(var_obs_p_sortavg(dim_obs_p_sort2))
+      allocate(num_obs_p_sortavg(dim_obs_p_sort2))
+      allocate(elem_p_sortavg(dim_obs_p_sort2))
+      allocate(nlay_p_sortavg(dim_obs_p_sort2))
+      allocate(nod1_p_sortavg(dim_obs_p_sort2),nod2_p_sortavg(dim_obs_p_sort2),nod3_p_sortavg(dim_obs_p_sort2))
+      allocate(x_p_sortavg(dim_obs_p_sort2),y_p_sortavg(dim_obs_p_sort2),z_p_sortavg(dim_obs_p_sort2))
+      allocate(lat_p_sortavg(dim_obs_p_sort2),lon_p_sortavg(dim_obs_p_sort2))
 
       obs_p_sortavg(:)     = 0
       var_obs_p_sortavg(:) = 0
@@ -962,9 +964,9 @@ CONTAINS
       lon_p_sortavg(:) = 0
       
       if (isPP) then
-         ALLOCATE(elem_g_sortavg(dim_obs_p_sort2))
-         ALLOCATE(nod1_g_sortavg(dim_obs_p_sort2),nod2_g_sortavg(dim_obs_p_sort2),nod3_g_sortavg(dim_obs_p_sort2))
-         ALLOCATE(dep_p_sortavg(dim_obs_p_sort2))
+         allocate(elem_g_sortavg(dim_obs_p_sort2))
+         allocate(nod1_g_sortavg(dim_obs_p_sort2),nod2_g_sortavg(dim_obs_p_sort2),nod3_g_sortavg(dim_obs_p_sort2))
+         allocate(dep_p_sortavg(dim_obs_p_sort2))
          elem_g_sortavg(:)=0.0
          nod1_g_sortavg(:) = 0
          nod2_g_sortavg(:) = 0
@@ -978,7 +980,7 @@ CONTAINS
          
          ! loop observed elements
          esa=0
-         DO e2=1, dim_obs_p_sort2
+         do e2=1, dim_obs_p_sort2
            ! model forecast at observed element
            emean_fcst = irefdens * third * &
                         (  mean_O2_p((nlmax) * (nod1_p_sort2(e2)-1) + nlay_p_sort2(e2)) &
@@ -987,7 +989,7 @@ CONTAINS
            ! loop observations at element
            num_obs = num_obs_p_sort2(e2)
            nsa=0
-           DO n2=1,num_obs
+           do n2=1,num_obs
               if (abs(obs_p_sort2(e2,n2) - emean_fcst) < o2_merged_excl_absolute) then
               ! observation passed absolute model difference check
                 if (obs_p_sort2(e2,n2) > (excl_relative_lower * emean_fcst)) then
@@ -1014,11 +1016,11 @@ CONTAINS
                        endif
                        
                        ! compute variance for observation error
-                       num_obs_inv = 1/REAL(num_obs)
+                       num_obs_inv = 1/real(num_obs)
                        allocate(diffobs(num_obs))
-                       emean   = num_obs_inv * SUM (obs_p_sort2(e2,1:num_obs))
+                       emean   = num_obs_inv * sum (obs_p_sort2(e2,1:num_obs))
                        diffobs = obs_p_sort2(e2,1:num_obs) - emean
-                       var_obs_p_sortavg(esa) = num_obs_inv * SUM (diffobs * diffobs)
+                       var_obs_p_sortavg(esa) = num_obs_inv * sum (diffobs * diffobs)
                        deallocate(diffobs)
                      endif ! nsa==0
                      
@@ -1029,11 +1031,11 @@ CONTAINS
                      y_p_sortavg  (esa) = y_p_sortavg  (esa) + y_p2(e2,n2)
                      z_p_sortavg  (esa) = z_p_sortavg  (esa) + z_p2(e2,n2)
                      
-                     IF (isPP) dep_p_sortavg(esa) = dep_p_sortavg(esa) + dep_p_sort2(e2,n2)
+                     if (isPP) dep_p_sortavg(esa) = dep_p_sortavg(esa) + dep_p_sort2(e2,n2)
                   endif ! upper limit check
                 endif ! lower limit check
               endif ! absolute difference check
-           ENDDO ! loop observations
+           enddo ! loop observations
            
            ! exclusion count
            ncntex_diff_p = ncntex_diff_p +num_obs -nsa
@@ -1042,7 +1044,7 @@ CONTAINS
            ! after checks, at least one valid observation at element
            
              num_obs_p_sortavg(esa) = nsa
-             num_obs_inv = 1 / REAL(nsa)
+             num_obs_inv = 1 / real(nsa)
              ! mean of observations at element
              obs_p_sortavg(esa) = num_obs_inv * obs_p_sortavg(esa)
              ! mean location, in cartesian coordinates
@@ -1052,13 +1054,13 @@ CONTAINS
              ! mean depth
              if (isPP) dep_p_sortavg(esa) = num_obs_inv * dep_p_sortavg(esa)        
              ! transforming to spherical coordinates
-             lat_p_sortavg(esa) = ATAN2( z_p_sortavg(esa), SQRT(x_p_sortavg(esa)*x_p_sortavg(esa) + y_p_sortavg(esa)*y_p_sortavg(esa)) )
-             lon_p_sortavg(esa) = ATAN2( y_p_sortavg(esa), x_p_sortavg(esa))
+             lat_p_sortavg(esa) = atan2( z_p_sortavg(esa), sqrt(x_p_sortavg(esa)*x_p_sortavg(esa) + y_p_sortavg(esa)*y_p_sortavg(esa)) )
+             lon_p_sortavg(esa) = atan2( y_p_sortavg(esa), x_p_sortavg(esa))
            else
              ! exclusion count
              ecntex_diff_p = ecntex_diff_p +1
            endif ! nsa>0
-         ENDDO ! loop observed elements
+         enddo ! loop observed elements
          dim_obs_p = esa
          
       ! ------------------------------------------------------------------------------
@@ -1067,7 +1069,7 @@ CONTAINS
       
          ! loop observed elements
          esa=0
-         DO e2=1, dim_obs_p_sort2
+         do e2=1, dim_obs_p_sort2
            ! model forecast at observed element
            emean_fcst = irefdens * third * &
                         (  mean_O2_p((nlmax) * (nod1_p_sort2(e2)-1) + nlay_p_sort2(e2)) &
@@ -1076,7 +1078,7 @@ CONTAINS
            ! loop observations at element
            num_obs = num_obs_p_sort2(e2)
            nsa=0
-           DO n2=1,num_obs
+           do n2=1,num_obs
               if (abs(obs_p_sort2(e2,n2) - emean_fcst) < o2_merged_excl_absolute) then
               ! observation passed absolute model difference check
                      
@@ -1099,11 +1101,11 @@ CONTAINS
                        endif
                        
                        ! compute variance for observation error
-                       num_obs_inv = 1/REAL(num_obs)
+                       num_obs_inv = 1/real(num_obs)
                        allocate(diffobs(num_obs))
-                       emean   = num_obs_inv * SUM (obs_p_sort2(e2,1:num_obs))
+                       emean   = num_obs_inv * sum (obs_p_sort2(e2,1:num_obs))
                        diffobs = obs_p_sort2(e2,1:num_obs) - emean
-                       var_obs_p_sortavg(esa) = num_obs_inv * SUM (diffobs * diffobs)
+                       var_obs_p_sortavg(esa) = num_obs_inv * sum (diffobs * diffobs)
                        deallocate(diffobs)
                      endif ! nsa==0
                      
@@ -1114,9 +1116,9 @@ CONTAINS
                      y_p_sortavg  (esa) = y_p_sortavg  (esa) + y_p2(e2,n2)
                      z_p_sortavg  (esa) = z_p_sortavg  (esa) + z_p2(e2,n2)
                      
-                     IF (isPP) dep_p_sortavg(esa) = dep_p_sortavg(esa) + dep_p_sort2(e2,n2)
+                     if (isPP) dep_p_sortavg(esa) = dep_p_sortavg(esa) + dep_p_sort2(e2,n2)
               endif ! absolute difference check
-           ENDDO ! loop observations
+           enddo ! loop observations
            
            ! exclusion count
            ncntex_diff_p = ncntex_diff_p +num_obs -nsa
@@ -1125,7 +1127,7 @@ CONTAINS
            ! after checks, at least one valid observation at element
            
              num_obs_p_sortavg(esa) = nsa
-             num_obs_inv = 1 / REAL(nsa)
+             num_obs_inv = 1 / real(nsa)
              ! mean of observations at element
              obs_p_sortavg(esa) = num_obs_inv * obs_p_sortavg(esa)
              ! mean location, in cartesian coordinates
@@ -1135,13 +1137,13 @@ CONTAINS
              ! mean depth
              if (isPP) dep_p_sortavg(esa) = num_obs_inv * dep_p_sortavg(esa)        
              ! transforming to spherical coordinates
-             lat_p_sortavg(esa) = ATAN2( z_p_sortavg(esa), SQRT(x_p_sortavg(esa)*x_p_sortavg(esa) + y_p_sortavg(esa)*y_p_sortavg(esa)) )
-             lon_p_sortavg(esa) = ATAN2( y_p_sortavg(esa), x_p_sortavg(esa))
+             lat_p_sortavg(esa) = atan2( z_p_sortavg(esa), sqrt(x_p_sortavg(esa)*x_p_sortavg(esa) + y_p_sortavg(esa)*y_p_sortavg(esa)) )
+             lon_p_sortavg(esa) = atan2( y_p_sortavg(esa), x_p_sortavg(esa))
            else
              ! exclusion count
              ecntex_diff_p = ecntex_diff_p +1
            endif ! nsa>0
-         ENDDO ! loop observed elements
+         enddo ! loop observed elements
          dim_obs_p = esa
       
       ! ------------------------------------------------------------------------------
@@ -1150,7 +1152,7 @@ CONTAINS
       
          ! loop observed elements
          esa=0
-         DO e2=1, dim_obs_p_sort2
+         do e2=1, dim_obs_p_sort2
            ! model forecast at observed element
            emean_fcst = irefdens * third * &
                         (  mean_O2_p((nlmax) * (nod1_p_sort2(e2)-1) + nlay_p_sort2(e2)) &
@@ -1159,7 +1161,7 @@ CONTAINS
            ! loop observations at element
            num_obs = num_obs_p_sort2(e2)
            nsa=0
-           DO n2=1,num_obs
+           do n2=1,num_obs
                 if (obs_p_sort2(e2,n2) > (excl_relative_lower * emean_fcst)) then
                 ! observation passed relative difference check, lower limit
                   if (obs_p_sort2(e2,n2) < (excl_relative_upper * emean_fcst)) then
@@ -1184,11 +1186,11 @@ CONTAINS
                        endif
                        
                        ! compute variance for observation error
-                       num_obs_inv = 1/REAL(num_obs)
+                       num_obs_inv = 1/real(num_obs)
                        allocate(diffobs(num_obs))
-                       emean   = num_obs_inv * SUM (obs_p_sort2(e2,1:num_obs))
+                       emean   = num_obs_inv * sum (obs_p_sort2(e2,1:num_obs))
                        diffobs = obs_p_sort2(e2,1:num_obs) - emean
-                       var_obs_p_sortavg(esa) = num_obs_inv * SUM (diffobs * diffobs)
+                       var_obs_p_sortavg(esa) = num_obs_inv * sum (diffobs * diffobs)
                        deallocate(diffobs)
                      endif ! nsa==0
                      
@@ -1199,10 +1201,10 @@ CONTAINS
                      y_p_sortavg  (esa) = y_p_sortavg  (esa) + y_p2(e2,n2)
                      z_p_sortavg  (esa) = z_p_sortavg  (esa) + z_p2(e2,n2)
                      
-                     IF (isPP) dep_p_sortavg(esa) = dep_p_sortavg(esa) + dep_p_sort2(e2,n2)
+                     if (isPP) dep_p_sortavg(esa) = dep_p_sortavg(esa) + dep_p_sort2(e2,n2)
                   endif ! upper limit check
                 endif ! lower limit check
-           ENDDO ! loop observations
+           enddo ! loop observations
            
            ! exclusion count
            ncntex_diff_p = ncntex_diff_p +num_obs -nsa
@@ -1211,7 +1213,7 @@ CONTAINS
            ! after checks, at least one valid observation at element
            
              num_obs_p_sortavg(esa) = nsa
-             num_obs_inv = 1 / REAL(nsa)
+             num_obs_inv = 1 / real(nsa)
              ! mean of observations at element
              obs_p_sortavg(esa) = num_obs_inv * obs_p_sortavg(esa)
              ! mean location, in cartesian coordinates
@@ -1221,13 +1223,13 @@ CONTAINS
              ! mean depth
              if (isPP) dep_p_sortavg(esa) = num_obs_inv * dep_p_sortavg(esa)        
              ! transforming to spherical coordinates
-             lat_p_sortavg(esa) = ATAN2( z_p_sortavg(esa), SQRT(x_p_sortavg(esa)*x_p_sortavg(esa) + y_p_sortavg(esa)*y_p_sortavg(esa)) )
-             lon_p_sortavg(esa) = ATAN2( y_p_sortavg(esa), x_p_sortavg(esa))
+             lat_p_sortavg(esa) = atan2( z_p_sortavg(esa), sqrt(x_p_sortavg(esa)*x_p_sortavg(esa) + y_p_sortavg(esa)*y_p_sortavg(esa)) )
+             lon_p_sortavg(esa) = atan2( y_p_sortavg(esa), x_p_sortavg(esa))
            else
              ! exclusion count
              ecntex_diff_p = ecntex_diff_p +1
            endif ! nsa>0
-         ENDDO ! loop observed elements
+         enddo ! loop observed elements
          dim_obs_p = esa
       
       ! ------------------------------------------
@@ -1235,12 +1237,12 @@ CONTAINS
       ! perform loop, no exclusion checks required
       
          ! loop observed elements
-         DO e2=1, dim_obs_p_sort2
+         do e2=1, dim_obs_p_sort2
            ! no exclusions
            esa=e2
            num_obs_p_sortavg(esa) = num_obs_p_sort2(e2)
            num_obs = num_obs_p_sortavg(esa)
-           num_obs_inv = 1/REAL(num_obs)
+           num_obs_inv = 1/real(num_obs)
            ! write indices to arrays
            elem_p_sortavg (esa) = elem_p_sort2 (e2)
            nlay_p_sortavg (esa) = nlay_p_sort2 (e2)
@@ -1254,23 +1256,23 @@ CONTAINS
              nod3_g_sortavg (esa) = nod3_g_sort2 (e2)
            endif
            ! mean of observations at element
-           emean   = num_obs_inv * SUM (obs_p_sort2(e2,1:num_obs))
+           emean   = num_obs_inv * sum (obs_p_sort2(e2,1:num_obs))
            obs_p_sortavg(esa) = emean
            ! variance for observation error
            allocate(diffobs(num_obs))
            diffobs = obs_p_sort2(e2,1:num_obs) - emean
-           var_obs_p_sortavg(esa) = num_obs_inv * SUM (diffobs * diffobs)
+           var_obs_p_sortavg(esa) = num_obs_inv * sum (diffobs * diffobs)
            deallocate(diffobs)
            ! mean depth
-           if (isPP) dep_p_sortavg(esa) = num_obs_inv * SUM (dep_p_sort2(e2,1:num_obs))
+           if (isPP) dep_p_sortavg(esa) = num_obs_inv * sum (dep_p_sort2(e2,1:num_obs))
            ! mean location, in cartesian coordinates
-           x_p_sortavg(esa) = num_obs_inv * SUM (x_p2(e2,1:num_obs))
-           y_p_sortavg(esa) = num_obs_inv * SUM (y_p2(e2,1:num_obs))
-           z_p_sortavg(esa) = num_obs_inv * SUM (z_p2(e2,1:num_obs))
+           x_p_sortavg(esa) = num_obs_inv * sum (x_p2(e2,1:num_obs))
+           y_p_sortavg(esa) = num_obs_inv * sum (y_p2(e2,1:num_obs))
+           z_p_sortavg(esa) = num_obs_inv * sum (z_p2(e2,1:num_obs))
            ! transforming to spherical coordinates
-           lat_p_sortavg(esa) = ATAN2( z_p_sortavg(esa), SQRT(x_p_sortavg(esa)*x_p_sortavg(esa) + y_p_sortavg(esa)*y_p_sortavg(esa)) )
-           lon_p_sortavg(esa) = ATAN2( y_p_sortavg(esa), x_p_sortavg(esa))
-         ENDDO ! loop observed elements
+           lat_p_sortavg(esa) = atan2( z_p_sortavg(esa), sqrt(x_p_sortavg(esa)*x_p_sortavg(esa) + y_p_sortavg(esa)*y_p_sortavg(esa)) )
+           lon_p_sortavg(esa) = atan2( y_p_sortavg(esa), x_p_sortavg(esa))
+         enddo ! loop observed elements
          dim_obs_p = dim_obs_p_sort2
       
       endif ! absolute / relative exclusion criteria
@@ -1370,11 +1372,11 @@ CONTAINS
       
       ! set inverse observation error variance
       allocate(ivariance_obs_p(dim_obs_p))
-      DO i = 1, dim_obs_p
+      do i = 1, dim_obs_p
          ! combine variance of duplicate observations (var_obs_p, computed above)
          ! and minimum observation error (rms_obs_o2_merged, defined in namelist)
          ivariance_obs_p(i) = 1.0 / (var_obs_p(i) + (rms_obs_o2_merged * rms_obs_o2_merged))
-      ENDDO
+      enddo
 
       ! set observations coordinates
       allocate(ocoord_p(2,dim_obs_p))
@@ -1385,7 +1387,7 @@ CONTAINS
       ! This array has as many rows as required for the observation operator
       ! 1 if observations are at grid points; >1 if interpolation is required
       allocate(thisobs%id_obs_p(6,dim_obs_p))
-      DO i = 1, dim_obs_p
+      do i = 1, dim_obs_p
         ! observed tracer
         thisobs%id_obs_p(val1,i) = (nlmax) * (nod1_p(i)-1) + nlay_p(i) + sfields(id%O2)%off
         thisobs%id_obs_p(val2,i) = (nlmax) * (nod2_p(i)-1) + nlay_p(i) + sfields(id%O2)%off
@@ -1394,9 +1396,9 @@ CONTAINS
         thisobs%id_obs_p(dens1,i) = (nlmax) * (nod1_p(i)-1) + nlay_p(i) + sfields(id%sigma)%off
         thisobs%id_obs_p(dens2,i) = (nlmax) * (nod2_p(i)-1) + nlay_p(i) + sfields(id%sigma)%off
         thisobs%id_obs_p(dens3,i) = (nlmax) * (nod3_p(i)-1) + nlay_p(i) + sfields(id%sigma)%off
-      END DO
+      end do
       
-    ENDIF ! IF (dim_obs_p = 0) ELSEIF (dim_obs_p > 0)
+    endif ! IF (dim_obs_p = 0) ELSEIF (dim_obs_p > 0)
     ! &&&&&&&&&&&&&&&&&&&&&&&&&
     ! &&&&&&&&&&&&&&&&&&&&&&&&&
     ! regardless of whether we have observations or not,
@@ -1407,7 +1409,7 @@ CONTAINS
     ! *** Gather full observation arrays ***
     ! **************************************
 
-    CALL PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_p, &
+    call PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_p, &
                             thisobs%ncoord, lradius_o2_merged, dim_obs)
     
     ! Global inverse variance array (thisobs%ivar_obs_f)
@@ -1423,90 +1425,90 @@ CONTAINS
     end if
     
     ! Gather global observation exclusion statistics
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        dim_obs_p_reps, dim_obs_reps, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        dim_obs_p_sort1, dim_obs_sort1, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ncntex_onan_p, ncntex_onan, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ncntex_oneg_p, ncntex_oneg, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ncntex_dnan_p, ncntex_dnan, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ncntex_dneg_p, ncntex_dneg, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ncntex_halo_p, ncntex_halo, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ncntex_topo_p, ncntex_topo, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ncntex_outl_p, ncntex_outl, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ncntex_diff_p, ncntex_diff, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ecntex_topo_p, ecntex_topo, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
-    CALL MPI_Allreduce( &
+    call MPI_Allreduce( &
                        ecntex_diff_p, ecntex_diff, &
                        1, MPI_INTEGER, MPI_SUM, COMM_filter, MPIerr)
 
     ! Print observation exclusion statistics                     
-    IF (mype_filter == 0) then
+    if (mype_filter == 0) then
     
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Number of samples, some of them duplicates      ', dim_obs_reps
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Samples excluded (observation is FillValue)     ', ncntex_onan
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Samples excluded (observation is zero/ negative)', ncntex_oneg
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Samples excluded (depth is FillValue)           ', ncntex_dnan
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Samples excluded (depth is zero/ negative)      ', ncntex_dneg
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Samples excluded (nod invalid)                  ', ncntex_halo
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Samples excluded (model topography)             ', ncntex_topo
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Samples excluded (outliers among samples)       ', ncntex_outl
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Samples excluded (model-observation difference) ', ncntex_diff
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Number of observed volumes:                     ', dim_obs_sort1
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Volumes excluded (model topography)             ', ecntex_topo
         
-        WRITE (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
+        write (*,'(a,5x,a61,2x,i7)') 'FESOM-PDAF', &
         '- O2 merged. Volumes excluded (model-observation difference) ', ecntex_diff
     endif
 
     ! *** Clean-up ***
-    if (FileExists) THEN
+    if (FileExists) then
        ncstat = nf90_close(ncid)
        if (ncstat /= nf90_noerr) then
           print *, 'FESOM-PDAF - obs_o2_merged_pdafomi - Error closing NetCDF file'
        end if
-    ENDIF
+    endif
     
     deallocate(ivariance_obs_p,ocoord_p,obs_p)
     deallocate(lat_p,lon_p)
@@ -1515,7 +1517,7 @@ CONTAINS
           if (isPP) deallocate(nod1_g, nod2_g, nod3_g, elem_g, dep_p)
     endif
 
-  END SUBROUTINE init_dim_obs_o2_merged
+  end subroutine init_dim_obs_o2_merged
 
 
 
@@ -1531,35 +1533,35 @@ CONTAINS
 !!
 !! The routine is called by all filter processes.
 !!
-  SUBROUTINE obs_op_o2_merged(dim_p, dim_obs, state_p, ostate)
+  subroutine obs_op_o2_merged(dim_p, dim_obs, state_p, ostate)
 
-    USE PDAF, &
-         ONLY: PDAFomi_obs_op_gridavg, &
+    use PDAF, &
+         only: PDAFomi_obs_op_gridavg, &
                PDAFomi_gather_obsstate
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in) :: dim_p                 !< PE-local state dimension
-    INTEGER, INTENT(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
-    REAL, INTENT(in)    :: state_p(dim_p)        !< PE-local model state
-    REAL, INTENT(inout) :: ostate(dim_obs)       !< Full observed state
+    integer, intent(in) :: dim_p                 !< PE-local state dimension
+    integer, intent(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
+    real, intent(in)    :: state_p(dim_p)        !< PE-local model state
+    real, intent(inout) :: ostate(dim_obs)       !< Full observed state
     
-    REAL, ALLOCATABLE   :: ostate_p(:)           !< Pe-local observed state
-    INTEGER :: i                                 !< Counters
+    real, allocatable   :: ostate_p(:)           !< Pe-local observed state
+    integer :: i                                 !< Counters
 
 ! ******************************************************
 ! *** Apply observation operator H on a state vector ***
 ! ******************************************************
 
-    IF (thisobs%doassim == 1) THEN
+    if (thisobs%doassim == 1) then
 
-       IF (thisobs%dim_obs_p>0) THEN
+       if (thisobs%dim_obs_p>0) then
        ! have obs
-          ALLOCATE(ostate_p(thisobs%dim_obs_p))
+          allocate(ostate_p(thisobs%dim_obs_p))
           
-          IF (isPP) then
-            DO i = 1, thisobs%dim_obs_p
+          if (isPP) then
+            do i = 1, thisobs%dim_obs_p
                 ! -- unit conversion:
                 !    from milli mol per m3 (model) --> micro mol per kg (observations)
                 ! -- average values of 3 grid points
@@ -1567,10 +1569,10 @@ CONTAINS
                                + state_p(thisobs%id_obs_p(val2,i)) * irefdens &
                                + state_p(thisobs%id_obs_p(val3,i)) * irefdens &
                                ) * third
-            END DO
-          ELSE
+            end do
+          else
             ! initialize observed pe-local state vector
-            DO i = 1, thisobs%dim_obs_p
+            do i = 1, thisobs%dim_obs_p
                 ! -- unit conversion:
                 !    from milli mol per m3 (model) --> micro mol per kg (observations)
                 ! -- average values of 3 grid points
@@ -1578,16 +1580,16 @@ CONTAINS
                                   + state_p(thisobs%id_obs_p(val2,i)) / state_p(thisobs%id_obs_p(dens2,i)) &
                                   + state_p(thisobs%id_obs_p(val3,i)) / state_p(thisobs%id_obs_p(dens3,i)) &
                                   ) * third
-            END DO
-          ENDIF ! isPP
+            end do
+          endif ! isPP
                     
-       ELSE
+       else
        ! habe no obs
-          ALLOCATE(ostate_p(1))
-       END IF
+          allocate(ostate_p(1))
+       end if
 
        ! *** Global: Gather full observed state vector
-       CALL PDAFomi_gather_obsstate(thisobs, ostate_p, ostate)
+       call PDAFomi_gather_obsstate(thisobs, ostate_p, ostate)
        
        ! clean up
        deallocate(ostate_p)
@@ -1597,9 +1599,9 @@ CONTAINS
        ! For this the observation operator OBS_OP_F_GRIDAVG is used.
        ! CALL PDAFomi_obs_op_gridavg(thisobs, 3, state_p, ostate)
     
-    END IF ! (thisobs%doassim == 1)
+    end if ! (thisobs%doassim == 1)
 
-  END SUBROUTINE obs_op_o2_merged
+  end subroutine obs_op_o2_merged
 
 
 
@@ -1619,26 +1621,26 @@ CONTAINS
 !! different localization radius and localization functions
 !! for each observation type and  local analysis domain.
 !!
-  SUBROUTINE init_dim_obs_l_o2_merged(domain_p, step, dim_obs, dim_obs_l)
+  subroutine init_dim_obs_l_o2_merged(domain_p, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
-    USE PDAF, ONLY: PDAFomi_init_dim_obs_l
+    use PDAF, only: PDAFomi_init_dim_obs_l
 
     ! Include localization radius and local coordinates
-    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
+    use assim_pdaf_mod, only: coords_l, locweight, loctype
     
     ! Number of domains per sweep:
-    USE fesom_pdaf, ONLY: myDim_nod2D
+    use fesom_pdaf, only: myDim_nod2D
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)  :: domain_p     !< Index of current local analysis domain: containing repititive sweeps
-    INTEGER, INTENT(in)  :: step         !< Current time step
-    INTEGER, INTENT(in)  :: dim_obs      !< Full dimension of observation vector
-    INTEGER, INTENT(inout) :: dim_obs_l  !< Local dimension of observation vector
+    integer, intent(in)  :: domain_p     !< Index of current local analysis domain: containing repititive sweeps
+    integer, intent(in)  :: step         !< Current time step
+    integer, intent(in)  :: dim_obs      !< Full dimension of observation vector
+    integer, intent(inout) :: dim_obs_l  !< Local dimension of observation vector
 
-    IF (thisobs%doassim == 1) THEN
+    if (thisobs%doassim == 1) then
     
        ! ************************************************************
        ! *** Adapt observation error for coupled DA (multi sweep) ***
@@ -1667,11 +1669,11 @@ CONTAINS
        ! **********************************************
        ! *** Initialize local observation dimension ***
        ! **********************************************
-       CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
+       call PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
             locweight, lradius_o2_merged, sradius_o2_merged, dim_obs_l)
     
-     END IF ! thisobs%doassim
+     end if ! thisobs%doassim
 
-  END SUBROUTINE init_dim_obs_l_o2_merged
+  end subroutine init_dim_obs_l_o2_merged
 
-END MODULE obs_o2_merged_pdafomi
+end module obs_o2_merged_pdafomi

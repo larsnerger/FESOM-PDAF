@@ -1,13 +1,10 @@
 subroutine compute_vel_elems(Unode,UV)
 
-    ! USE o_ARRAYS, &
-    !  ONLY: UV, Unode
-    USE fesom_pdaf, &
-       ONLY: mesh_fesom, myDim_elem2D, eDim_elem2D, &
-             myDim_nod2D, eDim_nod2D
-    USE g_comm_auto                    ! contains: interface exchange_nod()
+    use fesom_pdaf, &
+       only: mesh_fesom, myDim_elem2D, eDim_elem2D, &
+             myDim_nod2D, eDim_nod2D, exchange_nod
 
-    IMPLICIT NONE
+    implicit none
 
     ! *** local variables ***
     integer          :: elem, nz, &    ! counters
@@ -36,12 +33,12 @@ subroutine compute_vel_elems(Unode,UV)
     
     call exchange_nod(Unode)
     
-    elements: DO elem = 1, myDim_elem2D
+    elements: do elem = 1, myDim_elem2D
     
         ule = mesh_fesom% ulevels(elem)
         nle = mesh_fesom% nlevels(elem)
         
-        watercolumn: DO nz = ule, nle-1
+        watercolumn: do nz = ule, nle-1
 
         UV(1,nz,elem) = (  Unode(1,nz,mesh_fesom% elem2D_nodes(1,elem)) &
                          + Unode(1,nz,mesh_fesom% elem2D_nodes(2,elem)) &
@@ -50,7 +47,7 @@ subroutine compute_vel_elems(Unode,UV)
                          + Unode(2,nz,mesh_fesom% elem2D_nodes(2,elem)) &
                          + Unode(2,nz,mesh_fesom% elem2D_nodes(3,elem)))  /3
         
-        END DO watercolumn
-    END DO elements
+        end do watercolumn
+    end do elements
     
 end subroutine compute_vel_elems

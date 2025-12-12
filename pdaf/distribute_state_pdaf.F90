@@ -18,43 +18,43 @@
 !! * 2020-03 - Frauke B     - Added velocities, removed sea-ice (FESOM2.0)
 !! * 2025-12 - Lars Nerger - Revision for PDAF3
 !!
-SUBROUTINE distribute_state_pdaf(dim_p, state_p)
+subroutine distribute_state_pdaf(dim_p, state_p)
 
-  USE parallel_pdaf_mod, &
-       ONLY: mype_submodel, mype_world, task_id, writepe
-  USE assim_pdaf_mod, &
-       ONLY: this_is_pdaf_restart, start_from_ENS_spinup, &
+  use parallel_pdaf_mod, &
+       only: mype_submodel, mype_world, task_id, writepe
+  use assim_pdaf_mod, &
+       only: this_is_pdaf_restart, start_from_ENS_spinup, &
        istep_asml, step_null
-  USE statevector_pdaf, &
-       ONLY: id, sfields, nfields
-  USE fesom_pdaf, &
-       ONLY: daynew, timenew, nlmax, mesh_fesom, topography_p, &
+  use statevector_pdaf, &
+       only: id, sfields, nfields
+  use fesom_pdaf, &
+       only: daynew, timenew, nlmax, mesh_fesom, topography_p, &
        mydim_nod2d, myDim_elem2D, eDim_nod2D, eDim_elem2D, &
        eta_n, uv, wvel, tr_arr, unode, a_ice, &
        exchange_nod, exchange_elem
 
-  IMPLICIT NONE
+  implicit none
   
 ! *** Arguments ***
-  INTEGER, INTENT(in) :: dim_p           !< PE-local state dimension
-  REAL, INTENT(inout) :: state_p(dim_p)  !< PE-local state vector
+  integer, intent(in) :: dim_p           !< PE-local state dimension
+  real, intent(inout) :: state_p(dim_p)  !< PE-local state vector
 
 ! *** Local variables ***
-  INTEGER :: i, k, b, s, istate, ifesom  ! Counters
-  INTEGER :: node                        ! Node index
-  REAL, ALLOCATABLE :: U_node_upd(:,:,:) ! Velocity update on nodes
-  REAL, ALLOCATABLE :: U_elem_upd(:,:,:) ! Velocity update on elements
-  LOGICAL, SAVE :: first_call = .TRUE.   ! Indicator for first call
+  integer :: i, k, b, s, istate, ifesom  ! Counters
+  integer :: node                        ! Node index
+  real, allocatable :: U_node_upd(:,:,:) ! Velocity update on nodes
+  real, allocatable :: U_elem_upd(:,:,:) ! Velocity update on elements
+  logical, save :: first_call = .true.   ! Indicator for first call
 
 ! Debugging:
-  LOGICAL            :: debugmode
-  INTEGER            :: fileID_debug
-  CHARACTER(len=5)   :: mype_string, tim_string
-  CHARACTER(len=3)   :: day_string
+  logical            :: debugmode
+  integer            :: fileID_debug
+  character(len=5)   :: mype_string, tim_string
+  character(len=3)   :: day_string
 
   
   ! Set debug output
-  debugmode = .FALSE.
+  debugmode = .false.
 
 ! **********************
 ! *** Initialization ***
@@ -62,24 +62,24 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 
   ! no need to distibute the ensemble in case of restart, just skip this routine:
 
-  do_dist: IF (this_is_pdaf_restart .AND. (istep_asml==step_null)) THEN
-     IF (mype_world==0) WRITE(*,'(a,3x,a)') &
+  do_dist: if (this_is_pdaf_restart .and. (istep_asml==step_null)) then
+     if (mype_world==0) write(*,'(a,3x,a)') &
           'FESOM-PDAF', 'This is a restart: Skip distribute_state_pdaf at initial step'
     
-  ELSEIF (start_from_ENS_spinup .AND. (istep_asml==step_null)) THEN do_dist
-     IF (mype_world==0) WRITE(*,'(a,3x,a)') &
+  elseif (start_from_ENS_spinup .and. (istep_asml==step_null)) then do_dist
+     if (mype_world==0) write(*,'(a,3x,a)') &
           'FESOM-PDAF', 'Start from perturbed ensemble: Skip distribute_state_pdaf at initial step'
     
-  ELSE do_dist
-     IF (mype_submodel==0) WRITE (*,'(a,3x,a,i5)') &
+  else do_dist
+     if (mype_submodel==0) write (*,'(a,3x,a,i5)') &
           'FESOM-PDAF', 'distribute_state_pdaf, task: ', task_id
     
      ! ensure to distribute fields with valid topography at first call
-     IF (first_call) THEN
-        IF (writepe) WRITE (*,'(a,8x,a)') 'FESOM-PDAF', 'Distribute_state: set topography'
+     if (first_call) then
+        if (writepe) write (*,'(a,8x,a)') 'FESOM-PDAF', 'Distribute_state: set topography'
         state_p = state_p * topography_p
-        first_call = .FALSE.
-     END IF
+        first_call = .false.
+     end if
 
 
 ! *******************************************
@@ -100,44 +100,44 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
   ! ***
   
      ! SSH (1)
-     DO i = 1, myDim_nod2D
+     do i = 1, myDim_nod2D
         eta_n(i) = state_p(i + sfields(id%SSH)%off)
-     END DO
+     end do
 
      ! u (2) and v (3) velocities
      ! 1. calculate update on nodes, i.e. analysis state (state_p) minus not-yet-updated model state (Unode)
-     ALLOCATE(U_node_upd(2, mesh_fesom%nl-1, myDim_nod2D+eDim_nod2D))
+     allocate(U_node_upd(2, mesh_fesom%nl-1, myDim_nod2D+eDim_nod2D))
      U_node_upd = 0.0
 
      ! u
      s = sfields(id%u)%off
-     DO i = 1, myDim_nod2D
-        DO k = 1, nlmax
+     do i = 1, myDim_nod2D
+        do k = 1, nlmax
            s = s + 1
            U_node_upd(1, k, i) = state_p(s) - Unode(1, k, i)
-        END DO
-     END DO
+        end do
+     end do
 
      ! v
      s = sfields(id%v)%off
-     DO i = 1, myDim_nod2D
-        DO k = 1, nlmax
+     do i = 1, myDim_nod2D
+        do k = 1, nlmax
            s = s + 1
            U_node_upd(2, k, i) = state_p(s) - Unode(2, k, i)
-        END DO
-     END DO
+        end do
+     end do
 
       ! 2. interpolate update from nodes to elements
-     ALLOCATE(U_elem_upd(2, mesh_fesom%nl-1, myDim_elem2D+eDim_elem2D))
+     allocate(U_elem_upd(2, mesh_fesom%nl-1, myDim_elem2D+eDim_elem2D))
      U_elem_upd = 0.0
 
-     CALL compute_vel_elems(U_node_upd,U_elem_upd)
+     call compute_vel_elems(U_node_upd,U_elem_upd)
 
      ! 3. add update to model velocity on elements (UV)
      UV = UV + U_elem_upd
 
      ! 4. adjust diagnostic model velocity on nodes (Unode)
-     CALL compute_vel_nodes(mesh_fesom)
+     call compute_vel_nodes(mesh_fesom)
 
 
   ! w (4) velocity: not updated and thus no need to distribute.
@@ -156,8 +156,8 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 ! *** Initialize external nodes ***
 ! *********************************
 
-     CALL exchange_nod(eta_n)            ! SSH
-     CALL exchange_elem(UV(:,:,:))       ! u and v (element-wise)
+     call exchange_nod(eta_n)            ! SSH
+     call exchange_elem(UV(:,:,:))       ! u and v (element-wise)
 
 
 ! *********************************
@@ -165,70 +165,70 @@ SUBROUTINE distribute_state_pdaf(dim_p, state_p)
 ! *********************************
 
      ! tracer field loop
-     DO istate = 1, nfields
+     do istate = 1, nfields
 
-        IF (sfields(istate)%trnumfesom>0) THEN
+        if (sfields(istate)%trnumfesom>0) then
 
            ifesom = sfields(istate)%trnumfesom  ! index of field in model tracer array
 
            s = 0
-           DO i = 1, myDim_nod2D
-              DO k = 1, nlmax
+           do i = 1, myDim_nod2D
+              do k = 1, nlmax
                  s = s + 1
                  tr_arr(k, i, ifesom) = state_p(s + sfields(istate)%off)
-              ENDDO
-           ENDDO
+              enddo
+           enddo
 
            ! initialize external nodes
-           CALL exchange_nod(tr_arr(:,:,ifesom))
+           call exchange_nod(tr_arr(:,:,ifesom))
 
-        END IF
-     ENDDO 
+        end if
+     enddo 
 
 
 ! ********************
 ! *** Debug output ***
 ! ********************
 
-     writedebug: IF (debugmode .AND. mype_world==0) THEN
+     writedebug: if (debugmode .and. mype_world==0) then
 
         ! print state vector
-        WRITE(day_string, '(i3.3)') daynew
-        WRITE(tim_string, '(i5.5)') INT(timenew)
+        write(day_string, '(i3.3)') daynew
+        write(tim_string, '(i5.5)') int(timenew)
         fileID_debug=20
-        OPEN(unit=fileID_debug, file='distribute_state_pdaf_'//day_string//'_'//tim_string//'.txt', status='unknown')
+        open(unit=fileID_debug, file='distribute_state_pdaf_'//day_string//'_'//tim_string//'.txt', status='unknown')
 
         ! SSH (1)
-        DO i = 1, myDim_nod2D
-           WRITE(fileID_debug, '(a10,1x,i8,1x,G15.6,G15.6)') &
+        do i = 1, myDim_nod2D
+           write(fileID_debug, '(a10,1x,i8,1x,G15.6,G15.6)') &
                 sfields(id%SSH)%variable, i+sfields(id%SSH)%off, eta_n(i), state_p(s)
-        END DO
+        end do
 
         ! u (2) and v (3) velocities
 
         s = sfields(id%u)%off
-        DO i = 1, myDim_nod2D
-           DO k = 1, nlmax
+        do i = 1, myDim_nod2D
+           do k = 1, nlmax
               s = s + 1
-              WRITE(fileID_debug, '(a10,1x,i8,1x,G15.6,G15.6)') sfields(id%u)%variable, s, Unode(1, k, i), state_p(s)
-           END DO
-        END DO
+              write(fileID_debug, '(a10,1x,i8,1x,G15.6,G15.6)') sfields(id%u)%variable, s, Unode(1, k, i), state_p(s)
+           end do
+        end do
 
         s = sfields(id%v)%off
-        DO i = 1, myDim_nod2D
-           DO k = 1, nlmax
+        do i = 1, myDim_nod2D
+           do k = 1, nlmax
               s = s + 1
-              WRITE(fileID_debug, '(a10,1x,i8,1x,G15.6,G15.6)') sfields(id%v)%variable, s, Unode(2, k, i), state_p(s)
-           END DO
-        END DO
+              write(fileID_debug, '(a10,1x,i8,1x,G15.6,G15.6)') sfields(id%v)%variable, s, Unode(2, k, i), state_p(s)
+           end do
+        end do
 
-        CLOSE(fileID_debug)
+        close(fileID_debug)
 
-     END IF writedebug
+     end if writedebug
 
      ! clean up:
-     DEALLOCATE(U_node_upd,U_elem_upd)
+     deallocate(U_node_upd,U_elem_upd)
 
-  END IF do_dist
+  end if do_dist
 
-END SUBROUTINE distribute_state_pdaf
+end subroutine distribute_state_pdaf

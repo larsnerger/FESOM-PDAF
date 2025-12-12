@@ -6,6 +6,7 @@
 !! displayed.
 !!
 !! 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
+!! 2025-12 - Lars Nerger  - revision for PDAF3
 !!
 subroutine read_config_pdaf()
 
@@ -21,7 +22,6 @@ subroutine read_config_pdaf()
        step_null, path_init, file_init, file_inistate, read_inistate, &
        twin_experiment, dim_obs_max, use_global_obs, DAoutput_path, &
        this_is_pdaf_restart, start_from_ENS_spinup, days_since_DAstart, &
-       assimilateBGC, assimilatePHY, DA_couple_type, &
        ! initial ensemble perturbation
        varscale, perturb_ssh, perturb_u, &
        perturb_v, perturb_temp, perturb_salt, &
@@ -29,6 +29,8 @@ subroutine read_config_pdaf()
        ! Temp-Salt-Profiles:
        path_obs_rawprof, file_rawprof_prefix, file_rawprof_suffix, &
        proffiles_o, start_year_o, end_year_o
+  use coupled_da_mod, &                 ! Variables for coupled DA
+       only: cda_bio, cda_phy, DA_couple_type
   use adaptive_lradius_pdaf, &
        only: loc_ratio
   use output_config_pdaf, &       ! Output
@@ -117,12 +119,14 @@ subroutine read_config_pdaf()
   namelist /pdaf/ filtertype, subtype, &
        delt_obs_ocn, steps_first_fcst, screen, &
        type_forget, forget, resetforget, dim_bias, &
-       cradius, locweight, sradius, DA_couple_type, &
+       cradius, locweight, sradius, &
        use_global_obs, printconfig, &
        type_trans, type_sqrt, dim_lag, &
        loctype, loc_ratio, do_omi_obsstats, &     
-       dim_obs_max, twin_experiment, &
-       assimilatePHY, assimilateBGC
+       dim_obs_max, twin_experiment
+
+  namelist /coupledDA/ &
+       DA_couple_type, cda_phy, cda_bio
 
   ! Initialization
   namelist /init/ varscale, path_init, file_init, &
@@ -251,6 +255,8 @@ subroutine read_config_pdaf()
   open (20,file=nmlfile)
   read (20,NML =pdaf)
   rewind(20)
+  read (20,NML =coupledDA)
+  rewind(20)
   read (20,NML =init)
   rewind(20)
   read (20,NML =perturb_BGC)
@@ -361,9 +367,9 @@ file_chl_cci_prefix = 'CCI_OC_'//trim(year_string)//'_dist72_'
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'dim_lag     ',         dim_lag
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'DA_couple_type  ',     DA_couple_type
           
-     ! Updated state variables
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'assimilatePHY',        assimilatePHY
-     write (*,'(a,5x,a20,1x,l)')     'FESOM-PDAF',   'assimilateBGC',        assimilateBGC
+     ! Coupled DA
+     write (*,'(a,5x,a20,1x,a)')     'FESOM-PDAF',   'cda_phy      ',        trim(cda_phy)
+     write (*,'(a,5x,a20,1x,a)')     'FESOM-PDAF',   'cda_bio      ',        trim(cda_bio)
 
      ! initial ensemble covariance
      write (*,'(a,5x,a20,1x,1x,a)')     'FESOM-PDAF',   'path_init   ',         trim(path_init)

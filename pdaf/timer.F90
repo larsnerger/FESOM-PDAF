@@ -1,6 +1,3 @@
-! PDAF_V2.0
-
-!$Id: timer.F90 871 2021-11-22 16:44:34Z lnerger $
 !> Module for timings
 !!
 !! This module provides methods to perform timings of 
@@ -11,19 +8,19 @@
 !! * 2000-11 - Lars Nerger - Initial code
 !! * Later revisions - see repository log
 !!
-MODULE timer
+module timer
 
-  IMPLICIT NONE
-  SAVE
+  implicit none
+  save
   
-  PUBLIC :: timeit, time_tot, time_temp
+  public :: timeit, time_tot, time_temp
 
-  PRIVATE
-  INTEGER :: t_rate
-  INTEGER, ALLOCATABLE :: t_start(:), t_end(:)
-  REAL, ALLOCATABLE    :: t_total(:), t_temp(:)
+  private
+  integer :: t_rate
+  integer, allocatable :: t_start(:), t_end(:)
+  real, allocatable    :: t_total(:), t_temp(:)
 
-CONTAINS
+contains
 !-------------------------------------------------------------------------------
 !> Initialize Counters and time regions
 !!
@@ -35,51 +32,46 @@ CONTAINS
 !!   CALL PDAF_timeit(M,'old') - End timing region for counter M\\
 !!   CALL PDAF_timeit(M,'fin') - Finalized and deallocates all counters\\
 !!
-  SUBROUTINE timeit(timerID, operation)
+  subroutine timeit(timerID, operation)
 
-    IMPLICIT NONE
-
-
-
-
-
+    implicit none
 
     ! *** Arguments ***
-    INTEGER, INTENT(in) :: timerID             ! ID of timer
-    CHARACTER(len=3), INTENT(in) :: operation  ! Requested operation 
+    integer, intent(in) :: timerID             ! ID of timer
+    character(len=3), intent(in) :: operation  ! Requested operation 
 
 
     ! Initialize timers
-    IF (operation == 'ini') THEN
-       IF ( .NOT. (ALLOCATED(t_start))) THEN
-          ALLOCATE(t_start(timerID), t_end(timerID))
-          ALLOCATE(t_total(timerID), t_temp(timerID))
-       END IF
+    if (operation == 'ini') then
+       if ( .not. (allocated(t_start))) then
+          allocate(t_start(timerID), t_end(timerID))
+          allocate(t_total(timerID), t_temp(timerID))
+       end if
         
        t_total = 0.0
-    END IF
+    end if
     
     ! Begin timing region
-    IF (operation == 'new') THEN
-       CALL SYSTEM_CLOCK(t_start(timerID))
-    END IF
+    if (operation == 'new') then
+       call system_clock(t_start(timerID))
+    end if
 
     ! End timing region
-    IF (operation == 'old') THEN
-       CALL SYSTEM_CLOCK(t_end(timerID), t_rate)
-       t_temp(timerID) = REAL(t_end(timerID) - t_start(timerID)) &
-            / REAL(t_rate)
-       t_total(timerID) = t_total(timerID) + REAL(t_end(timerID) - &
-            t_start(timerID)) / REAL(t_rate)
-    END IF
+    if (operation == 'old') then
+       call system_clock(t_end(timerID), t_rate)
+       t_temp(timerID) = real(t_end(timerID) - t_start(timerID)) &
+            / real(t_rate)
+       t_total(timerID) = t_total(timerID) + real(t_end(timerID) - &
+            t_start(timerID)) / real(t_rate)
+    end if
     
     ! Finalize timers
-    IF (operation == 'fin') THEN
-       DEALLOCATE(t_start, t_end)
-       DEALLOCATE(t_total, t_temp)
-    END IF
+    if (operation == 'fin') then
+       deallocate(t_start, t_end)
+       deallocate(t_total, t_temp)
+    end if
     
-  END SUBROUTINE timeit
+  end subroutine timeit
 
 !-------------------------------------------------------------------------------
 !> Read out timers for last timing interval
@@ -87,16 +79,16 @@ CONTAINS
 !! Read out the value of the timer in seconds for the last 
 !! passage of the timing region defined by timerID.
 !!
-  REAL FUNCTION time_temp(timerID)
+  real function time_temp(timerID)
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in) :: timerID             ! ID of timer
+    integer, intent(in) :: timerID             ! ID of timer
 
     time_temp = t_temp(timerID)
 
-  END FUNCTION time_temp
+  end function time_temp
 
 !-------------------------------------------------------------------------------
 !> Read out total time of a timing region.
@@ -104,15 +96,15 @@ CONTAINS
 !! Read out the accumulated value of the timer in seconds
 !! for the timing region define by timerID.
 !!
-    REAL FUNCTION time_tot(timerID)
+    real function time_tot(timerID)
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in) :: timerID             ! ID of timer
+    integer, intent(in) :: timerID             ! ID of timer
 
     time_tot = t_total(timerID)
 
-  END FUNCTION time_tot
+  end function time_tot
 
-END MODULE timer
+end module timer

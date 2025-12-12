@@ -13,122 +13,125 @@
 !! adapted to a particular modeling case. However, for most
 !! parts also the configruation using the namelist is possible.
 !!
-MODULE statevector_pdaf
+!! __Revision history__
+!! ~2022 Frauke - initial functionality distributed over different routines
+!! 2025-12 - Lars Nerger - restructuring code introducing module statevector_pdaf
+module statevector_pdaf
 
-  IMPLICIT NONE
-  SAVE
+  implicit none
+  save
 
   !---- `field_ids` and `state_field` can be adapted for a DA case -----
 
   ! Declare Fortran type holding the indices of model fields in the state vector
   ! This can be extended to any number of fields - it serves to give each field a name
-  TYPE field_ids
-     INTEGER :: ssh        ! physics
-     INTEGER :: u 
-     INTEGER :: v 
-     INTEGER :: w 
-     INTEGER :: temp 
-     INTEGER :: salt
-     INTEGER :: a_ice
-     INTEGER :: MLD1
-     INTEGER :: MLD2
-     INTEGER :: PhyChl     ! chlorophyll
-     INTEGER :: DiaChl
-     INTEGER :: DIC        ! dissolved tracers
-     INTEGER :: DOC
-     INTEGER :: Alk
-     INTEGER :: DIN
-     INTEGER :: DON
-     INTEGER :: O2
-     INTEGER :: pCO2s      ! surface carbon diagnostics
-     INTEGER :: CO2f
-     INTEGER :: alphaCO2
-     INTEGER :: PistonVel
-     INTEGER :: PhyN       ! small phyto
-     INTEGER :: PhyC
-     INTEGER :: PhyCalc
-     INTEGER :: DiaN       ! diatoms
-     INTEGER :: DiaC
-     INTEGER :: DiaSi
-     INTEGER :: Zo1C       ! zooplankton
-     INTEGER :: Zo1N
-     INTEGER :: Zo2C
-     INTEGER :: Zo2N
-     INTEGER :: DetC       ! detritus
-     INTEGER :: DetCalc
-     INTEGER :: DetSi
-     INTEGER :: DetN
-     INTEGER :: Det2C
-     INTEGER :: Det2Calc
-     INTEGER :: Det2Si
-     INTEGER :: Det2N
-     INTEGER :: PAR        ! diags
-     INTEGER :: NPPn
-     INTEGER :: NPPd
-     INTEGER :: export
-     INTEGER :: sigma
+  type field_ids
+     integer :: ssh        ! physics
+     integer :: u 
+     integer :: v 
+     integer :: w 
+     integer :: temp 
+     integer :: salt
+     integer :: a_ice
+     integer :: MLD1
+     integer :: MLD2
+     integer :: PhyChl     ! chlorophyll
+     integer :: DiaChl
+     integer :: DIC        ! dissolved tracers
+     integer :: DOC
+     integer :: Alk
+     integer :: DIN
+     integer :: DON
+     integer :: O2
+     integer :: pCO2s      ! surface carbon diagnostics
+     integer :: CO2f
+     integer :: alphaCO2
+     integer :: PistonVel
+     integer :: PhyN       ! small phyto
+     integer :: PhyC
+     integer :: PhyCalc
+     integer :: DiaN       ! diatoms
+     integer :: DiaC
+     integer :: DiaSi
+     integer :: Zo1C       ! zooplankton
+     integer :: Zo1N
+     integer :: Zo2C
+     integer :: Zo2N
+     integer :: DetC       ! detritus
+     integer :: DetCalc
+     integer :: DetSi
+     integer :: DetN
+     integer :: Det2C
+     integer :: Det2Calc
+     integer :: Det2Si
+     integer :: Det2N
+     integer :: PAR        ! diags
+     integer :: NPPn
+     integer :: NPPd
+     integer :: export
+     integer :: sigma
 !     INTEGER :: TChl   ! Total chlorophyll = PhyChl + DiaChl
 !     INTEGER :: TDN    ! Total dissolved N = DIN + DON
 !     INTEGER :: TOC    ! Total organic carbon: PhyC + DiaC + DetC + DOC + HetC
-  END TYPE field_ids
+  end type field_ids
 
   ! Declare Fortran type holding the definitions for model fields
-  TYPE state_field
-     INTEGER :: ndims = 0                  !< Number of field dimensions (2 or 3)
-     INTEGER :: dim = 0                    !< Dimension of the field
-     INTEGER :: off = 0                    !< Offset of field in state vector
-     LOGICAL :: nz1 = .TRUE.               !< Vertical coordinates (on levels / on layers)
-     CHARACTER(len=10) :: variable = ''    !< Name of field
-     CHARACTER(len=50) :: long_name = ''   !< Long name of field
-     CHARACTER(len=20) :: units = ''       !< Unit of variable
-     INTEGER :: varid(9)                   !< To write to netCDF file
-     LOGICAL :: updated = .TRUE.           !< Whether variable is updated through assimilation
-     LOGICAL :: output(8,3) = .FALSE.      !< How frequently output is written
-     LOGICAL :: bgc = .FALSE.              !< Whether variable is biogeochemistry (or physics)
-     INTEGER :: trnumfesom = -1            !< Tracer index in FESOM-REcoM
-     INTEGER :: tridfesom = -1             !< Tracer ID in FESOM-REcoM
-     INTEGER :: id_tr = -1                 !< Field index in list of 3D model tracer fields
-  END TYPE state_field
+  type state_field
+     integer :: ndims = 0                  !< Number of field dimensions (2 or 3)
+     integer :: dim = 0                    !< Dimension of the field
+     integer :: off = 0                    !< Offset of field in state vector
+     logical :: nz1 = .true.               !< Vertical coordinates (on levels / on layers)
+     character(len=10) :: variable = ''    !< Name of field
+     character(len=50) :: long_name = ''   !< Long name of field
+     character(len=20) :: units = ''       !< Unit of variable
+     integer :: varid(9)                   !< To write to netCDF file
+     logical :: updated = .true.           !< Whether variable is updated through assimilation
+     logical :: output(8,3) = .false.      !< How frequently output is written
+     logical :: bgc = .false.              !< Whether variable is biogeochemistry (or physics)
+     integer :: trnumfesom = -1            !< Tracer index in FESOM-REcoM
+     integer :: tridfesom = -1             !< Tracer ID in FESOM-REcoM
+     integer :: id_tr = -1                 !< Field index in list of 3D model tracer fields
+  end type state_field
 
 
   ! Declare Fortran type holding the definitions for local model fields
   ! This is separate from state_field to support OpenMP
-  TYPE state_field_l
-     INTEGER :: dim = 0                    !< Dimension of the field
-     INTEGER :: off = 0                    !< Offset of field in state vector
-  END TYPE state_field_l
+  type state_field_l
+     integer :: dim = 0                    !< Dimension of the field
+     integer :: off = 0                    !< Offset of field in state vector
+  end type state_field_l
 
-  INTEGER :: phymin, phymax   ! First and last physics field in state vector
-  INTEGER :: bgcmin, bgcmax   ! First and last biogeochemistry field in state vector
+  integer :: phymin, phymax   ! First and last physics field in state vector
+  integer :: bgcmin, bgcmax   ! First and last biogeochemistry field in state vector
 
 
   !---- The next variables usually do not need editing -----
 
   ! Type variable holding field IDs in state vector
-  TYPE(field_ids) :: id
+  type(field_ids) :: id
 
   ! Type variable holding the definitions of model fields
-  TYPE(state_field), ALLOCATABLE :: sfields(:)
+  type(state_field), allocatable :: sfields(:)
 
   ! Type variable holding the definitions of local model fields
   ! This is separate from sfields to support OpenMP
-  TYPE(state_field_l), ALLOCATABLE :: sfields_l(:)
+  type(state_field_l), allocatable :: sfields_l(:)
 
 !$OMP THREADPRIVATE(sfields_l)
 
   ! Variables to handle multiple fields in the state vector
-  INTEGER :: nfields           !< number of fields in state vector
+  integer :: nfields           !< number of fields in state vector
 
-CONTAINS
+contains
 
 !> This routine initializes the array `id`
 !!
-  SUBROUTINE init_id(nfields)
+  subroutine init_id(nfields)
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(out) :: nfields
+    integer, intent(out) :: nfields
 
 ! Total number of fields
     nfields = 44
@@ -195,7 +198,7 @@ CONTAINS
     id% NPPd   = 43
     id% export = 44
 
-  END SUBROUTINE init_id
+  end subroutine init_id
 ! ===================================================================================
 
 !> This initializes the array sfields
@@ -203,20 +206,20 @@ CONTAINS
 !! This routine initializes the sfields array with specifications
 !! of the fields in the state vector.
 !!
-  SUBROUTINE init_sfields()
+  subroutine init_sfields()
 
-    USE fesom_pdaf, &
-         ONLY: myDim_nod2D, nlmax
+    use fesom_pdaf, &
+         only: myDim_nod2D, nlmax
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Local variables ***
-    INTEGER :: i           ! Counter
+    integer :: i           ! Counter
 
 
 ! *** Allocate ***
 
-    ALLOCATE(sfields(nfields))
+    allocate(sfields(nfields))
 
 
 ! ****************
@@ -228,53 +231,53 @@ CONTAINS
     sfields(id% ssh) % variable = 'SSH'
     sfields(id% ssh) % long_name = 'Sea surface height'
     sfields(id% ssh) % units = 'm'
-    sfields(id% ssh) % updated = .TRUE.
-    sfields(id% ssh) % bgc = .FALSE.
+    sfields(id% ssh) % updated = .false.
+    sfields(id% ssh) % bgc = .false.
 
 ! u
     sfields(id% u) % ndims = 2
-    sfields(id% u) % nz1 = .TRUE.
+    sfields(id% u) % nz1 = .true.
     sfields(id% u) % variable = 'u'
     sfields(id% u) % long_name = 'Zonal velocity (interpolated on nodes)'
     sfields(id% u) % units = 'm/s'
-    sfields(id% u) % updated = .TRUE.
-    sfields(id% u) % bgc = .FALSE.
+    sfields(id% u) % updated = .false.
+    sfields(id% u) % bgc = .false.
 
 ! v
     sfields(id% v) % ndims = 2
-    sfields(id% v) % nz1 = .TRUE.
+    sfields(id% v) % nz1 = .true.
     sfields(id% v) % variable = 'v'
     sfields(id% v) % long_name = 'Meridional velocity (interpolated on nodes)'
     sfields(id% v) % units = 'm/s'
-    sfields(id% v) % updated = .TRUE.
-    sfields(id% v) % bgc = .FALSE.
+    sfields(id% v) % updated = .false.
+    sfields(id% v) % bgc = .false.
 
 ! w
     sfields(id% w) % ndims = 2
-    sfields(id% w) % nz1 = .FALSE.
+    sfields(id% w) % nz1 = .false.
     sfields(id% w) % variable = 'w'
     sfields(id% w) % long_name = 'Vertical velocity'
     sfields(id% w) % units = 'm/s'
-    sfields(id% w) % updated = .FALSE.
-    sfields(id% w) % bgc = .FALSE.
+    sfields(id% w) % updated = .false.
+    sfields(id% w) % bgc = .false.
 
 ! temp
     sfields(id% temp) % ndims = 2
-    sfields(id% temp) % nz1 = .TRUE.
+    sfields(id% temp) % nz1 = .true.
     sfields(id% temp) % variable = 'T'
     sfields(id% temp) % long_name = 'Temperature'
     sfields(id% temp) % units = 'degC'
-    sfields(id% temp) % updated = .TRUE.
-    sfields(id% temp) % bgc = .FALSE.
+    sfields(id% temp) % updated = .false.
+    sfields(id% temp) % bgc = .false.
 
 ! salt
     sfields(id% salt) % ndims = 2
-    sfields(id% salt) % nz1 = .TRUE.
+    sfields(id% salt) % nz1 = .true.
     sfields(id% salt) % variable = 'S'
     sfields(id% salt) % long_name = 'Salinity'
     sfields(id% salt) % units = 'psu'
-    sfields(id% salt) % updated = .TRUE.
-    sfields(id% salt) % bgc = .FALSE.
+    sfields(id% salt) % updated = .false.
+    sfields(id% salt) % bgc = .false.
 
 
 ! **********************
@@ -286,24 +289,24 @@ CONTAINS
     sfields(id% a_ice) % variable = 'ice'
     sfields(id% a_ice) % long_name = 'Sea-ice concentration'
     sfields(id% a_ice) % units = '1'
-    sfields(id% a_ice) % updated = .FALSE.
-    sfields(id% a_ice) % bgc = .FALSE.
+    sfields(id% a_ice) % updated = .false.
+    sfields(id% a_ice) % bgc = .false.
 
 ! MLD1
     sfields(id% MLD1) % ndims = 1
     sfields(id% MLD1) % variable = 'MLD1'
     sfields(id% MLD1) % long_name = 'Boundary layer depth (Large et al. 1997)'
     sfields(id% MLD1) % units = 'm'
-    sfields(id% MLD1) % updated = .FALSE.
-    sfields(id% MLD1) % bgc = .FALSE.
+    sfields(id% MLD1) % updated = .false.
+    sfields(id% MLD1) % bgc = .false.
 
 ! MLD2
     sfields(id% MLD2) % ndims = 1
     sfields(id% MLD2) % variable = 'MLD2'
     sfields(id% MLD2) % long_name = 'Mixed layer depth (sigma 0.03; Boyer-Montegut et al. 2004)'
     sfields(id% MLD2) % units = 'm'
-    sfields(id% MLD2) % updated = .FALSE.
-    sfields(id% MLD2) % bgc = .FALSE.
+    sfields(id% MLD2) % updated = .false.
+    sfields(id% MLD2) % bgc = .false.
 
 ! **********************
 ! *** Chlorophyll   ****
@@ -311,21 +314,21 @@ CONTAINS
 
 ! chlorophyll small phytoplankton
     sfields(id% PhyChl) % ndims = 2
-    sfields(id% PhyChl) % nz1 = .TRUE.
+    sfields(id% PhyChl) % nz1 = .true.
     sfields(id% PhyChl) % variable = 'PhyChl'
     sfields(id% PhyChl) % long_name = 'Chlorophyll-a small phytoplankton'
     sfields(id% PhyChl) % units = 'mg chl m-3'
-    sfields(id% PhyChl) % updated = .FALSE.
-    sfields(id% PhyChl) % bgc = .TRUE.
+    sfields(id% PhyChl) % updated = .false.
+    sfields(id% PhyChl) % bgc = .true.
 
 ! chlorophyll diatoms
     sfields(id% DiaChl) % ndims = 2
-    sfields(id% DiaChl) % nz1 = .TRUE.
+    sfields(id% DiaChl) % nz1 = .true.
     sfields(id% DiaChl) % variable = 'DiaChl'
     sfields(id% DiaChl) % long_name = 'Chlorophyll-a diatoms'
     sfields(id% DiaChl) % units = 'mg chl m-3'
-    sfields(id% DiaChl) % updated = .FALSE.
-    sfields(id% DiaChl) % bgc = .TRUE.
+    sfields(id% DiaChl) % updated = .false.
+    sfields(id% DiaChl) % bgc = .true.
 
 ! **************************
 ! *** Dissolved tracers ****
@@ -333,57 +336,57 @@ CONTAINS
 
 ! DIC
     sfields(id% DIC) % ndims = 2
-    sfields(id% DIC) % nz1 = .TRUE.
+    sfields(id% DIC) % nz1 = .true.
     sfields(id% DIC) % variable = 'DIC'
     sfields(id% DIC) % long_name = 'Dissolved inorganic carbon'
     sfields(id% DIC) % units = 'mmol C m-3'
-    sfields(id% DIC) % updated = .FALSE.
-    sfields(id% DIC) % bgc = .TRUE.
+    sfields(id% DIC) % updated = .false.
+    sfields(id% DIC) % bgc = .true.
 
 ! DOC
     sfields(id% DOC) % ndims = 2
-    sfields(id% DOC) % nz1 = .TRUE.
+    sfields(id% DOC) % nz1 = .true.
     sfields(id% DOC) % variable = 'DOC'
     sfields(id% DOC) % long_name = 'Dissolved organic carbon'
     sfields(id% DOC) % units = 'mmol C m-3'
-    sfields(id% DOC) % updated = .FALSE.
-    sfields(id% DOC) % bgc = .TRUE.
+    sfields(id% DOC) % updated = .false.
+    sfields(id% DOC) % bgc = .true.
 
 ! Alkalinity
     sfields(id% Alk) % ndims = 2
-    sfields(id% Alk) % nz1 = .TRUE.
+    sfields(id% Alk) % nz1 = .true.
     sfields(id% Alk) % variable = 'Alk'
     sfields(id% Alk) % long_name = 'Alkalinity'
     sfields(id% Alk) % units = 'mmol m-3'
-    sfields(id% Alk) % updated = .FALSE.
-    sfields(id% Alk) % bgc = .TRUE.
+    sfields(id% Alk) % updated = .false.
+    sfields(id% Alk) % bgc = .true.
 
 ! DIN
     sfields(id% DIN) % ndims = 2
-    sfields(id% DIN) % nz1 = .TRUE.
+    sfields(id% DIN) % nz1 = .true.
     sfields(id% DIN) % variable = 'DIN'
     sfields(id% DIN) % long_name = 'Dissolved inorganic nitrogen'
     sfields(id% DIN) % units = 'mmol m-3'
-    sfields(id% DIN) % updated = .FALSE.
-    sfields(id% DIN) % bgc = .TRUE.
+    sfields(id% DIN) % updated = .false.
+    sfields(id% DIN) % bgc = .true.
 
 ! DON
     sfields(id% DON) % ndims = 2
-    sfields(id% DON) % nz1 = .TRUE.
+    sfields(id% DON) % nz1 = .true.
     sfields(id% DON) % variable = 'DON'
     sfields(id% DON) % long_name = 'Dissolved organic nitrogen'
     sfields(id% DON) % units = 'mmol m-3'
-    sfields(id% DON) % updated = .FALSE.
-    sfields(id% DON) % bgc = .TRUE.
+    sfields(id% DON) % updated = .false.
+    sfields(id% DON) % bgc = .true.
 
 ! Oxygen
     sfields(id% O2) % ndims = 2
-    sfields(id% O2) % nz1 = .TRUE.
+    sfields(id% O2) % nz1 = .true.
     sfields(id% O2) % variable = 'O2'
     sfields(id% O2) % long_name = 'Oxygen'
     sfields(id% O2) % units = 'mmol m-3'
-    sfields(id% O2) % updated = .FALSE.
-    sfields(id% O2) % bgc = .TRUE.
+    sfields(id% O2) % updated = .false.
+    sfields(id% O2) % bgc = .true.
 
 ! *****************************
 ! *** Surface Carbon Diags ****
@@ -394,32 +397,32 @@ CONTAINS
     sfields(id% pCO2s) % variable = 'pCO2s'
     sfields(id% pCO2s) % long_name = 'Partial pressure CO2 surface ocean'
     sfields(id% pCO2s) % units = 'micro atm'
-    sfields(id% pCO2s) % updated = .FALSE.
-    sfields(id% pCO2s) % bgc = .TRUE.
+    sfields(id% pCO2s) % updated = .false.
+    sfields(id% pCO2s) % bgc = .true.
 
 ! CO2f
     sfields(id% CO2f) % ndims = 1
     sfields(id% CO2f) % variable = 'CO2f'
     sfields(id% CO2f) % long_name = 'CO2 flux from atmosphere into ocean'
     sfields(id% CO2f) % units = 'mmol C m-2 d-1'
-    sfields(id% CO2f) % updated = .FALSE.
-    sfields(id% CO2f) % bgc = .TRUE.
+    sfields(id% CO2f) % updated = .false.
+    sfields(id% CO2f) % bgc = .true.
 
 ! Solubility of CO2
     sfields(id% alphaCO2) % ndims = 1
     sfields(id% alphaCO2) % variable = 'alphaCO2'
     sfields(id% alphaCO2) % long_name = 'solubility of surface CO2'
     sfields(id% alphaCO2) % units = 'mol kg-1 atm-1'
-    sfields(id% alphaCO2) % updated = .FALSE.
-    sfields(id% alphaCO2) % bgc = .TRUE.
+    sfields(id% alphaCO2) % updated = .false.
+    sfields(id% alphaCO2) % bgc = .true.
 
 ! Piston velocity
     sfields(id% PistonVel) % ndims = 1
     sfields(id% PistonVel) % variable = 'Kw660'
     sfields(id% PistonVel) % long_name = 'air-sea piston velocity'
     sfields(id% PistonVel) % units = 'm/s'
-    sfields(id% PistonVel) % updated = .FALSE.
-    sfields(id% PistonVel) % bgc = .TRUE.
+    sfields(id% PistonVel) % updated = .false.
+    sfields(id% PistonVel) % bgc = .true.
 
 ! *****************************
 ! *** Small Phyto          ****
@@ -430,24 +433,24 @@ CONTAINS
     sfields(id% PhyN) % variable = 'PhyN'
     sfields(id% PhyN) % long_name = 'intracell nitrogen small phytoplankton'
     sfields(id% PhyN) % units = 'mmol m-3'
-    sfields(id% PhyN) % updated = .FALSE.
-    sfields(id% PhyN) % bgc = .TRUE.
+    sfields(id% PhyN) % updated = .false.
+    sfields(id% PhyN) % bgc = .true.
 
 ! PhyC
     sfields(id% PhyC) % ndims = 2
     sfields(id% PhyC) % variable = 'PhyC'
     sfields(id% PhyC) % long_name = 'intracell carbon small phytoplankton'
     sfields(id% PhyC) % units = 'mmol C m-3'
-    sfields(id% PhyC) % updated = .FALSE.
-    sfields(id% PhyC) % bgc = .TRUE.
+    sfields(id% PhyC) % updated = .false.
+    sfields(id% PhyC) % bgc = .true.
 
 ! PhyCalc
     sfields(id% PhyCalc) % ndims = 2
     sfields(id% PhyCalc) % variable = 'PhyCalc'
     sfields(id% PhyCalc) % long_name = 'calcium carbonate small phytoplankton'
     sfields(id% PhyCalc) % units = 'mmol m-3'
-    sfields(id% PhyCalc) % updated = .FALSE.
-    sfields(id% PhyCalc) % bgc = .TRUE.
+    sfields(id% PhyCalc) % updated = .false.
+    sfields(id% PhyCalc) % bgc = .true.
 
 ! *****************************
 ! *** diatoms              ****
@@ -458,24 +461,24 @@ CONTAINS
     sfields(id% DiaN) % variable = 'DiaN'
     sfields(id% DiaN) % long_name = 'intracell nitrogen diatoms'
     sfields(id% DiaN) % units = 'mmol m-3'
-    sfields(id% DiaN) % updated = .FALSE.
-    sfields(id% DiaN) % bgc = .TRUE.
+    sfields(id% DiaN) % updated = .false.
+    sfields(id% DiaN) % bgc = .true.
 
 ! DiaC
     sfields(id% DiaC) % ndims = 2
     sfields(id% DiaC) % variable = 'DiaC'
     sfields(id% DiaC) % long_name = 'intracell carbon diatom'
     sfields(id% DiaC) % units = 'mmol C m-3'
-    sfields(id% DiaC) % updated = .FALSE.
-    sfields(id% DiaC) % bgc = .TRUE.
+    sfields(id% DiaC) % updated = .false.
+    sfields(id% DiaC) % bgc = .true.
 
 ! DiaSi
     sfields(id% DiaSi) % ndims = 2
     sfields(id% DiaSi) % variable = 'DiaSi'
     sfields(id% DiaSi) % long_name = 'intracell Si diatom'
     sfields(id% DiaSi) % units = 'mmol m-3'
-    sfields(id% DiaSi) % updated = .FALSE.
-    sfields(id% DiaSi) % bgc = .TRUE.
+    sfields(id% DiaSi) % updated = .false.
+    sfields(id% DiaSi) % bgc = .true.
 
 ! *****************************
 ! *** zooplankton          ****
@@ -486,32 +489,32 @@ CONTAINS
     sfields(id% Zo1C) % variable = 'Zo1C'
     sfields(id% Zo1C) % long_name = 'carbon in small zooplankton'
     sfields(id% Zo1C) % units = 'mmol C m-3'
-    sfields(id% Zo1C) % updated = .FALSE.
-    sfields(id% Zo1C) % bgc = .TRUE.
+    sfields(id% Zo1C) % updated = .false.
+    sfields(id% Zo1C) % bgc = .true.
 
 ! Zo1N
     sfields(id% Zo1N) % ndims = 2
     sfields(id% Zo1N) % variable = 'Zo1N'
     sfields(id% Zo1N) % long_name = 'nitrogen in small zooplankton'
     sfields(id% Zo1N) % units = 'mmol C m-3'
-    sfields(id% Zo1N) % updated = .FALSE.
-    sfields(id% Zo1N) % bgc = .TRUE.
+    sfields(id% Zo1N) % updated = .false.
+    sfields(id% Zo1N) % bgc = .true.
 
 ! Zo2C
     sfields(id% Zo2C) % ndims = 2
     sfields(id% Zo2C) % variable = 'Zo2C'
     sfields(id% Zo2C) % long_name = 'carbon in macrozooplankton'
     sfields(id% Zo2C) % units = 'mmol C m-3'
-    sfields(id% Zo2C) % updated = .FALSE.
-    sfields(id% Zo2C) % bgc = .TRUE.
+    sfields(id% Zo2C) % updated = .false.
+    sfields(id% Zo2C) % bgc = .true.
 
 ! Zo2N
     sfields(id% Zo2N) % ndims = 2
     sfields(id% Zo2N) % variable = 'Zo2N'
     sfields(id% Zo2N) % long_name = 'nitrogen in macrozooplankton'
     sfields(id% Zo2N) % units = 'mmol C m-3'
-    sfields(id% Zo2N) % updated = .FALSE.
-    sfields(id% Zo2N) % bgc = .TRUE.
+    sfields(id% Zo2N) % updated = .false.
+    sfields(id% Zo2N) % bgc = .true.
 
 ! *****************************
 ! *** detritus             ****
@@ -522,64 +525,64 @@ CONTAINS
     sfields(id% DetC) % variable = 'DetC'
     sfields(id% DetC) % long_name = 'carbon in small detritus'
     sfields(id% DetC) % units = 'mmol C m-3'
-    sfields(id% DetC) % updated = .FALSE.
-    sfields(id% DetC) % bgc = .TRUE.
+    sfields(id% DetC) % updated = .false.
+    sfields(id% DetC) % bgc = .true.
 
 ! DetCalc
     sfields(id% DetCalc) % ndims = 2
     sfields(id% DetCalc) % variable = 'DetCalc'
     sfields(id% DetCalc) % long_name = 'calcite in small detritus'
     sfields(id% DetCalc) % units = 'mmol C m-3'
-    sfields(id% DetCalc) % updated = .FALSE.
-    sfields(id% DetCalc) % bgc = .TRUE.
+    sfields(id% DetCalc) % updated = .false.
+    sfields(id% DetCalc) % bgc = .true.
 
 ! DetN
     sfields(id% DetN) % ndims = 2
     sfields(id% DetN) % variable = 'DetN'
     sfields(id% DetN) % long_name = 'nitrogen in small detritus'
     sfields(id% DetN) % units = 'mmol C m-3'
-    sfields(id% DetN) % updated = .FALSE.
-    sfields(id% DetN) % bgc = .TRUE.
+    sfields(id% DetN) % updated = .false.
+    sfields(id% DetN) % bgc = .true.
 
 ! DetSi
     sfields(id% DetSi) % ndims = 2
     sfields(id% DetSi) % variable = 'DetSi'
     sfields(id% DetSi) % long_name = 'silicate in small detritus'
     sfields(id% DetSi) % units = 'mmol C m-3'
-    sfields(id% DetSi) % updated = .FALSE.
-    sfields(id% DetSi) % bgc = .TRUE.
+    sfields(id% DetSi) % updated = .false.
+    sfields(id% DetSi) % bgc = .true.
 
 ! Det2 C
     sfields(id% Det2C) % ndims = 2
     sfields(id% Det2C) % variable = 'Det2C'
     sfields(id% Det2C) % long_name = 'carbon in large detritus'
     sfields(id% Det2C) % units = 'mmol C m-3'
-    sfields(id% Det2C) % updated = .FALSE.
-    sfields(id% Det2C) % bgc = .TRUE.
+    sfields(id% Det2C) % updated = .false.
+    sfields(id% Det2C) % bgc = .true.
 
 ! Det2 Calc
     sfields(id% Det2Calc) % ndims = 2
     sfields(id% Det2Calc) % variable = 'Det2Calc'
     sfields(id% Det2Calc) % long_name = 'calcite in large detritus'
     sfields(id% Det2Calc) % units = 'mmol C m-3'
-    sfields(id% Det2Calc) % updated = .FALSE.
-    sfields(id% Det2Calc) % bgc = .TRUE.
+    sfields(id% Det2Calc) % updated = .false.
+    sfields(id% Det2Calc) % bgc = .true.
 
 ! Det2 N
     sfields(id% Det2N) % ndims = 2
     sfields(id% Det2N) % variable = 'Det2N'
     sfields(id% Det2N) % long_name = 'nitrogen in large detritus'
     sfields(id% Det2N) % units = 'mmol C m-3'
-    sfields(id% Det2N) % updated = .FALSE.
-    sfields(id% Det2N) % bgc = .TRUE.
+    sfields(id% Det2N) % updated = .false.
+    sfields(id% Det2N) % bgc = .true.
 
 ! Det2 Si
     sfields(id% Det2Si) % ndims = 2
     sfields(id% Det2Si) % variable = 'Det2Si'
     sfields(id% Det2Si) % long_name = 'silicate in large detritus'
     sfields(id% Det2Si) % units = 'mmol C m-3'
-    sfields(id% Det2Si) % updated = .FALSE.
-    sfields(id% Det2Si) % bgc = .TRUE.
+    sfields(id% Det2Si) % updated = .false.
+    sfields(id% Det2Si) % bgc = .true.
 
 ! *****************************
 ! *** diagnostics          ****
@@ -590,40 +593,40 @@ CONTAINS
     sfields(id% PAR) % variable = 'PAR'
     sfields(id% PAR) % long_name = 'photosynthetically active radiation'
     sfields(id% PAR) % units = 'W m-2'
-    sfields(id% PAR) % updated = .FALSE.
-    sfields(id% PAR) % bgc = .TRUE.
+    sfields(id% PAR) % updated = .false.
+    sfields(id% PAR) % bgc = .true.
 
 ! NPPn
     sfields(id% NPPn) % ndims = 2
     sfields(id% NPPn) % variable = 'NPPn'
     sfields(id% NPPn) % long_name = 'mean net primary production small phytoplankton'
     sfields(id% NPPn) % units = 'mmol C m-2 d-1'
-    sfields(id% NPPn) % updated = .FALSE.
-    sfields(id% NPPn) % bgc = .TRUE.
+    sfields(id% NPPn) % updated = .false.
+    sfields(id% NPPn) % bgc = .true.
 
 ! NPPd
     sfields(id% NPPd) % ndims = 2
     sfields(id% NPPd) % variable = 'NPPd'
     sfields(id% NPPd) % long_name = 'mean net primary production diatoms'
     sfields(id% NPPd) % units = 'mmol C m-2 d-1'
-    sfields(id% NPPd) % updated = .FALSE.
-    sfields(id% NPPd) % bgc = .TRUE.
+    sfields(id% NPPd) % updated = .false.
+    sfields(id% NPPd) % bgc = .true.
 
 ! Export production
     sfields(id% export) % ndims = 1
     sfields(id% export) % variable = 'export'
     sfields(id% export) % long_name = 'export through particle sinking at 190m'
     sfields(id% export) % units = 'mmol m-2 day-1'
-    sfields(id% export) % updated = .FALSE.
-    sfields(id% export) % bgc = .TRUE.
+    sfields(id% export) % updated = .false.
+    sfields(id% export) % bgc = .true.
 
 ! Potential density
     sfields(id% sigma) % ndims = 2
     sfields(id% sigma) % variable = 'sigma'
     sfields(id% sigma) % long_name = 'potential density'
     sfields(id% sigma) % units = 'kg liter-1'
-    sfields(id% sigma) % updated = .FALSE.
-    sfields(id% sigma) % bgc = .FALSE.
+    sfields(id% sigma) % updated = .false.
+    sfields(id% sigma) % bgc = .false.
 
     !~ ! TChl
     !~ sfields(id% TChl) % ndims = 2
@@ -655,15 +658,15 @@ CONTAINS
 ! **************************************
 
     ! *** Dimensions ***
-    DO i = 1, nfields
-       IF (sfields(i)%ndims == 1) THEN
+    do i = 1, nfields
+       if (sfields(i)%ndims == 1) then
           sfields(i)%dim = myDim_nod2D
-       ELSE IF (sfields(i)%ndims == 2) THEN
+       else if (sfields(i)%ndims == 2) then
           sfields(i)%dim = myDim_nod2D*nlmax
-       ELSE
-          WRITE (*, '(a,i2,a)') 'FESOM-PDAF: cannot handle', sfields(i)%ndims, ' number of dimensions.'
-       END IF
-    END DO
+       else
+          write (*, '(a,i2,a)') 'FESOM-PDAF: cannot handle', sfields(i)%ndims, ' number of dimensions.'
+       end if
+    end do
 
 ! *** Specify offset of fields in pe-local state vector ***
 
@@ -699,9 +702,9 @@ CONTAINS
 
     ! *** Define offsets in state vector ***
     sfields(1)%off = 0
-    DO i = 2, nfields
+    do i = 2, nfields
        sfields(i)%off = sfields(i-1)%off + sfields(i-1)%dim
-    END DO
+    end do
 
 
 ! ************************************************
@@ -771,7 +774,7 @@ CONTAINS
     sfields(id%Det2Calc)%tridfesom = 1028 ! DetZ2Calc
 
 
-  END SUBROUTINE init_sfields
+  end subroutine init_sfields
 ! ===================================================================================
 
 !> Count 2D and 3D fields and initialize index arrays
@@ -779,28 +782,28 @@ CONTAINS
 !! This functioanlity of optional and not used elsewhere
 !! in the code.
 !!
-  SUBROUTINE set_field_types(verbose)
+  subroutine set_field_types(verbose)
 
-    USE parallel_pdaf_mod, &
-         ONLY: mype_world
+    use parallel_pdaf_mod, &
+         only: mype_world
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in) :: verbose     ! Verbosity level
+    integer, intent(in) :: verbose     ! Verbosity level
 
 ! *** Local variables ***
-    INTEGER :: i, cnt      ! Counters
-    INTEGER, ALLOCATABLE :: ids_3D(:)         ! List of 3D-field IDs
-    INTEGER, ALLOCATABLE :: ids_2D(:)         ! """       2D fields """
-    INTEGER, ALLOCATABLE :: ids_phy(:)        ! """       physics fields """
-    INTEGER, ALLOCATABLE :: ids_bgc(:)        ! """       biogeochem. fields """
-    INTEGER, ALLOCATABLE :: ids_tr3D(:)       ! List of 3D model tracer IDs
-    INTEGER :: nfields_3D                     ! Number of 3D fields in state vector
-    INTEGER :: nfields_2D                     ! """       2D fields """
-    INTEGER :: nfields_phy                    ! """       physics fields """
-    INTEGER :: nfields_bgc                    ! """       biogeochem. fields """
-    INTEGER :: nfields_tr3D                   ! Number of 3D model tracer fields in state vector
+    integer :: i, cnt      ! Counters
+    integer, allocatable :: ids_3D(:)         ! List of 3D-field IDs
+    integer, allocatable :: ids_2D(:)         ! """       2D fields """
+    integer, allocatable :: ids_phy(:)        ! """       physics fields """
+    integer, allocatable :: ids_bgc(:)        ! """       biogeochem. fields """
+    integer, allocatable :: ids_tr3D(:)       ! List of 3D model tracer IDs
+    integer :: nfields_3D                     ! Number of 3D fields in state vector
+    integer :: nfields_2D                     ! """       2D fields """
+    integer :: nfields_phy                    ! """       physics fields """
+    integer :: nfields_bgc                    ! """       biogeochem. fields """
+    integer :: nfields_tr3D                   ! Number of 3D model tracer fields in state vector
 
 
 ! **************************************
@@ -812,109 +815,109 @@ CONTAINS
     ! count number of 3D and 2D fields (tracers and diagnostics)
     nfields_3D = 0
     nfields_2D = 0
-    DO i=1,nfields
-       IF (sfields(i)%ndims == 2) nfields_3D = nfields_3D + 1
-       IF (sfields(i)%ndims == 1) nfields_2D = nfields_2D + 1
-    ENDDO
+    do i=1,nfields
+       if (sfields(i)%ndims == 2) nfields_3D = nfields_3D + 1
+       if (sfields(i)%ndims == 1) nfields_2D = nfields_2D + 1
+    enddo
     
     ! Store indices of 3D and 2D fields
-    ALLOCATE(ids_3D(nfields_3D))
+    allocate(ids_3D(nfields_3D))
     cnt = 1
-    DO i=1,nfields
-       IF (sfields(i)%ndims == 2) THEN
+    do i=1,nfields
+       if (sfields(i)%ndims == 2) then
           ids_3D(cnt) = i
           cnt = cnt+1
-       ENDIF
-    ENDDO
-    IF (mype_world==0 .AND. verbose>2) THEN
-       DO cnt=1,nfields_3D
-          WRITE (*,'(a, 10x,3a,1x,7a)') &
+       endif
+    enddo
+    if (mype_world==0 .and. verbose>2) then
+       do cnt=1,nfields_3D
+          write (*,'(a, 10x,3a,1x,7a)') &
                'FESOM-PDAF', '3D fields in state vector: ', sfields(ids_3D(cnt))%variable
-       ENDDO
-    ENDIF
+       enddo
+    endif
     
-    ALLOCATE(ids_2D(nfields_2D))
+    allocate(ids_2D(nfields_2D))
     cnt = 1
-    DO i=1,nfields
-       IF (sfields(i)%ndims == 1) THEN
+    do i=1,nfields
+       if (sfields(i)%ndims == 1) then
           ids_2D(cnt) = i
           cnt = cnt+1
-       ENDIF
-    ENDDO
-    IF (mype_world==0 .AND. verbose>2) THEN
-       DO cnt=1,nfields_2D
-          WRITE (*,'(a, 10x,3a,1x,7a)') &
+       endif
+    enddo
+    if (mype_world==0 .and. verbose>2) then
+       do cnt=1,nfields_2D
+          write (*,'(a, 10x,3a,1x,7a)') &
                'FESOM-PDAF', '2D fields in state vector: ', sfields(ids_2D(cnt))%variable
-       ENDDO
-    ENDIF
+       enddo
+    endif
     
 ! *** model 3D tracers ***
 
     ! count number of 3D model tracer fields in state vector (only tracers)
     nfields_tr3D = 0
-    DO i=1,nfields
-       IF (sfields(i)%trnumfesom > 0) nfields_tr3D = nfields_tr3D + 1
-    ENDDO
+    do i=1,nfields
+       if (sfields(i)%trnumfesom > 0) nfields_tr3D = nfields_tr3D + 1
+    enddo
     
     ! Store indices of 3D model tracer fields in state vector
-    ALLOCATE(ids_tr3D(nfields_tr3D))
+    allocate(ids_tr3D(nfields_tr3D))
     cnt = 1
-    DO i=1,nfields
-       IF (sfields(i)%trnumfesom > 0) THEN
+    do i=1,nfields
+       if (sfields(i)%trnumfesom > 0) then
           ids_tr3D(cnt)=i
           sfields(i)%id_tr = cnt
           cnt = cnt+1
-       ENDIF
-    ENDDO
-    IF (mype_world==0 .AND. verbose>2) THEN
-       DO cnt=1,nfields_tr3D
-          WRITE (*,'(a, 10x,3a,1x,7a)') &
+       endif
+    enddo
+    if (mype_world==0 .and. verbose>2) then
+       do cnt=1,nfields_tr3D
+          write (*,'(a, 10x,3a,1x,7a)') &
                'FESOM-PDAF', '3D model tracer fields in state vector: ', sfields(ids_tr3D(cnt))%variable
-       ENDDO
-    ENDIF
+       enddo
+    endif
   
 ! *** phy/bgc fields  ***_
 
     ! count number of phy/bgc fields
     nfields_phy = 0
     nfields_bgc = 0
-    DO i=1,nfields
-       IF (      sfields(i)%bgc) nfields_bgc = nfields_bgc + 1
-       IF (.NOT. sfields(i)%bgc) nfields_phy = nfields_phy + 1
-    ENDDO
+    do i=1,nfields
+       if (      sfields(i)%bgc) nfields_bgc = nfields_bgc + 1
+       if (.not. sfields(i)%bgc) nfields_phy = nfields_phy + 1
+    enddo
     
     ! Store indices of BGC and physics fields in state vector
-    ALLOCATE(ids_bgc(nfields_bgc))
+    allocate(ids_bgc(nfields_bgc))
     cnt = 1
-    DO i=1,nfields
-       IF (sfields(i)%bgc) THEN
+    do i=1,nfields
+       if (sfields(i)%bgc) then
           ids_bgc(cnt) = i
           cnt = cnt+1
-       ENDIF
-    ENDDO
-    IF (mype_world==0 .AND. verbose>2) THEN
-       DO cnt=1,nfields_bgc
-          WRITE (*,'(a, 10x,3a,1x,7a)') &
+       endif
+    enddo
+    if (mype_world==0 .and. verbose>2) then
+       do cnt=1,nfields_bgc
+          write (*,'(a, 10x,3a,1x,7a)') &
                'FESOM-PDAF', 'bgc fields in state vector: ', sfields(ids_bgc(cnt))%variable
-       ENDDO
-    ENDIF
+       enddo
+    endif
     
-    ALLOCATE(ids_phy(nfields_phy))
+    allocate(ids_phy(nfields_phy))
     cnt = 1
-    DO i=1,nfields
-       IF (.NOT. sfields(i)%bgc) THEN
+    do i=1,nfields
+       if (.not. sfields(i)%bgc) then
           ids_phy(cnt) = i
           cnt = cnt+1
-       ENDIF
-    ENDDO
-    IF (mype_world==0 .AND. verbose>2) THEN
-       DO cnt=1,nfields_phy
-          WRITE (*,'(a, 10x,3a,1x,7a)') &
+       endif
+    enddo
+    if (mype_world==0 .and. verbose>2) then
+       do cnt=1,nfields_phy
+          write (*,'(a, 10x,3a,1x,7a)') &
                'FESOM-PDAF', 'phy fields in state vector: ', sfields(ids_phy(cnt))%variable
-       ENDDO
-    ENDIF
+       enddo
+    endif
 
-  END SUBROUTINE set_field_types
+  end subroutine set_field_types
 ! ===================================================================================
 
 !> Set which fields are updated by the DA
@@ -922,18 +925,20 @@ CONTAINS
 !! This routine read from the namelist which fields should be update
 !! and set the updated flags in sfields.
 !!
-  SUBROUTINE set_updated()
+  subroutine set_updated()
 
-    USE assim_pdaf_mod, &
-         ONLY: nmlfile, assimilatePHY, assimilateBGC, cda_phy, cda_bio
-    USE parallel_pdaf_mod, &
-         ONLY: mype_world
+    use assim_pdaf_mod, &
+         only: nmlfile
+  use coupled_da_mod, &                 ! Variables for coupled DA
+       only: assimilatePHY, assimilateBGC, cda_phy, cda_bio
+    use parallel_pdaf_mod, &
+         only: mype_world
 
 
-    IMPLICIT NONE
+    implicit none
 
-    INTEGER :: i                                                ! Counter
-    LOGICAL :: upd_ssh, upd_u, upd_v, upd_w, upd_temp, upd_salt, upd_ice, &  ! Physics
+    integer :: i                                                ! Counter
+    logical :: upd_ssh, upd_u, upd_v, upd_w, upd_temp, upd_salt, upd_ice, &  ! Physics
          upd_MLD1, upd_MLD2, &                                  ! physics diagnostics
          upd_PhyChl, upd_DiaChl, &                              ! chlorophyll
          upd_DIC, upd_DOC, upd_Alk, upd_DIN, upd_DON, upd_O2, & ! dissolved tracers
@@ -961,9 +966,9 @@ CONTAINS
   ! "updated" is used in the output routine: option to write out only updated fields
 
 ! *** Read namelist file ***
-    IF (mype_world==0) WRITE(*,*) 'Read namelist file for updated variables: ',nmlfile
+    if (mype_world==0) write(*,*) 'Read namelist file for updated variables: ',nmlfile
   
-    NAMELIST /updated/ &
+    namelist /updated/ &
          upd_ssh, upd_u, upd_v, upd_w, upd_temp, upd_salt, upd_ice, &  ! Physics
          upd_MLD1, upd_MLD2, &                                  ! physics diagnostics
          upd_PhyChl, upd_DiaChl, &                              ! chlorophyll
@@ -977,9 +982,9 @@ CONTAINS
          upd_Det2C, upd_Det2N, upd_Det2Si, upd_Det2Calc , &     ! large det
          upd_export, upd_PAR, upd_NPPn, upd_NPPd, upd_sigma     ! diags
 
-    OPEN  (20,file=nmlfile)
-    READ  (20,NML=updated)
-    CLOSE (20)
+    open  (20,file=nmlfile)
+    read  (20,NML=updated)
+    close (20)
 
     ! *** Set 'updated' in sfields ***
 
@@ -1039,18 +1044,18 @@ CONTAINS
   
 
     ! *** General settings ***
-  
+
     ! Physics not assimilated and coupling weak: No update to physics
-    IF ((.NOT. assimilatePHY) .AND. (cda_phy=='weak')) THEN
-       sfields(phymin: phymax)%updated = .FALSE.
-    ENDIF
+    if ((.not. assimilatePHY) .and. (cda_bio=='weak')) then
+       sfields(phymin: phymax)%updated = .false.
+    endif
 
     ! BGC not assimilated and coupling weak: No update to BGC
-    IF ((.NOT. assimilateBGC) .AND. (cda_phy=='weak')) THEN
-       sfields(bgcmin: bgcmax)%updated = .FALSE.
-    ENDIF
+    if ((.not. assimilateBGC) .and. (cda_phy=='weak')) then
+       sfields(bgcmin: bgcmax)%updated = .false.
+    endif
 
-  END SUBROUTINE set_updated
+  end subroutine set_updated
 
 ! ===================================================================================
 
@@ -1059,21 +1064,21 @@ CONTAINS
 !! This routine is generic. case-specific adaptions should only
 !! by done in the routines init_id and init_sfields.
 !!
-  SUBROUTINE setup_statevector(dim_state, dim_state_p, screen)
+  subroutine setup_statevector(dim_state, dim_state_p, screen)
 
-    USE parallel_pdaf_mod, &
-         ONLY: mype=>mype_ens, npes=>npes_ens, task_id, comm_ensemble, &
+    use parallel_pdaf_mod, &
+         only: mype=>mype_ens, npes=>npes_ens, task_id, comm_ensemble, &
          comm_model, MPI_SUM, MPI_INTEGER, MPIerr
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(out) :: dim_state    !< Global dimension of state vector
-    INTEGER, INTENT(out) :: dim_state_p  !< Local dimension of state vector
-    INTEGER, INTENT(in)  :: screen       !< Verbosity flag
+    integer, intent(out) :: dim_state    !< Global dimension of state vector
+    integer, intent(out) :: dim_state_p  !< Local dimension of state vector
+    integer, intent(in)  :: screen       !< Verbosity flag
 
 ! *** Local variables ***
-    INTEGER :: i                 ! Counters
+    integer :: i                 ! Counters
 
 
 ! ***********************************
@@ -1082,51 +1087,51 @@ CONTAINS
 
 ! *** Initialize array `id` ***
 
-    CALL init_id(nfields)
+    call init_id(nfields)
 
 ! *** Initialize array `sfields` ***
 
-    CALL init_sfields()
-    CALL set_updated()
-    CALL set_field_types(screen)
+    call init_sfields()
+    call set_updated()
+    call set_field_types(screen)
 
 ! *** Set state vector dimension ***
 
-    dim_state_p = SUM(sfields(:)%dim)
+    dim_state_p = sum(sfields(:)%dim)
 
 ! *** Write information about the state vector ***
 
-    IF (mype==0) THEN
-       WRITE (*,'(/a,2x,a)') 'FESOM-PDAF', '*** Setup of state vector ***'
-       WRITE (*,'(a,5x,a,i5)') 'FESOM-PDAF', '--- Number of fields in state vector:', nfields
-       WRITE (*,'(a,a4,3x,a2,2x,a8,4x,a5,6x,a3,7x,a6,4x,a6,2x,a3,1x,a6)') &
+    if (mype==0) then
+       write (*,'(/a,2x,a)') 'FESOM-PDAF', '*** Setup of state vector ***'
+       write (*,'(a,5x,a,i5)') 'FESOM-PDAF', '--- Number of fields in state vector:', nfields
+       write (*,'(a,a4,3x,a2,2x,a8,4x,a5,6x,a3,7x,a6,4x,a6,2x,a3,1x,a6)') &
             'FESOM-PDAF','pe','ID', 'variable', 'ndims', 'dim', 'offset', 'update', 'BGC', 'tracer'
-    END IF
+    end if
 
-    IF (mype==0 .OR. (task_id==1 .AND. screen>2)) THEN
-       DO i = 1, nfields
-          WRITE (*,'(a, i4, i5,3x,a10,2x,i3,2x,i10,3x,i10,4x,l,4x,l,2x,i4)') 'FESOM-PDAF', &
+    if (mype==0 .or. (task_id==1 .and. screen>2)) then
+       do i = 1, nfields
+          write (*,'(a, i4, i5,3x,a10,2x,i3,2x,i10,3x,i10,4x,l,4x,l,2x,i4)') 'FESOM-PDAF', &
                mype, i, sfields(i)%variable, sfields(i)%ndims, sfields(i)%dim, sfields(i)%off, sfields(i)%updated, &
                sfields(i)%bgc, sfields(i)%trnumfesom
-       END DO
-    END IF
+       end do
+    end if
 
-    IF (npes==1) THEN
-       WRITE (*,'(a,2x,a,1x,i10)') 'FESOM-PDAF', 'Full state dimension: ',dim_state_p
-    ELSE
-       IF (task_id==1) THEN
-          IF (screen>2 .OR. mype==0) &
-               WRITE (*,'(a,2x,a,1x,i4,2x,a,1x,i10)') &
+    if (npes==1) then
+       write (*,'(a,2x,a,1x,i10)') 'FESOM-PDAF', 'Full state dimension: ',dim_state_p
+    else
+       if (task_id==1) then
+          if (screen>2 .or. mype==0) &
+               write (*,'(a,2x,a,1x,i4,2x,a,1x,i10)') &
                'FESOM-PDAF', 'PE', mype, 'PE-local full state dimension: ',dim_state_p
 
-          CALL MPI_Reduce(dim_state_p, dim_state, 1, MPI_INTEGER, MPI_SUM, 0, COMM_model, MPIerr)
-          IF (mype==0) THEN
-             WRITE (*,'(a,2x,a,1x,i10)') 'FESOM-PDAF', 'Global state dimension: ',dim_state
-          END IF
-       END IF
-    END IF
-    CALL MPI_Barrier(comm_ensemble, MPIerr)
+          call MPI_Reduce(dim_state_p, dim_state, 1, MPI_INTEGER, MPI_SUM, 0, COMM_model, MPIerr)
+          if (mype==0) then
+             write (*,'(a,2x,a,1x,i10)') 'FESOM-PDAF', 'Global state dimension: ',dim_state
+          end if
+       end if
+    end if
+    call MPI_Barrier(comm_ensemble, MPIerr)
 
-  END SUBROUTINE setup_statevector
+  end subroutine setup_statevector
 
-END MODULE statevector_pdaf
+end module statevector_pdaf

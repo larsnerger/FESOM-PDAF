@@ -1,4 +1,3 @@
-!$Id: obs_TSprof_EN4_pdafomi.F90 2543 2021-05-13 08:17:31Z lnerger $
 !> PDAF-OMI template observation module 
 !!
 !! This module handles operations for one data type (called 'module-type' below).
@@ -48,40 +47,40 @@
 !! * 2019-06 - Lars Nerger - Initial code
 !! * Later revisions - see repository log
 !!
-MODULE obs_TSprof_EN4_pdafomi
+module obs_TSprof_EN4_pdafomi
 
-  USE parallel_pdaf_mod, &
-       ONLY: mype_filter          ! Rank of filter process
-  USE PDAF, &
-       ONLY: obs_f, obs_l         ! Declaration of observation data types
-  USE assim_pdaf_mod, &
-       ONLY: n_sweeps             ! Variables for coupled data assimilation
+  use parallel_pdaf_mod, &
+       only: mype_filter
+  use PDAF, &                     ! Declaration of observation data types
+       only: obs_f, obs_l
+  use coupled_da_mod, &           ! Variables for coupled DA
+       only: n_sweeps 
  
-  IMPLICIT NONE
-  SAVE
+  implicit none
+  save
 
   ! Variables which are inputs to the module (usually set in init_pdaf)
-  LOGICAL :: assim_o_en4_t                      !< Whether to assimilate temperature profiles
-  LOGICAL :: assim_o_en4_s                      !< Whether to assimilate salinity profiles
+  logical :: assim_o_en4_t                      !< Whether to assimilate temperature profiles
+  logical :: assim_o_en4_s                      !< Whether to assimilate salinity profiles
 
   ! Further variables specific for the EN4 profile observations
-  CHARACTER(len=110) :: path_obs_prof  = ''      !< Path to profile observations
-  CHARACTER(len=110) :: file_prof_prefix  = ''   !< file name prefix for profile observations 
-  CHARACTER(len=110) :: file_prof_suffix  = '.nc'!< file name suffix for profile observations 
-  CHARACTER(len=110) :: file_syntobs_prof = 'syntobs_en4.nc' !< File name for synthetic observations
+  character(len=110) :: path_obs_prof  = ''      !< Path to profile observations
+  character(len=110) :: file_prof_prefix  = ''   !< file name prefix for profile observations 
+  character(len=110) :: file_prof_suffix  = '.nc'!< file name suffix for profile observations 
+  character(len=110) :: file_syntobs_prof = 'syntobs_en4.nc' !< File name for synthetic observations
 
-  REAL    :: rms_obs_T         ! RMS error for temperature profiles
-  REAL    :: rms_obs_S         ! RMS error for salinity profiles
-  REAL    :: bias_obs_prof     ! profile observation bias
+  real    :: rms_obs_T         ! RMS error for temperature profiles
+  real    :: rms_obs_S         ! RMS error for salinity profiles
+  real    :: bias_obs_prof     ! profile observation bias
 
-  REAL    :: lradius_prof      ! Localization radius in the ocean for profiles
-  REAL    :: sradius_prof      ! Support radius for localization function
+  real    :: lradius_prof      ! Localization radius in the ocean for profiles
+  real    :: sradius_prof      ! Support radius for localization function
 
-  REAL    :: prof_exclude_diff ! Limit difference beyond which observations are excluded (0.0 to deactivate)
+  real    :: prof_exclude_diff ! Limit difference beyond which observations are excluded (0.0 to deactivate)
 
-  REAL, ALLOCATABLE :: mean_temp_p (:)      ! mean temperature for observation exclusion
-  REAL, ALLOCATABLE :: loc_radius_prof(:)   ! Localization radius array for profiles
-  REAL, ALLOCATABLE :: ivariance_obs_g(:)           ! global-earth inverse observation variances
+  real, allocatable :: mean_temp_p (:)      ! mean temperature for observation exclusion
+  real, allocatable :: loc_radius_prof(:)   ! Localization radius array for profiles
+  real, allocatable :: ivariance_obs_g(:)           ! global-earth inverse observation variances
 
 ! ***********************************************************************
 ! *** The following two data types are used in PDAFomi                ***
@@ -136,15 +135,15 @@ MODULE obs_TSprof_EN4_pdafomi
 
 ! Declare instances of observation data types used here
 ! We use generic names here, but one could renamed the variables
-  TYPE(obs_f), TARGET, PUBLIC :: thisobs      ! full observation
-  TYPE(obs_l), TARGET, PUBLIC :: thisobs_l    ! local observation
+  type(obs_f), target, public :: thisobs      ! full observation
+  type(obs_l), target, public :: thisobs_l    ! local observation
 
 !$OMP THREADPRIVATE(thisobs_l)
 
 
 !-------------------------------------------------------------------------------
 
-CONTAINS
+contains
 
 !> Initialize information on the module-type observation
 !!
@@ -173,78 +172,78 @@ CONTAINS
 !!
 !! Further variables are set when the routine PDAFomi_gather_obs is called.
 !!
-  SUBROUTINE init_dim_obs_prof(step, dim_obs)
+  subroutine init_dim_obs_prof(step, dim_obs)
 
-    USE PDAF, &
-         ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
-    USE assim_pdaf_mod, &
-         ONLY: twin_experiment, use_global_obs, delt_obs_ocn, &
+    use PDAF, &
+         only: PDAFomi_gather_obs, PDAFomi_set_debug_flag
+    use assim_pdaf_mod, &
+         only: twin_experiment, use_global_obs, delt_obs_ocn, &
                cradius, sradius
-    USE fesom_pdaf, &
+    use fesom_pdaf, &
          only: mesh_fesom, nlmax, myDim_nod2D, r2g, &
          month, day_in_month, yearnew, timenew, daynew
-    USE statevector_pdaf, &
-         ONLY: id, sfields
-    USE parallel_pdaf_mod, &
-         ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
+    use statevector_pdaf, &
+         only: id, sfields
+    use parallel_pdaf_mod, &
+         only: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
 
-    IMPLICIT NONE
+    implicit none
 
-    INCLUDE 'netcdf.inc'
+    include 'netcdf.inc'
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)    :: step      !< Current time step
-    INTEGER, INTENT(inout) :: dim_obs   !< Dimension of full observation vector
+    integer, intent(in)    :: step      !< Current time step
+    integer, intent(inout) :: dim_obs   !< Dimension of full observation vector
 
 ! *** Local variables ***
-    INTEGER :: i, iter_file, s, k, j          ! Counters
-    INTEGER :: dim_obs_p                      ! Number of process local observations
-    CHARACTER(len=4) :: mype_string           ! String for process rank
-    CHARACTER(len=4) :: year_string           ! String for yearly profile data path
-    INTEGER :: stat(100)                      ! Status for NetCDF functions
-    INTEGER :: status                         ! Status flag for PDAF gather operation
-    INTEGER, ALLOCATABLE :: n2d_temp(:,:), &  ! Grid point indices read from file
+    integer :: i, iter_file, s, k, j          ! Counters
+    integer :: dim_obs_p                      ! Number of process local observations
+    character(len=4) :: mype_string           ! String for process rank
+    character(len=4) :: year_string           ! String for yearly profile data path
+    integer :: stat(100)                      ! Status for NetCDF functions
+    integer :: status                         ! Status flag for PDAF gather operation
+    integer, allocatable :: n2d_temp(:,:), &  ! Grid point indices read from file
                             n2d_sal(:,:), &
                             nl1_temp(:), &
                             nl1_sal(:)
-    REAL, ALLOCATABLE :: obs_p(:)             ! PE-local observed T/S profile values
-    REAL, ALLOCATABLE :: ocoord_n2d_p(:,:)    ! PE-local coordinates of observed profiles
-    REAL, ALLOCATABLE :: ivariance_obs_p(:)   ! PE-local coordinates of observed profiles
-    REAL, ALLOCATABLE :: obs_depth_p(:)       ! PE-local observation depths read from file
-    CHARACTER(len=100) :: prof_file = ''      ! Complete name of profile observation file without path
-    INTEGER :: ncid_in, id_temp, id_sal                ! IDs 
-    INTEGER :: id_time, id_nprof_temp, id_nprof_sal    ! IDs
-    INTEGER :: id_nflagged_temp, id_nflagged_sal       ! IDs
-    INTEGER :: id_nobs_temp, id_nobs_sal               ! IDs
-    INTEGER :: id_depth_temp, id_depth_sal             ! IDs
-    INTEGER :: id_coord_temp, id_coord_sal             ! IDs
-    INTEGER :: id_offset_temp, id_offset_sal           ! IDs
-    INTEGER :: id_node_temp, id_node_sal               ! IDs
-    INTEGER :: id_layer_temp, id_layer_sal             ! IDs
-    INTEGER :: startv, countv, startv2(2), countv2(2)  ! Vectors for file reading
-    INTEGER :: day                          ! Day read from file
-    INTEGER :: offset_temp, offset_sal      ! Offset of profiles for the chosen day
-    INTEGER :: cnt_prof_temp, cnt_prof_sal  ! Number of assimilated profiles for temperature and salinity
-    INTEGER :: cnt_pro_temp_g, cnt_pro_sal_g! Total number of profiles at one day
-    INTEGER :: cnt_temp, cnt_sal            ! Number of assimilated observations for temperature and salinity
-    INTEGER :: cnt_flagged_temp_p, cnt_flagged_sal_p  ! PE-local number of flagged profiles
-    INTEGER :: cnt_flagged_temp, cnt_flagged_sal      ! Global number of flagged profiles
-    INTEGER :: cnt_ex_T_diff_p              ! PE-local count of excluded points due to temperature difference
-    INTEGER :: cnt_ex_T_diff                ! Global count of excluded points due to temperature difference
-    REAL, ALLOCATABLE :: obs_g(:)           ! Global full observation vector (used in case of limited obs.)
-    REAL, ALLOCATABLE :: ivar_obs_g(:)      ! Global full inverse variances (used in case of limited obs.)
-    REAL, ALLOCATABLE :: ocoord_g(:,:)      ! Global full observation coordinates (used in case of limited obs.)
+    real, allocatable :: obs_p(:)             ! PE-local observed T/S profile values
+    real, allocatable :: ocoord_n2d_p(:,:)    ! PE-local coordinates of observed profiles
+    real, allocatable :: ivariance_obs_p(:)   ! PE-local coordinates of observed profiles
+    real, allocatable :: obs_depth_p(:)       ! PE-local observation depths read from file
+    character(len=100) :: prof_file = ''      ! Complete name of profile observation file without path
+    integer :: ncid_in, id_temp, id_sal                ! IDs 
+    integer :: id_time, id_nprof_temp, id_nprof_sal    ! IDs
+    integer :: id_nflagged_temp, id_nflagged_sal       ! IDs
+    integer :: id_nobs_temp, id_nobs_sal               ! IDs
+    integer :: id_depth_temp, id_depth_sal             ! IDs
+    integer :: id_coord_temp, id_coord_sal             ! IDs
+    integer :: id_offset_temp, id_offset_sal           ! IDs
+    integer :: id_node_temp, id_node_sal               ! IDs
+    integer :: id_layer_temp, id_layer_sal             ! IDs
+    integer :: startv, countv, startv2(2), countv2(2)  ! Vectors for file reading
+    integer :: day                          ! Day read from file
+    integer :: offset_temp, offset_sal      ! Offset of profiles for the chosen day
+    integer :: cnt_prof_temp, cnt_prof_sal  ! Number of assimilated profiles for temperature and salinity
+    integer :: cnt_pro_temp_g, cnt_pro_sal_g! Total number of profiles at one day
+    integer :: cnt_temp, cnt_sal            ! Number of assimilated observations for temperature and salinity
+    integer :: cnt_flagged_temp_p, cnt_flagged_sal_p  ! PE-local number of flagged profiles
+    integer :: cnt_flagged_temp, cnt_flagged_sal      ! Global number of flagged profiles
+    integer :: cnt_ex_T_diff_p              ! PE-local count of excluded points due to temperature difference
+    integer :: cnt_ex_T_diff                ! Global count of excluded points due to temperature difference
+    real, allocatable :: obs_g(:)           ! Global full observation vector (used in case of limited obs.)
+    real, allocatable :: ivar_obs_g(:)      ! Global full inverse variances (used in case of limited obs.)
+    real, allocatable :: ocoord_g(:,:)      ! Global full observation coordinates (used in case of limited obs.)
     
-    REAL    :: test1
-    REAL    :: test2
-    INTEGER :: my_debug_id_nod2
+    real    :: test1
+    real    :: test2
+    integer :: my_debug_id_nod2
 
 ! *********************************************
 ! *** Initialize full observation dimension ***
 ! *********************************************
 
     ! Store whether to assimilate this observation type
-    IF (assim_o_en4_t .OR. assim_o_en4_s) thisobs%doassim = 1
+    if (assim_o_en4_t .or. assim_o_en4_s) thisobs%doassim = 1
 
     ! Specify type of distance computation
     thisobs%disttype = 2   ! 2=Geographic
@@ -260,8 +259,8 @@ CONTAINS
     lradius_prof = cradius
     sradius_prof = sradius
     
-    IF (allocated(loc_radius_prof)) deallocate(loc_radius_prof)
-    ALLOCATE(loc_radius_prof(mydim_nod2d))
+    if (allocated(loc_radius_prof)) deallocate(loc_radius_prof)
+    allocate(loc_radius_prof(mydim_nod2d))
     loc_radius_prof(:) = lradius_prof
 
 
@@ -270,21 +269,21 @@ CONTAINS
 ! **********************************
 
     ! Initialize complete file name
-    WRITE(mype_string,'(i4.4)') mype_filter
-    WRITE(year_string,'(i4.4)') yearnew
+    write(mype_string,'(i4.4)') mype_filter
+    write(year_string,'(i4.4)') yearnew
 
-    prof_file=TRIM(file_prof_prefix)//TRIM(mype_string)//TRIM(file_prof_suffix)
+    prof_file=trim(file_prof_prefix)//trim(mype_string)//trim(file_prof_suffix)
 
     ! Position to read from file (which day)
     iter_file = daynew
     
     ! Debugging message:
-    IF (mype_filter == 0) THEN
-       WRITE (*,'(a,5x,a,i2,a,i2,a,i4,a,f5.2,a,i)') &
+    if (mype_filter == 0) then
+       write (*,'(a,5x,a,i2,a,i2,a,i4,a,f5.2,a,i)') &
             'FESOM-PDAF', 'Assimilate EN4 profile observations - OBS_TSPROF_EN4 at ', &
             day_in_month, '.', month, '.', yearnew, ' ', timenew/3600.0,&
             ' h; read at day: ', iter_file
-    END IF
+    end if
 
     ! Initialize no. of temperature and salinity observations
     cnt_temp = 0
@@ -296,12 +295,12 @@ CONTAINS
 
     ! Read profile observation
     s = 1
-    stat(s) = NF_OPEN(TRIM(path_obs_prof)//'/'//year_string//'/'//prof_file, NF_NOWRITE,ncid_in)
+    stat(s) = NF_OPEN(trim(path_obs_prof)//'/'//year_string//'/'//prof_file, NF_NOWRITE,ncid_in)
     s = s + 1
     
-    IF (mype_filter == 0) &
-         WRITE (*,'(a,5x,a)') 'FESOM-PDAF', '--- Read PE-local profile observations from file: ', &
-                               TRIM(path_obs_prof)//'/'//year_string//'/'//prof_file
+    if (mype_filter == 0) &
+         write (*,'(a,5x,a)') 'FESOM-PDAF', '--- Read PE-local profile observations from file: ', &
+                               trim(path_obs_prof)//'/'//year_string//'/'//prof_file
 
     ! Get IDs for variables
     stat(s) = NF_INQ_VARID(ncid_in, 'day', id_time)
@@ -349,31 +348,31 @@ CONTAINS
     s = s + 1
     stat(s) = NF_GET_VARA_INT(ncid_in, id_time, startv, countv, day)
 
-    IF (mype_filter == 0) &
-         WRITE (*,'(a,5x,a,i3)') 'FESOM-PDAF', '--- Read PE-local profile observations on day:', day
+    if (mype_filter == 0) &
+         write (*,'(a,5x,a,i3)') 'FESOM-PDAF', '--- Read PE-local profile observations on day:', day
 
-    IF (assim_o_en4_t) THEN
+    if (assim_o_en4_t) then
        s = s + 1
        stat(s) = NF_GET_VARA_INT(ncid_in, id_nprof_temp, startv, countv, cnt_prof_temp)
        s = s + 1
        stat(s) = NF_GET_VARA_INT(ncid_in, id_nobs_temp, startv, countv, cnt_temp)
        s = s + 1
        stat(s) = NF_GET_VARA_INT(ncid_in, id_nflagged_temp, startv, countv, cnt_flagged_temp_p)
-    END IF
+    end if
 
-    IF (assim_o_en4_s) THEN
+    if (assim_o_en4_s) then
        s = s + 1
        stat(s) = NF_GET_VARA_INT(ncid_in, id_nprof_sal, startv, countv, cnt_prof_sal)
        s = s + 1
        stat(s) = NF_GET_VARA_INT(ncid_in, id_nobs_sal, startv, countv, cnt_sal)
        s = s + 1
        stat(s) = NF_GET_VARA_INT(ncid_in, id_nflagged_sal, startv, countv, cnt_flagged_sal_p)
-    END IF
+    end if
   
-    DO i = 1, s
-       IF (stat(i) /= NF_NOERR) &
-            WRITE(*, *) 'NetCDF error in opening and reading profile variable, no.', i
-    END DO
+    do i = 1, s
+       if (stat(i) /= NF_NOERR) &
+            write(*, *) 'NetCDF error in opening and reading profile variable, no.', i
+    end do
 
 
 ! ***************************************************
@@ -384,24 +383,24 @@ CONTAINS
     ! *** Count PE-local number of observations ***
     dim_obs_p = cnt_temp + cnt_sal
 
-    haveobs: IF (dim_obs_p > 0) THEN
+    haveobs: if (dim_obs_p > 0) then
 
        ! Allocate PE-local observation arrays
-       ALLOCATE(obs_p(dim_obs_p))
-       ALLOCATE(obs_depth_p(dim_obs_p))
-       ALLOCATE(ocoord_n2d_p(2,dim_obs_p))
+       allocate(obs_p(dim_obs_p))
+       allocate(obs_depth_p(dim_obs_p))
+       allocate(ocoord_n2d_p(2,dim_obs_p))
      
        ! *** Initialize index vector of observed nodes ***
        ! This array has a many rows as required for the observation operator
        ! 1 if observations are at grid points; >1 if interpolation is required
-       ALLOCATE(thisobs%id_obs_p(3,dim_obs_p))
+       allocate(thisobs%id_obs_p(3,dim_obs_p))
 
        ! *** Temperature ***
           
-       havetemp: IF (cnt_temp > 0) THEN
+       havetemp: if (cnt_temp > 0) then
 
-          ALLOCATE(n2d_temp(3,cnt_temp))
-          ALLOCATE(nl1_temp(  cnt_temp))
+          allocate(n2d_temp(3,cnt_temp))
+          allocate(nl1_temp(  cnt_temp))
 
           startv = iter_file ! (day in the year)
           countv = 1
@@ -435,34 +434,34 @@ CONTAINS
           s = s + 1
           stat(s) = NF_GET_VARA_INT(ncid_in, id_node_temp, startv2, countv2, n2d_temp(:,1:cnt_temp))
           
-          DO i = 1, cnt_temp
-             DO k = 1, 3
+          do i = 1, cnt_temp
+             do k = 1, 3
                 thisobs%id_obs_p(k,i) = (nlmax) * (n2d_temp(k,i)-1) + nl1_temp(i) + sfields(id%temp)%off
-             END DO
-          END DO
+             end do
+          end do
         
           countv2(1) = 2
 
           s = s + 1
           stat(s) = NF_GET_VARA_DOUBLE(ncid_in, id_coord_temp, startv2, countv2, ocoord_n2d_p(:,1:cnt_temp))
 
-          DO i = 1, s
-             IF (stat(i) /= NF_NOERR) &
-                  WRITE(*, *) 'NetCDF error in reading profile variable --- temperature, no.', i
-          END DO
+          do i = 1, s
+             if (stat(i) /= NF_NOERR) &
+                  write(*, *) 'NetCDF error in reading profile variable --- temperature, no.', i
+          end do
           
           deallocate(n2d_temp)
           deallocate(nl1_temp)
         
-       END IF havetemp
+       end if havetemp
      
         
        ! *** Salinity ***
 
-       havesal: IF (cnt_sal > 0) THEN
+       havesal: if (cnt_sal > 0) then
 
-          ALLOCATE(n2d_sal(3,cnt_sal))
-          ALLOCATE(nl1_sal(  cnt_sal))
+          allocate(n2d_sal(3,cnt_sal))
+          allocate(nl1_sal(  cnt_sal))
 
           ! Read offset, depth, salinity and node index
 
@@ -491,11 +490,11 @@ CONTAINS
           stat(s) = NF_GET_VARA_INT(ncid_in, id_node_sal, startv2, countv2, n2d_sal(:,1:cnt_sal))
 
           ! *** plus offset here instead of in obs_op_f_pdaf
-          DO i = cnt_temp + 1, cnt_temp + cnt_sal
-             DO k = 1, 3
+          do i = cnt_temp + 1, cnt_temp + cnt_sal
+             do k = 1, 3
                 thisobs%id_obs_p(k,i) = (nlmax) * (n2d_sal(k,i-cnt_temp)-1) + nl1_sal(i-cnt_temp) + sfields(id%salt)%off
-             END DO
-          END DO
+             end do
+          end do
  
 !~           ! Debugging:
 !~           IF (mype_filter==19) THEN
@@ -509,15 +508,15 @@ CONTAINS
           s = s + 1
           stat(s) = NF_GET_VARA_DOUBLE(ncid_in, id_coord_sal, startv2, countv2, ocoord_n2d_p(:,cnt_temp+1:cnt_temp+cnt_sal))
 
-          DO i = 1, s
-             IF (stat(i) /= NF_NOERR) &
-                  WRITE(*, *) 'NetCDF error in reading profile variable --- salinity, no.', i
-          END DO
+          do i = 1, s
+             if (stat(i) /= NF_NOERR) &
+                  write(*, *) 'NetCDF error in reading profile variable --- salinity, no.', i
+          end do
           
           deallocate(n2d_sal)
           deallocate(nl1_sal)
 
-       END IF havesal
+       end if havesal
  
 
 ! ***************************************
@@ -550,51 +549,51 @@ CONTAINS
 !~           ivariance_obs_p(i) = 1.0 / rms_obs_S**2
 !~        END DO
 
-          IF (assim_o_en4_t .AND. mype_filter == 0) &
-                WRITE (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
+          if (assim_o_en4_t .and. mype_filter == 0) &
+                write (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
                 '--- global observation minimum error for profile T: ', rms_obs_T, ' degC. ! NOTE, it is scaled by depth'
-           IF (assim_o_en4_s .AND. mype_filter == 0) &
-                WRITE (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
+           if (assim_o_en4_s .and. mype_filter == 0) &
+                write (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
                 '--- global observation minimum error for profile S: ', rms_obs_S, ' psu.  ! NOTE, it is scaled by depth'
     
-           ALLOCATE(ivariance_obs_p(dim_obs_p))
+           allocate(ivariance_obs_p(dim_obs_p))
     
            ! For temperature
-           DO i = 1, cnt_temp
+           do i = 1, cnt_temp
               !ivariance_obs_p(i) = 1.0 / rms_obs_T**2
               ! Xie and Zhu, Ocean Modelling, 2010, vertical decay
               ivariance_obs_p(i) = 1.0 / (rms_obs_T+0.45*exp(0.002*obs_depth_p(i)))**2
-           END DO
+           end do
     
            ! For salinity
            ! https://scielo.conicyt.cl/scielo.php?script=sci_arttext&pid=S0717-65382004000300025
-           DO i = 1+cnt_temp, cnt_temp+cnt_sal
+           do i = 1+cnt_temp, cnt_temp+cnt_sal
               !ivariance_obs_p(i) = 1.0 / rms_obs_S**2
               ivariance_obs_p(i) = 1.0 / (rms_obs_S+0.03*exp(0.008*obs_depth_p(i)))**2
-           END DO
+           end do
         
        ! *** Exclude observations if difference from ensemble mean is beyond limit PROF_EXCLUDE_DIFF ***
 
        cnt_ex_T_diff_p = 0
-       IF (prof_exclude_diff > 0.0) THEN
-          DO i = 1, cnt_temp
-             IF( (((mean_temp_p(thisobs%id_obs_p(1,i)) + mean_temp_p(thisobs%id_obs_p(2,i)) &
-                  + mean_temp_p(thisobs%id_obs_p(3,i))) / 3.0 ) - obs_p(i)) > prof_exclude_diff) THEN
+       if (prof_exclude_diff > 0.0) then
+          do i = 1, cnt_temp
+             if( (((mean_temp_p(thisobs%id_obs_p(1,i)) + mean_temp_p(thisobs%id_obs_p(2,i)) &
+                  + mean_temp_p(thisobs%id_obs_p(3,i))) / 3.0 ) - obs_p(i)) > prof_exclude_diff) then
                 ivariance_obs_p(i) = 1.0E-12
                 cnt_ex_T_diff_p = cnt_ex_T_diff_p+1
-             END IF
-          END DO
-       END IF
+             end if
+          end do
+       end if
      
-    ELSE haveobs  ! IF (dim_obs_p > 0)
+    else haveobs  ! IF (dim_obs_p > 0)
        ! No valid observations
      
-       ALLOCATE(ocoord_n2d_p(2,1))
-       ALLOCATE(obs_depth_p(1))
-       ALLOCATE(obs_p(1))
-       ALLOCATE(ivariance_obs_p(1))
+       allocate(ocoord_n2d_p(2,1))
+       allocate(obs_depth_p(1))
+       allocate(obs_p(1))
+       allocate(ivariance_obs_p(1))
        
-       ALLOCATE(thisobs%id_obs_p(3,1))
+       allocate(thisobs%id_obs_p(3,1))
 
 
        ocoord_n2d_p = 0.0 
@@ -604,7 +603,7 @@ CONTAINS
        ivariance_obs_p = 1.0e-12
        cnt_ex_T_diff_p = 0
 
-    END IF haveobs ! IF (dim_obs_p > 0)
+    end if haveobs ! IF (dim_obs_p > 0)
   
     stat(1) = NF_CLOSE(ncid_in)
 
@@ -613,8 +612,8 @@ CONTAINS
 ! *** De-bias observations ***
 ! ****************************
 
-    IF (bias_obs_prof/=0.0 .AND. mype_filter == 0) &
-         WRITE (*, '(a, 5x, a, f12.3)') &
+    if (bias_obs_prof/=0.0 .and. mype_filter == 0) &
+         write (*, '(a, 5x, a, f12.3)') &
          'FESOM-PDAF', '--- Use global observation bias of ', bias_obs_prof
 
     obs_p = obs_p - bias_obs_prof
@@ -625,39 +624,39 @@ CONTAINS
 ! *************************************************
 
     ! Get total number of profiles for temperature and salinity
-    CALL MPI_Allreduce(cnt_prof_temp, cnt_pro_temp_g, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_Allreduce(cnt_prof_temp, cnt_pro_temp_g, 1, MPI_INTEGER, MPI_SUM, &
          COMM_filter, MPIerr)
-    CALL MPI_Allreduce(cnt_prof_sal, cnt_pro_sal_g, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_Allreduce(cnt_prof_sal, cnt_pro_sal_g, 1, MPI_INTEGER, MPI_SUM, &
          COMM_filter, MPIerr)
 
     ! Get global number of flagged profiles
-    CALL MPI_Allreduce(cnt_flagged_temp_p, cnt_flagged_temp, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_Allreduce(cnt_flagged_temp_p, cnt_flagged_temp, 1, MPI_INTEGER, MPI_SUM, &
          COMM_filter, MPIerr)
-    CALL MPI_Allreduce(cnt_flagged_sal_p, cnt_flagged_sal, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_Allreduce(cnt_flagged_sal_p, cnt_flagged_sal, 1, MPI_INTEGER, MPI_SUM, &
          COMM_filter, MPIerr)
 
     ! Write number of profiles
-    IF (mype_filter == 0) THEN
-       IF (assim_o_en4_t .AND. (.NOT.assim_o_en4_s)) THEN
-          WRITE (*,'(a,5x,a,i3,x,a,i5)') 'FESOM-PDAF', '--- Day', iter_file, &
+    if (mype_filter == 0) then
+       if (assim_o_en4_t .and. (.not.assim_o_en4_s)) then
+          write (*,'(a,5x,a,i3,x,a,i5)') 'FESOM-PDAF', '--- Day', iter_file, &
                'number of T profiles', cnt_pro_temp_g
-       ELSEIF ((.NOT.assim_o_en4_t) .AND. assim_o_en4_s) THEN
-          WRITE (*,'(a,5x,a,i3,x,a,i5)') 'FESOM-PDAF', '--- Day', iter_file, &
+       elseif ((.not.assim_o_en4_t) .and. assim_o_en4_s) then
+          write (*,'(a,5x,a,i3,x,a,i5)') 'FESOM-PDAF', '--- Day', iter_file, &
                'number of S profiles', cnt_pro_sal_g
-       ELSEIF (assim_o_en4_t .AND. assim_o_en4_s) THEN
-          WRITE (*,'(a,5x,a,i3,x,a,i5,x,a,i5)') 'FESOM-PDAF', '--- Day', iter_file, &
+       elseif (assim_o_en4_t .and. assim_o_en4_s) then
+          write (*,'(a,5x,a,i3,x,a,i5,x,a,i5)') 'FESOM-PDAF', '--- Day', iter_file, &
                'number of profiles: T', cnt_pro_temp_g,'S',cnt_pro_sal_g
-       ENDIF
-       WRITE (*,'(a,5x,a,2i7)') 'FESOM-PDAF', &
+       endif
+       write (*,'(a,5x,a,2i7)') 'FESOM-PDAF', &
             '--- Observations flagged at external nodes (T, S)', cnt_flagged_temp, cnt_flagged_sal
-    END IF
+    end if
 
     ! Get total number of observations if difference from ensemble mean is beyond limit PROFT_EXCLUDE_DIFF
-    CALL MPI_Allreduce(cnt_ex_T_diff_p, cnt_ex_T_diff, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_Allreduce(cnt_ex_T_diff_p, cnt_ex_T_diff, 1, MPI_INTEGER, MPI_SUM, &
          COMM_filter, MPIerr)
 
-    IF (mype_filter == 0) &
-         WRITE (*,'(a,5x,a,f6.2,a,i7)') 'FESOM-PDAF', &
+    if (mype_filter == 0) &
+         write (*,'(a,5x,a,f6.2,a,i7)') 'FESOM-PDAF', &
          '--- Observations excluded due to difference >',prof_exclude_diff,'degC:', cnt_ex_T_diff
 
 
@@ -665,7 +664,7 @@ CONTAINS
 ! *** Gather full observation arrays (obs, ivariance, occord) ***
 ! ***************************************************************
 
-    CALL PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_n2d_p, &
+    call PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_n2d_p, &
          thisobs%ncoord, lradius_prof, dim_obs)
          
     ! Global inverse variance array (thisobs%ivar_obs_f)
@@ -683,10 +682,10 @@ CONTAINS
 ! ********************
 
     ! Clean up arrays
-    DEALLOCATE(obs_depth_p)
-    DEALLOCATE(obs_p, ocoord_n2d_p, ivariance_obs_p)
+    deallocate(obs_depth_p)
+    deallocate(obs_p, ocoord_n2d_p, ivariance_obs_p)
 
-  END SUBROUTINE init_dim_obs_prof
+  end subroutine init_dim_obs_prof
 
 
 
@@ -702,19 +701,19 @@ CONTAINS
 !!
 !! The routine is called by all filter processes.
 !!
-  SUBROUTINE obs_op_prof(dim_p, dim_obs, state_p, ostate)
+  subroutine obs_op_prof(dim_p, dim_obs, state_p, ostate)
 
-    USE PDAF, &
-         ONLY: PDAFomi_obs_op_gridavg, &
+    use PDAF, &
+         only: PDAFomi_obs_op_gridavg, &
                PDAFomi_set_debug_flag
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in) :: dim_p                 !< PE-local state dimension
-    INTEGER, INTENT(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
-    REAL, INTENT(in)    :: state_p(dim_p)        !< PE-local model state
-    REAL, INTENT(inout) :: ostate(dim_obs)       !< Full observed state
+    integer, intent(in) :: dim_p                 !< PE-local state dimension
+    integer, intent(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
+    real, intent(in)    :: state_p(dim_p)        !< PE-local model state
+    real, intent(inout) :: ostate(dim_obs)       !< Full observed state
 
 ! ******************************************************
 ! *** Apply observation operator H on a state vector ***
@@ -724,11 +723,11 @@ CONTAINS
 ! operator has to average the values of 3 grid points.
 ! For this the observation operator OBS_OP_F_GRIDAVG is used.
 
-    IF (thisobs%doassim == 1) THEN
-       CALL PDAFomi_obs_op_gridavg(thisobs, 3, state_p, ostate)
-    END IF
+    if (thisobs%doassim == 1) then
+       call PDAFomi_obs_op_gridavg(thisobs, 3, state_p, ostate)
+    end if
 
-  END SUBROUTINE obs_op_prof
+  end subroutine obs_op_prof
 
 
 
@@ -748,26 +747,26 @@ CONTAINS
 !! different localization radius and localization functions
 !! for each observation type and  local analysis domain.
 !!
-  SUBROUTINE init_dim_obs_l_prof(domain_p, step, dim_obs, dim_obs_l)
+  subroutine init_dim_obs_l_prof(domain_p, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
-    USE PDAF, &
-         ONLY: PDAFomi_init_dim_obs_l
+    use PDAF, &
+         only: PDAFomi_init_dim_obs_l
     ! Include localization radius and local coordinates
-    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
+    use assim_pdaf_mod, only: coords_l, locweight, loctype
     ! Number of domains per sweep:
-    USE fesom_pdaf, ONLY: myDim_nod2D
+    use fesom_pdaf, only: myDim_nod2D
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)  :: domain_p     !< Index of current local analysis domain
-    INTEGER, INTENT(in)  :: step         !< Current time step
-    INTEGER, INTENT(in)  :: dim_obs      !< Full dimension of observation vector
-    INTEGER, INTENT(inout) :: dim_obs_l  !< Local dimension of observation vector
+    integer, intent(in)  :: domain_p     !< Index of current local analysis domain
+    integer, intent(in)  :: step         !< Current time step
+    integer, intent(in)  :: dim_obs      !< Full dimension of observation vector
+    integer, intent(inout) :: dim_obs_l  !< Local dimension of observation vector
 
 
-    IF (thisobs%doassim == 1) THEN
+    if (thisobs%doassim == 1) then
     
        lradius_prof = loc_radius_prof(modulo(domain_p,myDim_nod2D))
        
@@ -795,10 +794,10 @@ CONTAINS
        ! *** Initialize local observation dimension ***
        ! **********************************************
 
-       CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
+       call PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
             locweight, lradius_prof, sradius_prof, dim_obs_l)
-    END IF
+    end if
 
-  END SUBROUTINE init_dim_obs_l_prof
+  end subroutine init_dim_obs_l_prof
 
-END MODULE obs_TSprof_EN4_pdafomi
+end module obs_TSprof_EN4_pdafomi

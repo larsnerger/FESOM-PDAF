@@ -47,38 +47,38 @@
 !! * 2019-06 - Lars Nerger - Initial code
 !! * Later revisions - see repository log
 !!
-MODULE obs_ssh_cmems_pdafomi
+module obs_ssh_cmems_pdafomi
 
-  USE parallel_pdaf_mod, &
-       ONLY: mype_filter     ! Rank of filter process
-  USE PDAF, &
-       ONLY: obs_f, obs_l    ! Declaration of observation data types
+  use parallel_pdaf_mod, &
+       only: mype_filter     ! Rank of filter process
+  use PDAF, &
+       only: obs_f, obs_l    ! Declaration of observation data types
 
-  IMPLICIT NONE
-  SAVE
+  implicit none
+  save
 
   ! Variables which are inputs to the module (usually set in init_pdaf)
-  LOGICAL :: assim_o_ssh      ! Whether to assimilate SSH data
+  logical :: assim_o_ssh      ! Whether to assimilate SSH data
 
   ! Further variables specific for the CMEMS SSH observations
-  CHARACTER(len=100) :: path_obs_ssh  = ''      ! Path to observations
-  CHARACTER(len=110) :: file_ssh_prefix  = ''   ! file name prefix for observations 
-  CHARACTER(len=110) :: file_ssh_suffix  = '.nc'! file name suffix for observations 
+  character(len=100) :: path_obs_ssh  = ''      ! Path to observations
+  character(len=110) :: file_ssh_prefix  = ''   ! file name prefix for observations 
+  character(len=110) :: file_ssh_suffix  = '.nc'! file name suffix for observations 
 !~   CHARACTER(len=110) :: file_syntobs_ssh = 'syntobs_ssh.nc' ! File name for synthetic observations
 
-  REAL    :: rms_obs_ssh      ! Observation error standard deviation
-  REAL    :: bias_obs_ssh     ! Observation bias
+  real    :: rms_obs_ssh      ! Observation error standard deviation
+  real    :: bias_obs_ssh     ! Observation bias
 
-  REAL    :: lradius_ssh      ! Localization radius in the ocean
-  REAL    :: sradius_ssh      ! Support radius for localization function
+  real    :: lradius_ssh      ! Localization radius in the ocean
+  real    :: sradius_ssh      ! Support radius for localization function
 
-  LOGICAL :: ssh_exclude_ice  ! Whether to exclude observations at grid points with ice
-  REAL    :: ssh_exclude_diff ! Limit difference beyond which observations are excluded (0.0 to deactivate)
-  LOGICAL :: ssh_fixed_rmse   ! Whether to use a fixed RMS error or the error provided with the data
+  logical :: ssh_exclude_ice  ! Whether to exclude observations at grid points with ice
+  real    :: ssh_exclude_diff ! Limit difference beyond which observations are excluded (0.0 to deactivate)
+  logical :: ssh_fixed_rmse   ! Whether to use a fixed RMS error or the error provided with the data
 
-  REAL, ALLOCATABLE :: mean_ice_p (:)    ! Mean ice concentration for observation exclusion
-  REAL, ALLOCATABLE :: mean_ssh_p (:)    ! Mean value for observation exclusion
-  REAL, ALLOCATABLE :: loc_radius_ssh(:) ! Localization radius array
+  real, allocatable :: mean_ice_p (:)    ! Mean ice concentration for observation exclusion
+  real, allocatable :: mean_ssh_p (:)    ! Mean value for observation exclusion
+  real, allocatable :: loc_radius_ssh(:) ! Localization radius array
 
 
 ! ***********************************************************************
@@ -134,15 +134,15 @@ MODULE obs_ssh_cmems_pdafomi
 
 ! Declare instances of observation data types used here
 ! We use generic names here, but one could renamed the variables
-  TYPE(obs_f), TARGET, PUBLIC :: thisobs      ! full observation
-  TYPE(obs_l), TARGET, PUBLIC :: thisobs_l    ! local observation
+  type(obs_f), target, public :: thisobs      ! full observation
+  type(obs_l), target, public :: thisobs_l    ! local observation
 
 !$OMP THREADPRIVATE(thisobs_l)
 
 
 !-------------------------------------------------------------------------------
 
-CONTAINS
+contains
 
 !> Initialize information on the module-type observation
 !!
@@ -171,58 +171,58 @@ CONTAINS
 !!
 !! Further variables are set when the routine PDAFomi_gather_obs is called.
 !!
-  SUBROUTINE init_dim_obs_ssh(step, dim_obs)
+  subroutine init_dim_obs_ssh(step, dim_obs)
 
-    USE PDAF, &
-         ONLY: PDAFomi_gather_obs
-    USE assim_pdaf_mod, &
-         ONLY: twin_experiment, use_global_obs, &
+    use PDAF, &
+         only: PDAFomi_gather_obs
+    use assim_pdaf_mod, &
+         only: twin_experiment, use_global_obs, &
          cradius, sradius, delt_obs_ocn
-    USE fesom_pdaf, &
+    use fesom_pdaf, &
          only: mesh_fesom, nlmax, r2g, myDim_nod2d, &
          month, day_in_month, yearnew, timenew, daynew
-    USE statevector_pdaf, &
-         ONLY: id, sfields
-    USE parallel_pdaf_mod, &
-         ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
+    use statevector_pdaf, &
+         only: id, sfields
+    use parallel_pdaf_mod, &
+         only: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
 
-    IMPLICIT NONE
+    implicit none
 
-    INCLUDE 'netcdf.inc'
+    include 'netcdf.inc'
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)    :: step       !< Current time step
-    INTEGER, INTENT(inout) :: dim_obs    !< Dimension of full observation vector
+    integer, intent(in)    :: step       !< Current time step
+    integer, intent(inout) :: dim_obs    !< Dimension of full observation vector
 
 ! *** Local variables ***
-    INTEGER :: i, iter_file, i_obs       ! Counters
-    INTEGER :: dim_obs_p                 ! number of PE-local observations
-    INTEGER :: fileid                    ! ID for NetCDF file
-    INTEGER :: id_state, id_std          ! ID for state
-    INTEGER :: stat(100)                 ! Status for NetCDF functions
-    INTEGER :: startv(2),countv(2)       ! Vectors for reading fields
-    CHARACTER(len=5)   :: mype_string    ! String for process rank
-    CHARACTER(len=100) :: obs_file = ''     ! Complete name of observation file without path
-    REAL(4), ALLOCATABLE :: all_obs_p(:)    ! PE-local complete observation field read from file
-    REAL(4), ALLOCATABLE :: all_std_p(:)    ! PE-local complete observation error field read from file
-    REAL, ALLOCATABLE :: obs_error_p(:)     ! PE-local observation error
-    REAL, ALLOCATABLE :: obs_p(:)           ! PE-local observed field
-    REAL, ALLOCATABLE :: ivariance_obs_p(:) ! PE-local inverse observation error variance
-    REAL, ALLOCATABLE :: ocoord_n2d_p(:,:)  ! PE-local coordinates of observations
-    INTEGER :: status                       ! Status flag for PDAF gather operation
-    INTEGER :: cnt_ex_ice_p, cnt_ex_diff_p  ! PE-local counts of excluded points due to ice and difference
-    INTEGER :: cnt_ex_ice, cnt_ex_diff      ! Global counts of excluded points due to ice and difference
-    REAL, ALLOCATABLE :: obs_g(:)           ! Global full observation vector (used in case of limited obs.)
-    REAL, ALLOCATABLE :: ivar_obs_g(:)      ! Global full inverse variances (used in case of limited obs.)
-    REAL, ALLOCATABLE :: ocoord_g(:,:)      ! Global full observation coordinates (used in case of limited obs.)
-    INTEGER, ALLOCATABLE :: obs_include_index(:) ! Index of observed (not excluded!) surface nodes on process domain 
+    integer :: i, iter_file, i_obs       ! Counters
+    integer :: dim_obs_p                 ! number of PE-local observations
+    integer :: fileid                    ! ID for NetCDF file
+    integer :: id_state, id_std          ! ID for state
+    integer :: stat(100)                 ! Status for NetCDF functions
+    integer :: startv(2),countv(2)       ! Vectors for reading fields
+    character(len=5)   :: mype_string    ! String for process rank
+    character(len=100) :: obs_file = ''     ! Complete name of observation file without path
+    real(4), allocatable :: all_obs_p(:)    ! PE-local complete observation field read from file
+    real(4), allocatable :: all_std_p(:)    ! PE-local complete observation error field read from file
+    real, allocatable :: obs_error_p(:)     ! PE-local observation error
+    real, allocatable :: obs_p(:)           ! PE-local observed field
+    real, allocatable :: ivariance_obs_p(:) ! PE-local inverse observation error variance
+    real, allocatable :: ocoord_n2d_p(:,:)  ! PE-local coordinates of observations
+    integer :: status                       ! Status flag for PDAF gather operation
+    integer :: cnt_ex_ice_p, cnt_ex_diff_p  ! PE-local counts of excluded points due to ice and difference
+    integer :: cnt_ex_ice, cnt_ex_diff      ! Global counts of excluded points due to ice and difference
+    real, allocatable :: obs_g(:)           ! Global full observation vector (used in case of limited obs.)
+    real, allocatable :: ivar_obs_g(:)      ! Global full inverse variances (used in case of limited obs.)
+    real, allocatable :: ocoord_g(:,:)      ! Global full observation coordinates (used in case of limited obs.)
+    integer, allocatable :: obs_include_index(:) ! Index of observed (not excluded!) surface nodes on process domain 
 
 ! *********************************************
 ! *** Initialize full observation dimension ***
 ! *********************************************
 
     ! Store whether to assimilate this observation type
-    IF (assim_o_ssh) thisobs%doassim = 1
+    if (assim_o_ssh) thisobs%doassim = 1
 
     ! Specify type of distance computation
     thisobs%disttype = 2   ! 2=Geographic
@@ -235,9 +235,9 @@ CONTAINS
     thisobs%use_global_obs = use_global_obs
 
     ! set localization radius (if not specified explicitly in namelist)
-    IF (lradius_ssh==0) lradius_ssh = cradius
+    if (lradius_ssh==0) lradius_ssh = cradius
     sradius_ssh = lradius_ssh
-    IF (.NOT.ALLOCATED(loc_radius_ssh)) ALLOCATE(loc_radius_ssh(mydim_nod2d))
+    if (.not.allocated(loc_radius_ssh)) allocate(loc_radius_ssh(mydim_nod2d))
     loc_radius_ssh(:) = lradius_ssh
 
 
@@ -246,28 +246,28 @@ CONTAINS
 ! **********************************
 
     ! Initialize complete file name
-    WRITE(mype_string,'(i5.5)') mype_filter
+    write(mype_string,'(i5.5)') mype_filter
 
-    obs_file=TRIM(file_ssh_prefix)//TRIM(mype_string)//TRIM(file_ssh_suffix)
+    obs_file=trim(file_ssh_prefix)//trim(mype_string)//trim(file_ssh_suffix)
 
     ! Allocate array
-    ALLOCATE(all_obs_p(myDim_nod2D))
-    ALLOCATE(all_std_p(myDim_nod2D))
+    allocate(all_obs_p(myDim_nod2D))
+    allocate(all_std_p(myDim_nod2D))
 
     ! Position to read from file
     iter_file = daynew
     
     ! Write debugging message:
-    IF (mype_filter==0) THEN
-       WRITE (*,'(a,5x,a,i2,a,i2,a,i4,a,f5.2,a,i)') &
+    if (mype_filter==0) then
+       write (*,'(a,5x,a,i2,a,i2,a,i4,a,f5.2,a,i)') &
             'FESOM-PDAF', 'Assimilate SSH observations - OBS_SSH_CMEMS at ', &
             day_in_month, '.', month, '.', yearnew, ' ', timenew/3600.0, &
             ' h; read at ', iter_file
-    END IF
+    end if
 
     ! Read observation and standard deviation
      
-    stat(1) = NF_OPEN(TRIM(path_obs_ssh)//TRIM(obs_file), NF_NOWRITE, fileid)        
+    stat(1) = NF_OPEN(trim(path_obs_ssh)//trim(obs_file), NF_NOWRITE, fileid)        
  
     ! *** Read state estimate ***
 
@@ -295,12 +295,12 @@ CONTAINS
     stat(6) = NF_CLOSE(fileid)
  
     ! check status flag
-    DO i=1,6
-       IF (stat(i).NE.NF_NOERR) WRITE(*,*) &
+    do i=1,6
+       if (stat(i).ne.NF_NOERR) write(*,*) &
             'NetCDF error in reading full SSH_CMEMS, no.',i, &
             ' file ',obs_file
        stat(i)=0
-    END DO
+    end do
 
 
 ! ****************************
@@ -343,24 +343,24 @@ CONTAINS
 
     ! *** Exclude observations if difference from ensemble mean is beyond limit SSH_EXCLUDE_DIFF ***
 
-    exclude_diff: IF (ssh_exclude_diff > 0.0) THEN
+    exclude_diff: if (ssh_exclude_diff > 0.0) then
 
        cnt_ex_diff_p = 0
-       DO i = 1, myDim_nod2D
-          IF (ABS(mean_ssh_p(i) - all_obs_p(i)) > ssh_exclude_diff .AND. all_obs_p(i)<999.0) THEN
+       do i = 1, myDim_nod2D
+          if (abs(mean_ssh_p(i) - all_obs_p(i)) > ssh_exclude_diff .and. all_obs_p(i)<999.0) then
              all_obs_p(i) = 1.0e6
              cnt_ex_diff_p = cnt_ex_diff_p+1
-          END IF
-       END DO
+          end if
+       end do
 
-       CALL MPI_Allreduce(cnt_ex_diff_p, cnt_ex_diff, 1, MPI_INTEGER, MPI_SUM, &
+       call MPI_Allreduce(cnt_ex_diff_p, cnt_ex_diff, 1, MPI_INTEGER, MPI_SUM, &
             COMM_filter, MPIerr)
 
-       IF (mype_filter == 0) &
-            WRITE (*,'(a,5x,a,f6.2,a,i7)') 'FESOM-PDAF', &
+       if (mype_filter == 0) &
+            write (*,'(a,5x,a,f6.2,a,i7)') 'FESOM-PDAF', &
             '--- SSH CMEMS observations excluded due to difference >',ssh_exclude_diff,'m:', cnt_ex_diff
 
-    END IF exclude_diff
+    end if exclude_diff
   
 
 ! ***********************************************************
@@ -370,19 +370,19 @@ CONTAINS
 
     ! *** Count PE-local number of observations ***
     dim_obs_p = 0
-    DO i = 1, myDim_nod2d
-       IF (ABS(all_obs_p(i)) < 999.0) dim_obs_p=dim_obs_p+1
-    ENDDO
+    do i = 1, myDim_nod2d
+       if (abs(all_obs_p(i)) < 999.0) dim_obs_p=dim_obs_p+1
+    enddo
 
     ! *** Initialize index vector of observed surface nodes ***
     ! This array has a many rows as required for the observation operator
     ! 1 if observations are at grid points; >1 if interpolation is required
-    ALLOCATE(thisobs%id_obs_p(1, dim_obs_p))
-    ALLOCATE(obs_include_index(dim_obs_p))
+    allocate(thisobs%id_obs_p(1, dim_obs_p))
+    allocate(obs_include_index(dim_obs_p))
 
     i_obs=0
-    DO i = 1, myDim_nod2d
-       IF (ABS(all_obs_p(i)) < 999.0) THEN
+    do i = 1, myDim_nod2d
+       if (abs(all_obs_p(i)) < 999.0) then
           i_obs = i_obs + 1
           
           !index for state vector
@@ -391,58 +391,58 @@ CONTAINS
           
           !index for all_obs_p and surface nod2d vector, respectively
           obs_include_index(i_obs) = i 
-       END IF
-    ENDDO
+       end if
+    enddo
 
     ! *** Initialize PE-local vectors of observations and std error ***
-    ALLOCATE(obs_p(dim_obs_p))
-    ALLOCATE(obs_error_p(dim_obs_p))
-    DO i = 1, dim_obs_p
-       obs_p(i) =       REAL(all_obs_p(obs_include_index(i)), 8)
-       obs_error_p(i) = REAL(all_std_p(obs_include_index(i)), 8)
-    ENDDO
+    allocate(obs_p(dim_obs_p))
+    allocate(obs_error_p(dim_obs_p))
+    do i = 1, dim_obs_p
+       obs_p(i) =       real(all_obs_p(obs_include_index(i)), 8)
+       obs_error_p(i) = real(all_std_p(obs_include_index(i)), 8)
+    enddo
 
     ! *** Initialize coordinate arrays for PE-local observations
-    ALLOCATE(ocoord_n2d_p(2, dim_obs_p))
-    DO i = 1, dim_obs_p
+    allocate(ocoord_n2d_p(2, dim_obs_p))
+    do i = 1, dim_obs_p
        ! Rotate to geographic coordinates and store
-       CALL r2g(ocoord_n2d_p(1, i), ocoord_n2d_p(2, i), &
+       call r2g(ocoord_n2d_p(1, i), ocoord_n2d_p(2, i), &
             mesh_fesom%coord_nod2d(1, obs_include_index(i)), mesh_fesom%coord_nod2d(2, obs_include_index(i)))
-    ENDDO
+    enddo
 
 ! ****************************************************************
 ! *** Define observation errors for process-local observations ***
 ! ****************************************************************
 
-    IF (ssh_fixed_rmse) THEN
+    if (ssh_fixed_rmse) then
 
        ! *** Set constant observation error *** 
-       IF (mype_filter == 0) &
-            WRITE (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
+       if (mype_filter == 0) &
+            write (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
             '--- Use global SSH observation error of ', rms_obs_ssh, 'm'
 
        obs_error_p(:) = rms_obs_ssh
-    ELSE
+    else
 
        ! *** Use variable error from file
-       IF (mype_filter == 0) &
-            WRITE (*,'(a,5x,a,i7)') 'FESOM-PDAF', &
+       if (mype_filter == 0) &
+            write (*,'(a,5x,a,i7)') 'FESOM-PDAF', &
             '--- Use variable SSH observation error from file'
-    END IF
+    end if
 
     ! Set inverse observation error variance
-    ALLOCATE(ivariance_obs_p(dim_obs_p))
-    DO i = 1, dim_obs_p
+    allocate(ivariance_obs_p(dim_obs_p))
+    do i = 1, dim_obs_p
        ivariance_obs_p(i) = 1.0 / obs_error_p(i)**2
-    END DO
+    end do
 
 
 ! ****************************
 ! *** De-bias observations ***
 ! ****************************
 
-    IF (bias_obs_ssh/=0.0 .AND. mype_filter == 0) &
-         WRITE (*, '(a, 5x, a, f12.3)') &
+    if (bias_obs_ssh/=0.0 .and. mype_filter == 0) &
+         write (*, '(a, 5x, a, f12.3)') &
          'FESOM-PDAF', '--- For SSH, use global observation bias of ', bias_obs_ssh
 
     obs_p = obs_p - bias_obs_ssh
@@ -452,7 +452,7 @@ CONTAINS
 ! *** Gather full observation arrays ***
 ! **************************************
 
-    CALL PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_n2d_p, &
+    call PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_n2d_p, &
          thisobs%ncoord, lradius_ssh, dim_obs)
 
 
@@ -471,11 +471,11 @@ CONTAINS
 ! ********************
 
     ! Clean up arrays
-    DEALLOCATE(all_obs_p, all_std_p, obs_error_p)
-    DEALLOCATE(obs_p, ocoord_n2d_p, ivariance_obs_p)
+    deallocate(all_obs_p, all_std_p, obs_error_p)
+    deallocate(obs_p, ocoord_n2d_p, ivariance_obs_p)
     if (allocated(obs_include_index)) deallocate(obs_include_index)
 
-  END SUBROUTINE init_dim_obs_ssh
+  end subroutine init_dim_obs_ssh
 
 
 
@@ -491,29 +491,29 @@ CONTAINS
 !!
 !! The routine is called by all filter processes.
 !!
-  SUBROUTINE obs_op_ssh(dim_p, dim_obs, state_p, ostate)
+  subroutine obs_op_ssh(dim_p, dim_obs, state_p, ostate)
 
-    USE PDAF, &
-         ONLY: PDAFomi_obs_op_gridpoint
+    use PDAF, &
+         only: PDAFomi_obs_op_gridpoint
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in) :: dim_p                 !< PE-local state dimension
-    INTEGER, INTENT(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
-    REAL, INTENT(in)    :: state_p(dim_p)        !< PE-local model state
-    REAL, INTENT(inout) :: ostate(dim_obs)       !< Full observed state
+    integer, intent(in) :: dim_p                 !< PE-local state dimension
+    integer, intent(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
+    real, intent(in)    :: state_p(dim_p)        !< PE-local model state
+    real, intent(inout) :: ostate(dim_obs)       !< Full observed state
 
 
 ! ******************************************************
 ! *** Apply observation operator H on a state vector ***
 ! ******************************************************
 
-    IF (thisobs%doassim == 1) THEN
-       CALL PDAFomi_obs_op_gridpoint(thisobs, state_p, ostate)
-    END IF
+    if (thisobs%doassim == 1) then
+       call PDAFomi_obs_op_gridpoint(thisobs, state_p, ostate)
+    end if
 
-  END SUBROUTINE obs_op_ssh
+  end subroutine obs_op_ssh
 
 
 
@@ -533,42 +533,42 @@ CONTAINS
 !! different localization radius and localization functions
 !! for each observation type and  local analysis domain.
 !!
-  SUBROUTINE init_dim_obs_l_ssh(domain_p, step, dim_obs, dim_obs_l)
+  subroutine init_dim_obs_l_ssh(domain_p, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
-    USE PDAF, ONLY: PDAFomi_init_dim_obs_l
+    use PDAF, only: PDAFomi_init_dim_obs_l
     ! Include routine for adaptive localization radius
-    USE adaptive_lradius_pdaf, ONLY: get_adaptive_lradius_pdaf
+    use adaptive_lradius_pdaf, only: get_adaptive_lradius_pdaf
     ! Include localization radius and local coordinates
-    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
+    use assim_pdaf_mod, only: coords_l, locweight, loctype
     ! Number of domains per sweep:
-    USE fesom_pdaf, ONLY: myDim_nod2D
+    use fesom_pdaf, only: myDim_nod2D
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)  :: domain_p     !< Index of current local analysis domain
-    INTEGER, INTENT(in)  :: step         !< Current time step
-    INTEGER, INTENT(in)  :: dim_obs      !< Full dimension of observation vector
-    INTEGER, INTENT(inout) :: dim_obs_l  !< Local dimension of observation vector
+    integer, intent(in)  :: domain_p     !< Index of current local analysis domain
+    integer, intent(in)  :: step         !< Current time step
+    integer, intent(in)  :: dim_obs      !< Full dimension of observation vector
+    integer, intent(inout) :: dim_obs_l  !< Local dimension of observation vector
 
 
 ! **********************************************
 ! *** Initialize local observation dimension ***
 ! **********************************************
 
-    IF (thisobs%doassim == 1) THEN
-       IF (loctype == 1) THEN
+    if (thisobs%doassim == 1) then
+       if (loctype == 1) then
           ! *** Variable localization radius for fixed effective observation dimension ***
-          CALL get_adaptive_lradius_pdaf(thisobs, modulo(domain_p,myDim_nod2D), lradius_ssh, loc_radius_ssh)
-       END IF
+          call get_adaptive_lradius_pdaf(thisobs, modulo(domain_p,myDim_nod2D), lradius_ssh, loc_radius_ssh)
+       end if
        lradius_ssh = loc_radius_ssh(modulo(domain_p,myDim_nod2D))
 
 
-       CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
+       call PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
             locweight, lradius_ssh, sradius_ssh, dim_obs_l)
-    END IF
+    end if
 
-  END SUBROUTINE init_dim_obs_l_ssh
+  end subroutine init_dim_obs_l_ssh
 
-END MODULE obs_ssh_cmems_pdafomi
+end module obs_ssh_cmems_pdafomi

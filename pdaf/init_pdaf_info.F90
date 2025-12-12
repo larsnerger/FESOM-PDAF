@@ -26,65 +26,63 @@ subroutine init_pdaf_info()
 ! *****************************
     
   if (filtertype == 1) then
-     write (*, '(21x, a)') 'Filter: SEIK'
+     write (*, '(a,21x, a)') 'FESOM-PDAF', 'Filter: SEIK'
      if (subtype == 2) then
-        write (*, '(6x, a)') '-- fixed error-space basis'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- fixed error-space basis'
      else if (subtype == 3) then
-        write (*, '(6x, a)') '-- fixed state covariance matrix'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- fixed state covariance matrix'
      else if (subtype == 4) then
-        write (*, '(6x, a)') '-- use ensemble transformation'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- use ensemble transformation'
      else if (subtype == 5) then
-        write (*, '(6x, a)') '-- Offline mode'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Offline mode'
+     end if
+  else if (filtertype == 2) then
+     write (*, '(a,21x, a)') 'FESOM-PDAF', 'Filter: EnKF'
+     if (subtype == 5) then
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Offline mode'
      end if
   else if (filtertype == 3) then
-     write (*, '(21x, a)') 'Filter: LSEIK'
+     write (*, '(a,21x, a)') 'FESOM-PDAF', 'Filter: LSEIK'
      if (subtype == 2) then
-        write (*, '(6x, a)') '-- fixed error-space basis'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- fixed error-space basis'
      else if (subtype == 3) then
-        write (*, '(6x, a)') '-- fixed state covariance matrix'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- fixed state covariance matrix'
      else if (subtype == 4) then
-        write (*, '(6x, a)') '-- use ensemble transformation'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- use ensemble transformation'
      else if (subtype == 5) then
-        write (*, '(6x, a)') '-- Offline mode'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Offline mode'
      end if
   else if (filtertype == 4) then
-     write (*, '(21x, a)') 'Filter: ETKF'
+     write (*, '(a,21x, a)') 'FESOM-PDAF', 'Filter: ETKF'
      if (subtype == 0) then
-        write (*, '(6x, a)') '-- Variant using T-matrix'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Variant using T-matrix'
      else if (subtype == 1) then
-        write (*, '(6x, a)') '-- Variant following Hunt et al. (2007)'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Variant following Hunt et al. (2007)'
      else if (subtype == 5) then
-        write (*, '(6x, a)') '-- Offline mode'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Offline mode'
      end if
   else if (filtertype == 5) then
-     write (*, '(21x, a)') 'Filter: LETKF'
+     write (*, '(a,21x, a)') 'FESOM-PDAF', 'Filter: LETKF'
      if (subtype == 0) then
-        write (*, '(6x, a)') '-- Variant using T-matrix'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Variant using T-matrix'
      else if (subtype == 1) then
-        write (*, '(6x, a)') '-- Variant following Hunt et al. (2007)'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Variant following Hunt et al. (2007)'
      else if (subtype == 5) then
-        write (*, '(6x, a)') '-- Offline mode'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Offline mode'
      end if
   else if (filtertype == 6) then
-     write (*, '(21x, a)') 'Filter: ESTKF'
+     write (*, '(a,21x, a)') 'FESOM-PDAF', 'Filter: ESTKF'
      if (subtype == 0) then
-        write (*, '(6x, a)') '-- Standard mode'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Standard mode'
      else if (subtype == 5) then
-        write (*, '(6x, a)') '-- Offline mode'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Offline mode'
      end if
   else if (filtertype == 7) then
-     write (*, '(a, 21x, a)') 'FESOM-PDAF','Filter: LESTKF'
+     write (*, '(a,21x, a)') 'FESOM-PDAF', 'Filter: LESTKF'
      if (subtype == 0) then
-        write (*, '(a, 6x, a)') 'FESOM-PDAF','-- Standard mode'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Standard mode'
      else if (subtype == 5) then
-        write (*, '(a, 6x, a)') 'FESOM-PDAF','-- Offline mode'
-     end if
-  else if (filtertype == 100) then
-     write (*, '(a, 6x, a, f5.2)') 'FESOM-PDAF','-- Generate observations --'
-     if (dim_ens>1) then
-        write (*, '(a, 14x, a)') 'FESOM-PDAF','Use ensemble mean for observations'
-     else
-        write (*, '(a, 14x, a)') 'FESOM-PDAF','Generate observations from single ensemble state'
+        write (*, '(a,6x, a)') 'FESOM-PDAF', '-- Offline mode'
      end if
   end if
   write (*, '(a, 14x, a, i5)') 'FESOM-PDAF','ensemble size:', dim_ens

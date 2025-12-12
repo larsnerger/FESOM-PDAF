@@ -48,37 +48,39 @@
 !! * 2019-06 - Lars Nerger - Initial code
 !! * Later revisions - see repository log
 !!
-MODULE obs_o2_comf_pdafomi
+module obs_o2_comf_pdafomi
 
-  USE parallel_pdaf_mod, &
-       ONLY: mype_filter, writepe ! Rank of filter process
-  USE PDAF, &
-       ONLY: obs_f, obs_l         ! Declaration of observation data types
-  USE assim_pdaf_mod, &
-       ONLY: n_sweeps, obs_PP     ! Variables for coupled data assimilation
+  use parallel_pdaf_mod, &
+       only: mype_filter, writepe
+  use PDAF, &                     ! Declaration of observation data types
+       only: obs_f, obs_l
+  use coupled_da_mod, &           ! Variables for coupled DA
+       only: n_sweeps 
+  use assim_pdaf_mod, &
+       only: obs_PP
  
-  IMPLICIT NONE
-  SAVE
+  implicit none
+  save
 
   ! Variables which are inputs to the module (usually set in init_pdaf)
-  LOGICAL :: assim_o_o2_comf   !< Whether to assimilate
+  logical :: assim_o_o2_comf   !< Whether to assimilate
 
   ! Further variables specific for the EN4 profile observations
-  CHARACTER(len=110) :: path_obs_o2_comf  = ''      !< Path to profile observations
-  CHARACTER(len=110) :: file_o2_comf
+  character(len=110) :: path_obs_o2_comf  = ''      !< Path to profile observations
+  character(len=110) :: file_o2_comf
 
-  REAL    :: rms_obs_o2_comf      ! Observation error
-  REAL    :: bias_obs_o2_comf     ! Observation bias
+  real    :: rms_obs_o2_comf      ! Observation error
+  real    :: bias_obs_o2_comf     ! Observation bias
 
-  REAL    :: lradius_o2_comf      ! Localization radius
-  REAL    :: sradius_o2_comf      ! Support radius for localization function
+  real    :: lradius_o2_comf      ! Localization radius
+  real    :: sradius_o2_comf      ! Support radius for localization function
 
-  REAL    :: o2_comf_exclude_diff ! Limit difference beyond which observations are excluded (0.0 to deactivate)
+  real    :: o2_comf_exclude_diff ! Limit difference beyond which observations are excluded (0.0 to deactivate)
 
-  REAL, ALLOCATABLE :: mean_O2_p(:)            ! ensemble mean for observation exclusion
-  REAL, ALLOCATABLE :: loc_radius_o2_comf(:)   ! localization radius array
+  real, allocatable :: mean_O2_p(:)            ! ensemble mean for observation exclusion
+  real, allocatable :: loc_radius_o2_comf(:)   ! localization radius array
   
-  REAL, ALLOCATABLE :: ivariance_obs_g(:)      ! global-earth inverse observation variances
+  real, allocatable :: ivariance_obs_g(:)      ! global-earth inverse observation variances
 
 
 ! ***********************************************************************
@@ -134,13 +136,13 @@ MODULE obs_o2_comf_pdafomi
 
 ! Declare instances of observation data types used here
 ! We use generic names here, but one could renamed the variables
-  TYPE(obs_f), TARGET, PUBLIC :: thisobs      ! full observation
-  TYPE(obs_l), TARGET, PUBLIC :: thisobs_l    ! local observation
+  type(obs_f), target, public :: thisobs      ! full observation
+  type(obs_l), target, public :: thisobs_l    ! local observation
   
   type(obs_PP) :: thisobs_PP
   type(obs_PP) :: thisobs_PP_f
   
-  LOGICAL :: isPP = .false.                 ! T: for postprocessing of simulation output
+  logical :: isPP = .false.                 ! T: for postprocessing of simulation output
                                             ! F: for assimilation
 
 !$OMP THREADPRIVATE(thisobs_l)
@@ -148,7 +150,7 @@ MODULE obs_o2_comf_pdafomi
 
 !-------------------------------------------------------------------------------
 
-CONTAINS
+contains
 
 !> Initialize information on the module-type observation
 !!
@@ -177,93 +179,93 @@ CONTAINS
 !!
 !! Further variables are set when the routine PDAFomi_gather_obs is called.
 !!
-  SUBROUTINE init_dim_obs_o2_comf(step, dim_obs)
+  subroutine init_dim_obs_o2_comf(step, dim_obs)
 
-    USE PDAF, &
-         ONLY: PDAFomi_gather_obs, PDAFomi_set_debug_flag
-    USE assim_pdaf_mod, &
-         ONLY: use_global_obs, cradius, sradius
-    USE fesom_pdaf, &
+    use PDAF, &
+         only: PDAFomi_gather_obs, PDAFomi_set_debug_flag
+    use assim_pdaf_mod, &
+         only: use_global_obs, cradius, sradius
+    use fesom_pdaf, &
          only: mesh_fesom, nlmax, mydim_nod2d, &
          month, day_in_month, yearnew, timenew, daynew, pi
-    USE statevector_pdaf, &
-         ONLY: id, sfields
-    USE parallel_pdaf_mod, &
-         ONLY: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
+    use statevector_pdaf, &
+         only: id, sfields
+    use parallel_pdaf_mod, &
+         only: MPI_SUM, MPIerr, COMM_filter, MPI_INTEGER
          
-    USE netcdf
+    use netcdf
 
-    IMPLICIT NONE
+    implicit none
 
 !~     INCLUDE 'netcdf.inc'
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)    :: step      !< Current time step
-    INTEGER, INTENT(inout) :: dim_obs   !< Dimension of full observation vector
+    integer, intent(in)    :: step      !< Current time step
+    integer, intent(inout) :: dim_obs   !< Dimension of full observation vector
 
 ! *** Local variables ***
-    INTEGER :: i, s, k, j, e, e_reps, e_found ! Counters
-    CHARACTER(len=2) :: mype_string           ! String for process rank
-    CHARACTER(len=4) :: year_string           ! String for yearly observation data path
-    CHARACTER(len=2) :: mon_string            ! String for daily observation files
-    CHARACTER(len=2) :: day_string            ! String for daily observation files
+    integer :: i, s, k, j, e, e_reps, e_found ! Counters
+    character(len=2) :: mype_string           ! String for process rank
+    character(len=4) :: year_string           ! String for yearly observation data path
+    character(len=2) :: mon_string            ! String for daily observation files
+    character(len=2) :: day_string            ! String for daily observation files
     
     ! observation data containing repetitions in case of repeatedly sampled elements
-    INTEGER :: dim_obs_p_reps                         ! Number of process local observations
-    REAL, ALLOCATABLE :: obs_p_reps(:)                ! PE-local observation values
-    REAL, ALLOCATABLE :: lon_p_reps(:),lat_p_reps(:)  ! PE-local observed coords
-    INTEGER, ALLOCATABLE :: nod1_p_reps(:), &
+    integer :: dim_obs_p_reps                         ! Number of process local observations
+    real, allocatable :: obs_p_reps(:)                ! PE-local observation values
+    real, allocatable :: lon_p_reps(:),lat_p_reps(:)  ! PE-local observed coords
+    integer, allocatable :: nod1_p_reps(:), &
                             nod2_p_reps(:), &
                             nod3_p_reps(:)            ! PE-local observed node/element indices
-    INTEGER, ALLOCATABLE :: elem_p_reps(:)
-    INTEGER, ALLOCATABLE :: nod1_g_reps(:), &
+    integer, allocatable :: elem_p_reps(:)
+    integer, allocatable :: nod1_g_reps(:), &
                             nod2_g_reps(:), &
                             nod3_g_reps(:)            ! Global observed node/element indices
-    INTEGER, ALLOCATABLE :: elem_g_reps(:)
-    INTEGER, ALLOCATABLE :: nl_p_reps(:), &
+    integer, allocatable :: elem_g_reps(:)
+    integer, allocatable :: nl_p_reps(:), &
                             depth_p_reps(:)
     
-    LOGICAL :: is_unique
+    logical :: is_unique
     
     ! unique observation data: for each element, sorted array holds sum of all samples
-    REAL, ALLOCATABLE :: obs_p_sorted(:)
-    REAL, ALLOCATABLE :: x_p(:), y_p(:), z_p(:)
-    INTEGER, ALLOCATABLE :: nod1_p_sorted(:), &
+    real, allocatable :: obs_p_sorted(:)
+    real, allocatable :: x_p(:), y_p(:), z_p(:)
+    integer, allocatable :: nod1_p_sorted(:), &
                             nod2_p_sorted(:), &
                             nod3_p_sorted(:)
-    INTEGER, ALLOCATABLE :: elem_p_sorted(:)
-    INTEGER, ALLOCATABLE :: nod1_g_sorted(:), &
+    integer, allocatable :: elem_p_sorted(:)
+    integer, allocatable :: nod1_g_sorted(:), &
                             nod2_g_sorted(:), &
                             nod3_g_sorted(:)
-    INTEGER, ALLOCATABLE :: elem_g_sorted(:)
-    INTEGER, ALLOCATABLE :: nl_p_sorted(:), &
+    integer, allocatable :: elem_g_sorted(:)
+    integer, allocatable :: nl_p_sorted(:), &
                             depth_p_sorted(:)
-    INTEGER, ALLOCATABLE :: numrep_p(:)       ! number of observations at each element
+    integer, allocatable :: numrep_p(:)       ! number of observations at each element
     
     ! observation data after averaging over samples for each element, trimmed arrays:
-    INTEGER :: dim_obs_p                      ! Number of process local observations
+    integer :: dim_obs_p                      ! Number of process local observations
     
-    REAL, ALLOCATABLE :: obs_p(:)             ! PE-local observed observation values
-    REAL, ALLOCATABLE :: ocoord_p(:,:)        ! PE-local coordinates of observations
-    REAL, ALLOCATABLE :: lon_p(:),lat_p(:)
-    REAL, ALLOCATABLE :: ivariance_obs_p(:)   ! PE-local array of observation errors
-    INTEGER, ALLOCATABLE :: nod1_p(:), &
+    real, allocatable :: obs_p(:)             ! PE-local observed observation values
+    real, allocatable :: ocoord_p(:,:)        ! PE-local coordinates of observations
+    real, allocatable :: lon_p(:),lat_p(:)
+    real, allocatable :: ivariance_obs_p(:)   ! PE-local array of observation errors
+    integer, allocatable :: nod1_p(:), &
                             nod2_p(:), &
                             nod3_p(:)         ! Array of observation pe-local indices on FESOM grid
-    INTEGER, ALLOCATABLE :: elem_p(:)
-    INTEGER, ALLOCATABLE :: nl_p(:)           ! Array of observation layer indices
+    integer, allocatable :: elem_p(:)
+    integer, allocatable :: nl_p(:)           ! Array of observation layer indices
     
-    INTEGER :: ncstat                         ! Status for NetCDF functions
-    INTEGER :: ncid, dimid                    ! NetCDF IDs
-    INTEGER :: id_obs, id_nod1, id_nod2, &
+    integer :: ncstat                         ! Status for NetCDF functions
+    integer :: ncid, dimid                    ! NetCDF IDs
+    integer :: id_obs, id_nod1, id_nod2, &
                id_nod3, id_nl, id_lon, &
                id_lat, id_depth, id_elem
                
-    INTEGER :: cnt_ex_dry_p, cnt_ex_dry       ! Number of excluded observations due to model topography ("dry nodes")
-    INTEGER :: nzmin                          ! Number of wet vertical model layers at observation location considering model topography
+    integer :: cnt_ex_dry_p, cnt_ex_dry       ! Number of excluded observations due to model topography ("dry nodes")
+    integer :: nzmin                          ! Number of wet vertical model layers at observation location considering model topography
     
-    REAL :: deg2rad
-    REAL :: rad2deg
+    real :: deg2rad
+    real :: rad2deg
     
     deg2rad = PI/180.0
     rad2deg = 180.0/PI
@@ -293,41 +295,41 @@ CONTAINS
 ! **********************************
 
     ! Daily files: nitialize complete file name
-    WRITE(mype_string,'(i2.2)') mype_filter
-    WRITE(year_string,'(i4.4)') yearnew
-    WRITE(mon_string, '(i2.2)') month
-    WRITE(day_string, '(i2.2)') day_in_month
+    write(mype_string,'(i2.2)') mype_filter
+    write(year_string,'(i4.4)') yearnew
+    write(mon_string, '(i2.2)') month
+    write(day_string, '(i2.2)') day_in_month
     
-    file_o2_comf = TRIM(year_string//'-'//mon_string//'-'//day_string//'.'//mype_string//'.nc')
+    file_o2_comf = trim(year_string//'-'//mon_string//'-'//day_string//'.'//mype_string//'.nc')
     
     ! Message:
-    IF (step < 0) then
+    if (step < 0) then
         ! ---
         ! Postprocessing
         ! ---
         isPP = .true.
-        if (writepe) WRITE (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
+        if (writepe) write (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
             'FESOM-PDAF', 'Postprocessing of COMFORT O2 observations at', &
             day_in_month, '.', month, '.', yearnew, timenew/3600.0,&
             'h; read from file:', file_o2_comf
         thisobs%use_global_obs = 1
         thisobs%doassim = 1
-    ELSE
+    else
        ! ---
        ! Assimilation
        ! ---
-       if (writepe) WRITE (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
+       if (writepe) write (*,'(a,5x,a,1x,i2,a1,i2,a1,i4,1x,f5.2,a,1x,a)') &
             'FESOM-PDAF', 'Assimilate COMFORT O2 observations at', &
             day_in_month, '.', month, '.', yearnew, timenew/3600.0,&
             'h; read from file:', file_o2_comf
        ! Store whether to use global observations
        thisobs%use_global_obs = use_global_obs
        ! Store whether to assimilate this observation type
-       IF (assim_o_o2_comf) thisobs%doassim = 1
-    END IF
+       if (assim_o_o2_comf) thisobs%doassim = 1
+    end if
     
     ! Open the pe-local NetCDF file for that day
-    ncstat = nf90_open(TRIM(path_obs_o2_comf)//year_string//'/dist72/'//file_o2_comf, nf90_nowrite, ncid)
+    ncstat = nf90_open(trim(path_obs_o2_comf)//year_string//'/dist72/'//file_o2_comf, nf90_nowrite, ncid)
     if (ncstat /= nf90_noerr) then
      print *, 'FESOM-PDAF - obs_o2_comf_pdafomi - Error opening NetCDF file'
     end if
@@ -346,7 +348,7 @@ CONTAINS
     cnt_ex_dry_p = 0
     cnt_ex_dry   = 0
     
-    IF (dim_obs_p_reps <= 0) THEN
+    if (dim_obs_p_reps <= 0) then
     
       allocate(obs_p(1))
       allocate(ivariance_obs_p(1))
@@ -371,7 +373,7 @@ CONTAINS
       
 !~       print *, 'FESOM-PDAF - obs_o2_comf_pdafomi - No obs_p'
       
-    ELSE ! (i.e. dim_obs_p > 0)
+    else ! (i.e. dim_obs_p > 0)
     
       ! Allocate memory before reading from netCDF
       allocate(obs_p_reps(dim_obs_p_reps))
@@ -470,12 +472,12 @@ CONTAINS
       dim_obs_p = 0 ! Number of observations without duplicates
       e_found = 0
       
-      ALLOCATE(obs_p_sorted(dim_obs_p_reps))
-      ALLOCATE(elem_p_sorted(dim_obs_p_reps))
-      ALLOCATE(nl_p_sorted(dim_obs_p_reps))
-      ALLOCATE(nod1_p_sorted(dim_obs_p_reps),nod2_p_sorted(dim_obs_p_reps),nod3_p_sorted(dim_obs_p_reps))
-      ALLOCATE(x_p(dim_obs_p_reps),y_p(dim_obs_p_reps),z_p(dim_obs_p_reps))
-      ALLOCATE(numrep_p(dim_obs_p_reps))
+      allocate(obs_p_sorted(dim_obs_p_reps))
+      allocate(elem_p_sorted(dim_obs_p_reps))
+      allocate(nl_p_sorted(dim_obs_p_reps))
+      allocate(nod1_p_sorted(dim_obs_p_reps),nod2_p_sorted(dim_obs_p_reps),nod3_p_sorted(dim_obs_p_reps))
+      allocate(x_p(dim_obs_p_reps),y_p(dim_obs_p_reps),z_p(dim_obs_p_reps))
+      allocate(numrep_p(dim_obs_p_reps))
       
       obs_p_sorted(:)  = 0
       elem_p_sorted(:) = 0
@@ -489,9 +491,9 @@ CONTAINS
       numrep_p(:) = 0
       
       if (isPP) then
-         ALLOCATE(elem_g_sorted(dim_obs_p_reps))
-         ALLOCATE(nod1_g_sorted(dim_obs_p_reps),nod2_g_sorted(dim_obs_p_reps),nod3_g_sorted(dim_obs_p_reps))
-         ALLOCATE(depth_p_sorted(dim_obs_p_reps))
+         allocate(elem_g_sorted(dim_obs_p_reps))
+         allocate(nod1_g_sorted(dim_obs_p_reps),nod2_g_sorted(dim_obs_p_reps),nod3_g_sorted(dim_obs_p_reps))
+         allocate(depth_p_sorted(dim_obs_p_reps))
          elem_g_sorted(:)=0.0
          nod1_g_sorted(:) = 0
          nod2_g_sorted(:) = 0
@@ -500,26 +502,26 @@ CONTAINS
       endif ! isPP
       
       ! go through repreated observations one-by-one:
-      do_elem_p_reps: DO e_reps=1, dim_obs_p_reps
+      do_elem_p_reps: do e_reps=1, dim_obs_p_reps
          
-         IF (obs_p_reps(e_reps)>=10.0) THEN
+         if (obs_p_reps(e_reps)>=10.0) then
          ! O2 observations apparently spurious/small: exclusion
          ! else, continue here:
          
             is_unique = .true.
             
             ! searching for previous occurence of elem(e_reps) and nl(e_reps) within sorted arrays:
-            do_elem_p: DO e=1,dim_obs_p
+            do_elem_p: do e=1,dim_obs_p
                
-               IF ((elem_p_reps(e_reps)==elem_p_sorted(e)) .and. &
-                   (nl_p_reps  (e_reps)==nl_p_sorted(e))) THEN
+               if ((elem_p_reps(e_reps)==elem_p_sorted(e)) .and. &
+                   (nl_p_reps  (e_reps)==nl_p_sorted(e))) then
                   is_unique = .false.
                   e_found   = e
-                  EXIT ! --> found previous occurence at e; stop searching.
-               ENDIF
-            ENDDO do_elem_p
+                  exit ! --> found previous occurence at e; stop searching.
+               endif
+            enddo do_elem_p
             
-            IF (.not. is_unique) THEN
+            if (.not. is_unique) then
             ! --> already have observations of elem(e_reps) at e_found:
                 
                 ! number of observations at e:
@@ -531,16 +533,16 @@ CONTAINS
                 ! adding to mean coordinate,
                 ! transforming to cartesian coordinates:
                 x_p(e_found) = x_p(e_found) &
-                            + COS(deg2rad*lat_p_reps(e_reps)) * COS(deg2rad*lon_p_reps(e_reps))
+                            + cos(deg2rad*lat_p_reps(e_reps)) * cos(deg2rad*lon_p_reps(e_reps))
                 y_p(e_found) = y_p(e_found) &
-                            + COS(deg2rad*lat_p_reps(e_reps)) * SIN(deg2rad*lon_p_reps(e_reps))
+                            + cos(deg2rad*lat_p_reps(e_reps)) * sin(deg2rad*lon_p_reps(e_reps))
                 z_p(e_found) = z_p(e_found) &
-                            + SIN(deg2rad*lat_p_reps(e_reps))
+                            + sin(deg2rad*lat_p_reps(e_reps))
                             
                 ! adding to mean depth:
-                IF (isPP) depth_p_sorted(e_found) = depth_p_sorted(e_found) + depth_p_reps(e_reps)
+                if (isPP) depth_p_sorted(e_found) = depth_p_sorted(e_found) + depth_p_reps(e_reps)
                
-            ELSE
+            else
             ! --> is the first or only observation at elem(e_reps)
                
                dim_obs_p = dim_obs_p + 1
@@ -562,38 +564,38 @@ CONTAINS
                endif ! isPP
 
                ! transforming to cartesian coordinates:
-               x_p(dim_obs_p) = COS(deg2rad*lat_p_reps(e_reps)) * COS(deg2rad*lon_p_reps(e_reps))
-               y_p(dim_obs_p) = COS(deg2rad*lat_p_reps(e_reps)) * SIN(deg2rad*lon_p_reps(e_reps))
-               z_p(dim_obs_p) = SIN(deg2rad*lat_p_reps(e_reps))
+               x_p(dim_obs_p) = cos(deg2rad*lat_p_reps(e_reps)) * cos(deg2rad*lon_p_reps(e_reps))
+               y_p(dim_obs_p) = cos(deg2rad*lat_p_reps(e_reps)) * sin(deg2rad*lon_p_reps(e_reps))
+               z_p(dim_obs_p) = sin(deg2rad*lat_p_reps(e_reps))
 
-            ENDIF ! is_unique
-         ENDIF ! obs >= 10.0
-      ENDDO do_elem_p_reps
+            endif ! is_unique
+         endif ! obs >= 10.0
+      enddo do_elem_p_reps
       
       ! Averaging repetitive samples
       allocate(obs_p(dim_obs_p))
       allocate(lon_p(dim_obs_p),lat_p(dim_obs_p))
       
-      DO e=1,dim_obs_p
+      do e=1,dim_obs_p
         
         ! observation mean
-        obs_p(e) = obs_p_sorted(e)/REAL(numrep_p(e))
+        obs_p(e) = obs_p_sorted(e)/real(numrep_p(e))
         
         ! mean location (in cartesian coordinates)
-        x_p(e) = x_p(e)/REAL(numrep_p(e))
-        y_p(e) = y_p(e)/REAL(numrep_p(e))
-        z_p(e) = z_p(e)/REAL(numrep_p(e))
+        x_p(e) = x_p(e)/real(numrep_p(e))
+        y_p(e) = y_p(e)/real(numrep_p(e))
+        z_p(e) = z_p(e)/real(numrep_p(e))
         
         ! mean depth
         if (isPP) then
-           depth_p_sorted(e) = depth_p_sorted(e)/REAL(numrep_p(e))
+           depth_p_sorted(e) = depth_p_sorted(e)/real(numrep_p(e))
         endif
         
         ! transforming to spherical coordinates
-        lat_p(e) = ATAN2( z_p(e), SQRT(x_p(e)*x_p(e) + y_p(e)*y_p(e)) )
-        lon_p(e) = ATAN2( y_p(e), x_p(e))
+        lat_p(e) = atan2( z_p(e), sqrt(x_p(e)*x_p(e) + y_p(e)*y_p(e)) )
+        lon_p(e) = atan2( y_p(e), x_p(e))
         
-      ENDDO
+      enddo
       
 !~       print *, 'FESOM-PDAF - obs_o2_comf_pdafomi - Have obs (excl. repetitions): ', dim_obs_p
       
@@ -628,7 +630,7 @@ CONTAINS
       ocoord_p(2,:) = lat_p
       
       ! *** Set constant observation error *** 
-      IF (writepe) WRITE (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
+      if (writepe) write (*, '(a, 5x, a, f12.3, a)') 'FESOM-PDAF', &
       '--- Use global COMFORT O2 observation error of ', rms_obs_o2_comf, ' mmol/m3'
       ! Set inverse observation error variance
       ivariance_obs_p(:) = 1.0 / (rms_obs_o2_comf ** 2)
@@ -640,43 +642,43 @@ CONTAINS
       ! This array has as many rows as required for the observation operator
       ! 1 if observations are at grid points; >1 if interpolation is required
       allocate(thisobs%id_obs_p(3,dim_obs_p))
-      DO i = 1, dim_obs_p
+      do i = 1, dim_obs_p
         thisobs%id_obs_p(1,i) = (nlmax) * (nod1_p_sorted(i)-1) + nl_p_sorted(i) + sfields(id%O2)%off
         thisobs%id_obs_p(2,i) = (nlmax) * (nod2_p_sorted(i)-1) + nl_p_sorted(i) + sfields(id%O2)%off
         thisobs%id_obs_p(3,i) = (nlmax) * (nod3_p_sorted(i)-1) + nl_p_sorted(i) + sfields(id%O2)%off
         
       ! *** exclude observations at dry nodes ***
       ! number of layers at nodes considering bottom topography: mesh_fesom% nlevels_nod2D
-        nzmin = MIN ( mesh_fesom% nlevels_nod2D( nod1_p_sorted(i) ), &
+        nzmin = min ( mesh_fesom% nlevels_nod2D( nod1_p_sorted(i) ), &
                       mesh_fesom% nlevels_nod2D( nod2_p_sorted(i) ), &
                       mesh_fesom% nlevels_nod2D( nod3_p_sorted(i) ))
                       
-        IF (nl_p_sorted(i) >= nzmin) THEN
+        if (nl_p_sorted(i) >= nzmin) then
            ivariance_obs_p(i) = 1e-12
            cnt_ex_dry_p = cnt_ex_dry_p + 1
            if (isPP) thisobs_PP%isExclObs(i) = 1
-        ENDIF
+        endif
        
-      END DO
+      end do
       
-    ENDIF ! IF (dim_obs_p = 0) ELSEIF (dim_obs_p > 0)
+    endif ! IF (dim_obs_p = 0) ELSEIF (dim_obs_p > 0)
     
-    CALL MPI_Allreduce(cnt_ex_dry_p, cnt_ex_dry, 1, MPI_INTEGER, MPI_SUM, &
+    call MPI_Allreduce(cnt_ex_dry_p, cnt_ex_dry, 1, MPI_INTEGER, MPI_SUM, &
             COMM_filter, MPIerr)
 
-    IF (mype_filter == 0) &
-            WRITE (*,'(a,5x,a,2x,i7)') 'REcoM-PDAF', &
+    if (mype_filter == 0) &
+            write (*,'(a,5x,a,2x,i7)') 'REcoM-PDAF', &
             '--- O2 COMFORT observations excluded due to topography: ', cnt_ex_dry
     
     ! **************************************
     ! *** Gather full observation arrays ***
     ! **************************************
 
-    CALL PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_p, &
+    call PDAFomi_gather_obs(thisobs, dim_obs_p, obs_p, ivariance_obs_p, ocoord_p, &
                             thisobs%ncoord, lradius_o2_comf, dim_obs)
                               
-    IF (mype_filter == 0) &
-        WRITE (*, '(a, 5x, a, i)') 'FESOM-PDAF', &
+    if (mype_filter == 0) &
+        write (*, '(a, 5x, a, i)') 'FESOM-PDAF', &
         '--- Full COMFORT O2 observations have been gathered; dim_obs is ', dim_obs
     
     ! Global inverse variance array (thisobs%ivar_obs_f)
@@ -697,14 +699,14 @@ CONTAINS
     
     deallocate(ivariance_obs_p,ocoord_p,obs_p)
     deallocate(lat_p,lon_p)
-    IF (dim_obs_p_reps>0) THEN
+    if (dim_obs_p_reps>0) then
       deallocate(nod1_p_sorted,nod2_p_sorted,nod3_p_sorted,obs_p_sorted,elem_p_sorted,nl_p_sorted)
       deallocate(nod1_p_reps,nod2_p_reps,nod3_p_reps,lon_p_reps,lat_p_reps,obs_p_reps,elem_p_reps,nl_p_reps)
       deallocate(x_p,y_p,z_p,numrep_p)
-    ENDIF
+    endif
     ! this_obs%id_obs_p is deallocated in PDAFomi_obs_l.F90
 
-  END SUBROUTINE init_dim_obs_o2_comf
+  end subroutine init_dim_obs_o2_comf
 
 
 
@@ -720,19 +722,19 @@ CONTAINS
 !!
 !! The routine is called by all filter processes.
 !!
-  SUBROUTINE obs_op_o2_comf(dim_p, dim_obs, state_p, ostate)
+  subroutine obs_op_o2_comf(dim_p, dim_obs, state_p, ostate)
 
-    USE PDAF, &
-         ONLY: PDAFomi_obs_op_gridavg, &
+    use PDAF, &
+         only: PDAFomi_obs_op_gridavg, &
          PDAFomi_set_debug_flag
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in) :: dim_p                 !< PE-local state dimension
-    INTEGER, INTENT(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
-    REAL, INTENT(in)    :: state_p(dim_p)        !< PE-local model state
-    REAL, INTENT(inout) :: ostate(dim_obs)       !< Full observed state
+    integer, intent(in) :: dim_p                 !< PE-local state dimension
+    integer, intent(in) :: dim_obs               !< Dimension of full observed state (all observed fields)
+    real, intent(in)    :: state_p(dim_p)        !< PE-local model state
+    real, intent(inout) :: ostate(dim_obs)       !< Full observed state
 
 ! ******************************************************
 ! *** Apply observation operator H on a state vector ***
@@ -742,11 +744,11 @@ CONTAINS
 ! operator has to average the values of 3 grid points.
 ! For this the observation operator OBS_OP_F_GRIDAVG is used.
 
-    IF (thisobs%doassim == 1) THEN
-       CALL PDAFomi_obs_op_gridavg(thisobs, 3, state_p, ostate)
-    END IF
+    if (thisobs%doassim == 1) then
+       call PDAFomi_obs_op_gridavg(thisobs, 3, state_p, ostate)
+    end if
 
-  END SUBROUTINE obs_op_o2_comf
+  end subroutine obs_op_o2_comf
 
 
 
@@ -766,27 +768,27 @@ CONTAINS
 !! different localization radius and localization functions
 !! for each observation type and  local analysis domain.
 !!
-  SUBROUTINE init_dim_obs_l_o2_comf(domain_p, step, dim_obs, dim_obs_l)
+  subroutine init_dim_obs_l_o2_comf(domain_p, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
-    USE PDAF, ONLY: PDAFomi_init_dim_obs_l
+    use PDAF, only: PDAFomi_init_dim_obs_l
 
     ! Include localization radius and local coordinates
-    USE assim_pdaf_mod, ONLY: coords_l, locweight, loctype
+    use assim_pdaf_mod, only: coords_l, locweight, loctype
     
     ! Number of domains per sweep:
-    USE fesom_pdaf, ONLY: myDim_nod2D
+    use fesom_pdaf, only: myDim_nod2D
 
-    IMPLICIT NONE
+    implicit none
 
 ! *** Arguments ***
-    INTEGER, INTENT(in)  :: domain_p     !< Index of current local analysis domain: containing repititive sweeps
-    INTEGER, INTENT(in)  :: step         !< Current time step
-    INTEGER, INTENT(in)  :: dim_obs      !< Full dimension of observation vector
-    INTEGER, INTENT(inout) :: dim_obs_l  !< Local dimension of observation vector
+    integer, intent(in)  :: domain_p     !< Index of current local analysis domain: containing repititive sweeps
+    integer, intent(in)  :: step         !< Current time step
+    integer, intent(in)  :: dim_obs      !< Full dimension of observation vector
+    integer, intent(inout) :: dim_obs_l  !< Local dimension of observation vector
 
 
-    IF (thisobs%doassim == 1) THEN
+    if (thisobs%doassim == 1) then
     
        ! ************************************************************
        ! *** Adapt observation error for coupled DA (double loop) ***
@@ -815,10 +817,10 @@ CONTAINS
        ! **********************************************
        ! *** Initialize local observation dimension ***
        ! **********************************************
-       CALL PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
+       call PDAFomi_init_dim_obs_l(thisobs_l, thisobs, coords_l, &
             locweight, lradius_o2_comf, sradius_o2_comf, dim_obs_l)
     
-     END IF ! thisobs%doassim
-  END SUBROUTINE init_dim_obs_l_o2_comf
+     end if ! thisobs%doassim
+  end subroutine init_dim_obs_l_o2_comf
 
-END MODULE obs_o2_comf_pdafomi
+end module obs_o2_comf_pdafomi

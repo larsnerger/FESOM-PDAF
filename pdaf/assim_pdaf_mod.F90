@@ -40,7 +40,6 @@ module assim_pdaf_mod
        end_year_o
   integer :: use_global_obs   ! When to use global observations, or limited to sub-domain plus localiation halo
   integer :: dim_obs_max      ! Expect max. number of observations for synthetic obs.
-  integer :: DA_couple_type   ! (0) for weakly-coupled, (1) for strongly-coupled assimilation
   logical :: resetforget      ! Whether to reset forgetting factor after initial phase
 
   ! which fields to perturb
@@ -93,20 +92,11 @@ module assim_pdaf_mod
                                               ! distribute_state: - at start from perturbed ensemble, skip distribution of initial fields
 
 
-  logical :: assimilateBGC = .false. ! whether to do a BGC assimilation step
-  logical :: assimilatePHY = .false. ! whether to do a physics assimilation step
 
   ! Other variables - NOT available as command line options / in the namelist:
 
   ! Julian-Gregorian date transformation of EN4 raw data 
   integer :: num_day_in_month(0:1,12)
-
-  ! For weakly coupled DA:
-  integer :: n_sweeps                 !< Number of sweeps in local analysis loop
-  character(len=3) :: type_sweep(2)   !< Type of sweep in local analysis loop
-  integer :: isweep                   !< Index of sweep during the local analysis loop
-  character(len=6) :: cda_phy         !< Flag whether strongly-coupled DA is done for physics data
-  character(len=6) :: cda_bio         !< Flag whether strongly-coupled DA is done for bgc data
 
   ! Initial state in case of restarts:
   real, allocatable :: state_p_init(:)
