@@ -17,7 +17,6 @@ file in the main dirceory of FESOM.
 
 
 # Notes for compilation
-* 
 * The PDAF library should be compiled separately. The compilation has to be
    consistent with the compile configuration of FESOM.
    (e.g. same compiler and MPI library)
