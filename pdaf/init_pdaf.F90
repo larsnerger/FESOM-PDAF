@@ -281,12 +281,12 @@ contains
 ! *************************************************
 
     if (perturb_params_bio .and. dim_ens>1) then
-       if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Perturbing BGC parameters'
+       if (mype_model==0 .and. task_id==1) write(*,'(a,2x,a)') 'FESOM-PDAF', '*** Perturbing BGC parameters ***'
        call do_perturb_param_bio()
     endif
 
     if (perturb_params_phy .and. dim_ens>1) then
-       if (mype_model==0 .and. task_id==1) write(*,*) 'FESOM-PDAF', 'Perturbing PHY parameters'
+       if (mype_model==0 .and. task_id==1) write(*,'(a,2x,a)') 'FESOM-PDAF', '*** Perturbing PHY parameters ***'
        call do_perturb_param_phy()
     endif
 
