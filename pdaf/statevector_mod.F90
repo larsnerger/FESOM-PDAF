@@ -124,6 +124,86 @@ module statevector_pdaf
 
 contains
 
+
+! ===================================================================================
+
+!> Calculate the dimension of the process-local statevector.
+!!
+!! This routine is generic. case-specific adaptions should only
+!! by done in the routines init_id and init_sfields.
+!!
+  subroutine setup_statevector(dim_state, dim_state_p, screen)
+
+    use parallel_pdaf_mod, &
+         only: mype=>mype_ens, npes=>npes_ens, task_id, comm_ensemble, &
+         comm_model, MPI_SUM, MPI_INTEGER, MPIerr
+
+    implicit none
+
+! *** Arguments ***
+    integer, intent(out) :: dim_state    !< Global dimension of state vector
+    integer, intent(out) :: dim_state_p  !< Local dimension of state vector
+    integer, intent(in)  :: screen       !< Verbosity flag
+
+! *** Local variables ***
+    integer :: i                 ! Counters
+
+
+! ***********************************
+! *** Initialize the state vector ***
+! ***********************************
+
+! *** Initialize array `id` ***
+
+    call init_id(nfields)
+
+! *** Initialize array `sfields` ***
+
+    call init_sfields()
+    call set_updated()
+    call set_field_types(screen)
+
+! *** Set state vector dimension ***
+
+    dim_state_p = sum(sfields(:)%dim)
+
+! *** Write information about the state vector ***
+
+    if (mype==0) then
+       write (*,'(/a,2x,a)') 'FESOM-PDAF', '*** Setup of state vector ***'
+       write (*,'(a,5x,a,i5)') 'FESOM-PDAF', '--- Number of fields in state vector:', nfields
+       write (*,'(a,a4,3x,a2,2x,a8,4x,a5,6x,a3,7x,a6,4x,a6,2x,a3,1x,a6)') &
+            'FESOM-PDAF','pe','ID', 'variable', 'ndims', 'dim', 'offset', 'update', 'BGC', 'tracer'
+    end if
+
+    if (mype==0 .or. (task_id==1 .and. screen>2)) then
+       do i = 1, nfields
+          write (*,'(a, i4, i5,3x,a10,2x,i3,2x,i10,3x,i10,4x,l,4x,l,2x,i4)') 'FESOM-PDAF', &
+               mype, i, sfields(i)%variable, sfields(i)%ndims, sfields(i)%dim, sfields(i)%off, sfields(i)%updated, &
+               sfields(i)%bgc, sfields(i)%trnumfesom
+       end do
+    end if
+
+    if (npes==1) then
+       write (*,'(a,2x,a,1x,i10)') 'FESOM-PDAF', 'Full state dimension: ',dim_state_p
+    else
+       if (task_id==1) then
+          if (screen>2 .or. mype==0) &
+               write (*,'(a,2x,a,1x,i4,2x,a,1x,i10)') &
+               'FESOM-PDAF', 'PE', mype, 'PE-local full state dimension: ',dim_state_p
+
+          call MPI_Reduce(dim_state_p, dim_state, 1, MPI_INTEGER, MPI_SUM, 0, COMM_model, MPIerr)
+          if (mype==0) then
+             write (*,'(a,2x,a,1x,i10)') 'FESOM-PDAF', 'Global state dimension: ',dim_state
+          end if
+       end if
+    end if
+    call MPI_Barrier(comm_ensemble, MPIerr)
+
+  end subroutine setup_statevector
+
+
+!> Calculate the dimension of the process-local statevector.
 !> This routine initializes the array `id`
 !!
   subroutine init_id(nfields)
@@ -1056,82 +1136,5 @@ contains
     endif
 
   end subroutine set_updated
-
-! ===================================================================================
-
-!> Calculate the dimension of the process-local statevector.
-!!
-!! This routine is generic. case-specific adaptions should only
-!! by done in the routines init_id and init_sfields.
-!!
-  subroutine setup_statevector(dim_state, dim_state_p, screen)
-
-    use parallel_pdaf_mod, &
-         only: mype=>mype_ens, npes=>npes_ens, task_id, comm_ensemble, &
-         comm_model, MPI_SUM, MPI_INTEGER, MPIerr
-
-    implicit none
-
-! *** Arguments ***
-    integer, intent(out) :: dim_state    !< Global dimension of state vector
-    integer, intent(out) :: dim_state_p  !< Local dimension of state vector
-    integer, intent(in)  :: screen       !< Verbosity flag
-
-! *** Local variables ***
-    integer :: i                 ! Counters
-
-
-! ***********************************
-! *** Initialize the state vector ***
-! ***********************************
-
-! *** Initialize array `id` ***
-
-    call init_id(nfields)
-
-! *** Initialize array `sfields` ***
-
-    call init_sfields()
-    call set_updated()
-    call set_field_types(screen)
-
-! *** Set state vector dimension ***
-
-    dim_state_p = sum(sfields(:)%dim)
-
-! *** Write information about the state vector ***
-
-    if (mype==0) then
-       write (*,'(/a,2x,a)') 'FESOM-PDAF', '*** Setup of state vector ***'
-       write (*,'(a,5x,a,i5)') 'FESOM-PDAF', '--- Number of fields in state vector:', nfields
-       write (*,'(a,a4,3x,a2,2x,a8,4x,a5,6x,a3,7x,a6,4x,a6,2x,a3,1x,a6)') &
-            'FESOM-PDAF','pe','ID', 'variable', 'ndims', 'dim', 'offset', 'update', 'BGC', 'tracer'
-    end if
-
-    if (mype==0 .or. (task_id==1 .and. screen>2)) then
-       do i = 1, nfields
-          write (*,'(a, i4, i5,3x,a10,2x,i3,2x,i10,3x,i10,4x,l,4x,l,2x,i4)') 'FESOM-PDAF', &
-               mype, i, sfields(i)%variable, sfields(i)%ndims, sfields(i)%dim, sfields(i)%off, sfields(i)%updated, &
-               sfields(i)%bgc, sfields(i)%trnumfesom
-       end do
-    end if
-
-    if (npes==1) then
-       write (*,'(a,2x,a,1x,i10)') 'FESOM-PDAF', 'Full state dimension: ',dim_state_p
-    else
-       if (task_id==1) then
-          if (screen>2 .or. mype==0) &
-               write (*,'(a,2x,a,1x,i4,2x,a,1x,i10)') &
-               'FESOM-PDAF', 'PE', mype, 'PE-local full state dimension: ',dim_state_p
-
-          call MPI_Reduce(dim_state_p, dim_state, 1, MPI_INTEGER, MPI_SUM, 0, COMM_model, MPIerr)
-          if (mype==0) then
-             write (*,'(a,2x,a,1x,i10)') 'FESOM-PDAF', 'Global state dimension: ',dim_state
-          end if
-       end if
-    end if
-    call MPI_Barrier(comm_ensemble, MPIerr)
-
-  end subroutine setup_statevector
 
 end module statevector_pdaf

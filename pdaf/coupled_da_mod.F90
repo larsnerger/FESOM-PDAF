@@ -107,6 +107,9 @@ contains
 
     integer, intent(in) :: comm      ! Input communicator
 
+#if defined(__oasis)  
+    ! Only active in case of coupled model using OASIS
+
     if (DA_couple_type == 0) then
        ! Set filter communicator to the communicator of FESOM
        COMM_filter = comm
@@ -126,7 +129,7 @@ contains
           end if
        end if
     end if
-
+#endif
   end subroutine cda_reset_filter_comm
 
 end module coupled_da_mod
