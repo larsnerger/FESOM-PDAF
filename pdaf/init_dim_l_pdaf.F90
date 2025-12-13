@@ -16,7 +16,7 @@
 !! * 2022-03 - Frauke B    - Adapted for FESOM 2.1
 !! * 2025-12 - Lars Nerger - Revision for PDAF3
 !!
-subroutine init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
+subroutine init_dim_l_pdaf(step, domain_p_all, dim_l)
 
   use assim_pdaf_mod, &
        only: id_lstate_in_pstate, coords_l
@@ -36,24 +36,24 @@ subroutine init_dim_l_pdaf(step, nsweeped_domain_p, dim_l)
 
 ! *** Arguments ***
   integer, intent(in)  :: step              !< Current time step
-  integer, intent(in)  :: nsweeped_domain_p !< Current local analysis domain, containing repititive sweeps
+  integer, intent(in)  :: domain_p_all      !< Current local analysis domain, containing repititive sweeps
   integer, intent(out) :: dim_l             !< Local state dimension
 
 ! *** Local variables ***
-  integer :: i, b, id_var                        ! Counters
-  integer :: nlay                                ! Number of layers for current domain
-  integer :: domain_p                            ! Local analysis domain accounting for multiple sweeps
+  integer :: i, b, id_var                   ! Counters
+  integer :: nlay                           ! Number of layers for current domain
+  integer :: domain_p                       ! Local analysis domain accounting for multiple sweeps
   
-  
+
 ! ********************************************************
 ! ***  Account for multi sweeps in local analysis loop ***
 ! ********************************************************
 
-  if (nsweeped_domain_p <= myDim_nod2D) then
-     domain_p = nsweeped_domain_p
+  if (domain_p_all <= myDim_nod2D) then
+     domain_p = domain_p_all
      isweep = 1
   else
-     domain_p = nsweeped_domain_p - myDim_nod2D
+     domain_p = domain_p_all - myDim_nod2D
      isweep = 2
   end if
 
