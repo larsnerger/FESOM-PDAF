@@ -63,12 +63,11 @@ subroutine prepoststep_pdaf(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        only: adaptive_lradius_stats_pdaf
   use mod_atmos_ens_stochasticity, &
       only: stable_rmse
-  use mod_nc_out_routines, &
-       only: netCDF_out
   use output_config_pdaf, &
        only: w_dayensm, w_daymemb, w_monensm, w_monmemb, w_mm, w_sm, &
        mm, aa, ff, ii, sa, sf, si, sm, oo, dd, ee
-  ! mean state forecast for observation exclusion criteria
+  use output_pdaf, &
+       only: netCDF_out
   use obs_TSprof_EN4_pdafomi, &
        only: assim_o_en4_t, assim_o_en4_s, prof_exclude_diff, mean_temp_p
   use obs_sst_pdafomi, &

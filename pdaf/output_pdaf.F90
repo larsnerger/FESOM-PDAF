@@ -1,4 +1,4 @@
-MODULE mod_nc_out_routines
+MODULE output_pdaf
 
 ! contains:
 !   - check
@@ -727,4 +727,4 @@ ENDIF
 call check(NF90_OPEN(trim(filename),NF90_write,fid))
 END SUBROUTINE netCDF_openfile
 
-END MODULE mod_nc_out_routines
+END MODULE output_pdaf

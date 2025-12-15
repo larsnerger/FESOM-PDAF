@@ -77,10 +77,10 @@ contains
          only: init_means_pdaf
     use mod_postprocess, &
          only: isPP, doPP
-    use mod_nc_out_routines, &
-         only: netCDF_init
     use output_config_pdaf, &
          only: configure_output, setoutput
+    use output_pdaf, &
+         only: netCDF_init
     use cfluxes_diags_pdaf, &
          only: init_cfluxes_diags_out, init_cfluxes_diags_arrays
 

@@ -11,7 +11,7 @@ MODULE mod_postprocess
        only: id, sfields
   use parallel_pdaf_mod, &
        only: writepe, COMM_filter, MPIerr, mype_filter
-  use mod_nc_out_routines, &
+  use output_pdaf, &
        only: check
   use obs_o2_comf_pdafomi, &
        only: assim_o_o2_comf

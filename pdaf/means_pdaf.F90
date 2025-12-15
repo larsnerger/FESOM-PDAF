@@ -115,7 +115,7 @@ contains
          only: COMM_COUPLE, filterpe
     use output_config_pdaf, &
          only: w_mm, w_sm, w_dayensm, w_monensm
-    use mod_nc_out_routines, &
+    use output_pdaf, &
          only: netCDF_out
     use fesom_pdaf, &
          only: timenew, daynew, yearnew, month, &
