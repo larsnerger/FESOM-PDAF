@@ -347,12 +347,12 @@ SUBROUTINE cfluxes_diags_output_tmean(mstep)
   USE fesom_pdaf, &
        ONLY: month, num_day_in_month, fleapyear, cyearnew, &
        daynew, timenew, step_per_day, myDim_nod2D, &
-       nlmax, mesh_fesom, daily_event, monthly_event, &
-       gather_nod, tr_arr, hnode_new
+       nlmax, mesh_fesom, &
+       gather_nod, partit, tracers, hnode_new
   USE assim_pdaf_mod, &
        ONLY: dim_ens
   USE fesom_pdaf, &
-       ONLY: nlmax, mesh_fesom, daily_event, monthly_event
+       ONLY: nlmax, mesh_fesom
   USE parallel_pdaf_mod, &
        ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
        COMM_COUPLE, filterpe, writepe, mype_model
@@ -389,12 +389,12 @@ SUBROUTINE cfluxes_diags_output_tmean(mstep)
             if (ALL(i /= cffieldsasml)) then
             ! concentration
             if (writepe) open(unit=1, file=cyearnew//cday//ctime//trim(cffields(i)%varname)//'_conc.txt', status='unknown')
-            CALL gather_nod(cffields(i)%instantconc, data3_g)
+            CALL gather_nod(cffields(i)%instantconc, data3_g, partit)
             if (writepe) write(1,*) data3_g
             if (writepe) close(1)
             ! mass
             if (writepe) open(unit=1, file=cyearnew//cday//ctime//trim(cffields(i)%varname)//'_mass.txt', status='unknown')
-            CALL gather_nod(cffields(i)%instantmass, data3_g)
+            CALL gather_nod(cffields(i)%instantmass, data3_g, partit)
             if (writepe) write(1,*) data3_g
             if (writepe) close(1)
             endif ! only model fields
@@ -476,18 +476,18 @@ SUBROUTINE cfluxes_diags_output_tmean(mstep)
       
       ! tracer fields
       ! collect snapshots
-      cffields(id_m_dic)         %instantconc =   tr_arr(:nlmax,:myDim_nod2D, 4)    ! DIC
-      cffields(id_m_alk)         %instantconc =   tr_arr(:nlmax,:myDim_nod2D, 5)    ! Alk
-      cffields(id_m_livingmatter)%instantconc = ( tr_arr(:nlmax,:myDim_nod2D, 7) &  ! PhyC
-                                                + tr_arr(:nlmax,:myDim_nod2D,12) &  ! HetC
-                                                + tr_arr(:nlmax,:myDim_nod2D,22) &  ! PhyCalc
-                                                + tr_arr(:nlmax,:myDim_nod2D,16) &  ! DiaC
-                                                + tr_arr(:nlmax,:myDim_nod2D,26))   ! Zoo2C
-      cffields(id_m_deadmatter)  %instantconc = ( tr_arr(:nlmax,:myDim_nod2D,28) &  ! Det2C
-                                                + tr_arr(:nlmax,:myDim_nod2D,30) &  ! Det2Calc
-                                                + tr_arr(:nlmax,:myDim_nod2D,10) &  ! DetC
-                                                + tr_arr(:nlmax,:myDim_nod2D,23) &  ! DetCalc
-                                                + tr_arr(:nlmax,:myDim_nod2D,14))   ! DOC
+      cffields(id_m_dic)         %instantconc =   tracers%data(4)%values(:nlmax,:myDim_nod2D)    ! DIC
+      cffields(id_m_alk)         %instantconc =   tracers%data(5)%values(:nlmax,:myDim_nod2D)    ! Alk
+      cffields(id_m_livingmatter)%instantconc = ( tracers%data(7)%values(:nlmax,:myDim_nod2D) &  ! PhyC
+                                                + tracers%data(12)%values(:nlmax,:myDim_nod2D) &  ! HetC
+                                                + tracers%data(22)%values(:nlmax,:myDim_nod2D) &  ! PhyCalc
+                                                + tracers%data(16)%values(:nlmax,:myDim_nod2D) &  ! DiaC
+                                                + tracers%data(26)%values(:nlmax,:myDim_nod2D))   ! Zoo2C
+      cffields(id_m_deadmatter)  %instantconc = ( tracers%data(28)%values(:nlmax,:myDim_nod2D) &  ! Det2C
+                                                + tracers%data(30)%values(:nlmax,:myDim_nod2D) &  ! Det2Calc
+                                                + tracers%data(10)%values(:nlmax,:myDim_nod2D) &  ! DetC
+                                                + tracers%data(23)%values(:nlmax,:myDim_nod2D) &  ! DetCalc
+                                                + tracers%data(14)%values(:nlmax,:myDim_nod2D))   ! DOC
       ! concentration to mass
       allocate(f_mass(nlmax,myDim_nod2D))
       f_mass = mesh_fesom%areasvol(:nlmax,:myDim_nod2D) * hnode_new(:nlmax,:myDim_nod2D)
@@ -658,7 +658,7 @@ SUBROUTINE init_cfluxes_diags_out()
        ONLY: DAoutput_path
   USE fesom_pdaf, &
        ONLY: myDim_nod2D, nlmax, mesh_fesom, pi, &
-       runid, gather_nod, secondsperday, &
+       partit, runid, gather_nod, secondsperday, &
        cyearnew, num_day_in_month, fleapyear, &
        yearold, yearnew, month, daynew, timenew
   USE parallel_pdaf_mod, &
@@ -697,8 +697,8 @@ SUBROUTINE init_cfluxes_diags_out()
       
       ! gather GEO coordinates (from all PEs)
       allocate(lon(mesh_fesom%nod2D),lat(mesh_fesom%nod2D))
-      call gather_nod(mesh_fesom%geo_coord_nod2D(1, 1:myDim_nod2D), lon)
-      call gather_nod(mesh_fesom%geo_coord_nod2D(2, 1:myDim_nod2D), lat)
+      call gather_nod(mesh_fesom%geo_coord_nod2D(1, 1:myDim_nod2D), lon, partit)
+      call gather_nod(mesh_fesom%geo_coord_nod2D(2, 1:myDim_nod2D), lat, partit)
       
       IF (writepe) THEN
       ! initialize file
@@ -796,11 +796,9 @@ USE recom_config, ONLY: SecondsPerDay
 USE assim_pdaf_mod, &
    ONLY: DAoutput_path
 USE fesom_pdaf, &
-     ONLY: myDim_nod2D, nlmax, mesh_fesom
+     ONLY: myDim_nod2D, nlmax, mesh_fesom, gather_nod, partit
 USE parallel_pdaf_mod, &
    ONLY: writepe
-USE g_comm_auto, &
-   ONLY: gather_nod
 USE netcdf
 
 IMPLICIT NONE
@@ -850,7 +848,7 @@ DO i=1, size(cffieldsflux)
  ! conc
  if (outconc) then
     varname = trim(cffields(ids)%varname)//'_c'
-    CALL gather_nod(cffields(ids)%ensmconc, data3_g) 
+    CALL gather_nod(cffields(ids)%ensmconc, data3_g, partit) 
     IF (writepe) call putvar(fileid,varname,data3_g,writepos)
  endif
 ENDDO
@@ -860,13 +858,13 @@ DO i=1, size(cffieldssms)
  ! conc
  if (outconc) then
     varname = trim(cffields(ids)%varname)//'_c'
-    CALL gather_nod(cffields(ids)%ensmconc, data3_g) 
+    CALL gather_nod(cffields(ids)%ensmconc, data3_g, partit) 
     IF (writepe) call putvar(fileid,varname,data3_g,writepos)
  endif
  ! mass
  if (outmass) then
     varname = trim(cffields(ids)%varname)//'_m'
-    CALL gather_nod(cffields(ids)%ensmmass, data3_g) 
+    CALL gather_nod(cffields(ids)%ensmmass, data3_g, partit) 
     IF (writepe) call putvar(fileid,varname,data3_g,writepos)
  endif
 ENDDO
@@ -876,13 +874,13 @@ DO i=1, size(cffieldstracer)
  ! conc
  if (outconc) then
     varname = trim(cffields(ids)%varname)//'_c'
-    CALL gather_nod(cffields(ids)%ensmconc, data3_g) 
+    CALL gather_nod(cffields(ids)%ensmconc, data3_g, partit) 
     IF (writepe) call putvar(fileid,varname,data3_g,writepos)
  endif
  ! mass
  if (outmass) then
     varname = trim(cffields(ids)%varname)//'_m'
-    CALL gather_nod(cffields(ids)%ensmmass, data3_g) 
+    CALL gather_nod(cffields(ids)%ensmmass, data3_g, partit) 
     IF (writepe) call putvar(fileid,varname,data3_g,writepos)
  endif
 ENDDO
@@ -892,7 +890,7 @@ DO i=1, size(cffieldsvol)
  ! conc
  if (outconc) then
     varname = trim(cffields(ids)%varname)//'_c'
-    CALL gather_nod(cffields(ids)%ensmconc, data3_g) 
+    CALL gather_nod(cffields(ids)%ensmconc, data3_g, partit) 
     IF (writepe) call putvar(fileid,varname,data3_g,writepos)
  endif
 ENDDO
@@ -918,11 +916,9 @@ USE recom_config, ONLY: SecondsPerDay
 USE assim_pdaf_mod, &
    ONLY: DAoutput_path
 USE fesom_pdaf, &
-     ONLY: myDim_nod2D, nlmax, mesh_fesom
+     ONLY: myDim_nod2D, nlmax, mesh_fesom, gather_nod, partit
 USE parallel_pdaf_mod, &
    ONLY: writepe
-USE g_comm_auto, &
-   ONLY: gather_nod
 USE netcdf
 
 IMPLICIT NONE
@@ -962,13 +958,13 @@ DO i=1, size(cffieldsasml)
  ! conc
  if (outconc) then
     varname = trim(cffields(ids)%varname)//'_c'
-    CALL gather_nod(cffields(ids)%ensmconc, data3_g) 
+    CALL gather_nod(cffields(ids)%ensmconc, data3_g, partit) 
     IF (writepe) call putvar(fileid,varname,data3_g,writepos)
  endif
  ! mass
  if (outmass) then
     varname = trim(cffields(ids)%varname)//'_m'
-    CALL gather_nod(cffields(ids)%ensmmass, data3_g) 
+    CALL gather_nod(cffields(ids)%ensmmass, data3_g, partit) 
     IF (writepe) call putvar(fileid,varname,data3_g,writepos)
  endif
 ENDDO
@@ -1016,16 +1012,17 @@ END SUBROUTINE putvar
 ! ***   cfdiags_computetransport              ***
 ! ***                                         ***
 ! ***********************************************
-SUBROUTINE cfdiags_computetransport(tr_arr,Unode,wvel)
+SUBROUTINE cfdiags_computetransport(tracers,Unode,wvel)
 
   USE fesom_pdaf, &
-       ONLY: nlmax, mesh_fesom, myDim_nod2D, eDim_nod2D, &
+       ONLY: t_tracer, nlmax, mesh_fesom, myDim_nod2D, eDim_nod2D, &
        num_tracers
 
   IMPLICIT NONE
 
 ! ARGUMENTS:
-  REAL, intent(in)  :: tr_arr(mesh_fesom%nl-1, myDim_nod2D+eDim_nod2D, num_tracers) ! tracers
+  type(t_tracer), intent(in)  :: tracers                                            ! tracers
+!  REAL, intent(in)  :: tr_arr(mesh_fesom%nl-1, myDim_nod2D+eDim_nod2D, num_tracers) ! tracers
   REAL, intent(in)  :: Unode(2, mesh_fesom%nl-1, myDim_nod2D+eDim_nod2D)            ! horizontal velocities on nodes
   REAL, intent(in)  :: wvel(mesh_fesom%nl, myDim_nod2D+eDim_nod2D)                  ! vertical velocity on levels
 
@@ -1039,14 +1036,14 @@ SUBROUTINE cfdiags_computetransport(tr_arr,Unode,wvel)
   wlayers = 0.5*(wvel(1:nlmax,:myDim_nod2D) + wvel(2:nlmax+1,:myDim_nod2D)) ! positive upwards
 
 ! alkalinity (5)
-  cffields(id_t_u_alk)%instantconc = tr_arr(:nlmax,:myDim_nod2D,5) * Unode(1,:nlmax,:myDim_nod2D)
-  cffields(id_t_v_alk)%instantconc = tr_arr(:nlmax,:myDim_nod2D,5) * Unode(2,:nlmax,:myDim_nod2D)
-  cffields(id_t_w_alk)%instantconc = tr_arr(:nlmax,:myDim_nod2D,5) * wlayers(:nlmax,:myDim_nod2D)
+  cffields(id_t_u_alk)%instantconc = tracers%data(5)%values(:nlmax,:myDim_nod2D) * Unode(1,:nlmax,:myDim_nod2D)
+  cffields(id_t_v_alk)%instantconc = tracers%data(5)%values(:nlmax,:myDim_nod2D) * Unode(2,:nlmax,:myDim_nod2D)
+  cffields(id_t_w_alk)%instantconc = tracers%data(5)%values(:nlmax,:myDim_nod2D) * wlayers(:nlmax,:myDim_nod2D)
 
 ! DIC (4)
-  cffields(id_t_u_dic)%instantconc = tr_arr(:nlmax,:myDim_nod2D,4) * Unode(1,:nlmax,:myDim_nod2D)
-  cffields(id_t_v_dic)%instantconc = tr_arr(:nlmax,:myDim_nod2D,4) * Unode(2,:nlmax,:myDim_nod2D)
-  cffields(id_t_w_dic)%instantconc = tr_arr(:nlmax,:myDim_nod2D,4) * wlayers(:nlmax,:myDim_nod2D)
+  cffields(id_t_u_dic)%instantconc = tracers%data(4)%values(:nlmax,:myDim_nod2D) * Unode(1,:nlmax,:myDim_nod2D)
+  cffields(id_t_v_dic)%instantconc = tracers%data(4)%values(:nlmax,:myDim_nod2D) * Unode(2,:nlmax,:myDim_nod2D)
+  cffields(id_t_w_dic)%instantconc = tracers%data(4)%values(:nlmax,:myDim_nod2D) * wlayers(:nlmax,:myDim_nod2D)
 
 ! Living biomass
   allocate(tracerlist(5))
@@ -1057,9 +1054,12 @@ SUBROUTINE cfdiags_computetransport(tr_arr,Unode,wvel)
   tracerlist(5) = 26 ! Zoo2C
 
   DO trcounter=1,5
-     cffields(id_t_u_livingmatter)%instantconc = cffields(id_t_u_livingmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(1,:nlmax,:myDim_nod2D)
-     cffields(id_t_v_livingmatter)%instantconc = cffields(id_t_v_livingmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(2,:nlmax,:myDim_nod2D)
-     cffields(id_t_w_livingmatter)%instantconc = cffields(id_t_w_livingmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * wlayers(:nlmax,:myDim_nod2D)
+     cffields(id_t_u_livingmatter)%instantconc = cffields(id_t_u_livingmatter)%instantconc &
+          + tracers%data(tracerlist(trcounter))%values(:nlmax,:myDim_nod2D) * Unode(1,:nlmax,:myDim_nod2D)
+     cffields(id_t_v_livingmatter)%instantconc = cffields(id_t_v_livingmatter)%instantconc &
+          + tracers%data(tracerlist(trcounter))%values(:nlmax,:myDim_nod2D) * Unode(2,:nlmax,:myDim_nod2D)
+     cffields(id_t_w_livingmatter)%instantconc = cffields(id_t_w_livingmatter)%instantconc &
+          + tracers%data(tracerlist(trcounter))%values(:nlmax,:myDim_nod2D) * wlayers(:nlmax,:myDim_nod2D)
   ENDDO
   deallocate(tracerlist)
 
@@ -1072,9 +1072,12 @@ SUBROUTINE cfdiags_computetransport(tr_arr,Unode,wvel)
   tracerlist(5) = 14 ! DOC
 
   DO trcounter=1,5
-     cffields(id_t_u_deadmatter)%instantconc = cffields(id_t_u_deadmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(1,:nlmax,:myDim_nod2D)
-     cffields(id_t_v_deadmatter)%instantconc = cffields(id_t_v_deadmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * Unode(2,:nlmax,:myDim_nod2D)
-     cffields(id_t_w_deadmatter)%instantconc = cffields(id_t_w_deadmatter)%instantconc + tr_arr(:nlmax,:myDim_nod2D,tracerlist(trcounter)) * wlayers(:nlmax,:myDim_nod2D)
+     cffields(id_t_u_deadmatter)%instantconc = cffields(id_t_u_deadmatter)%instantconc &
+          + tracers%data(tracerlist(trcounter))%values(:nlmax,:myDim_nod2D) * Unode(1,:nlmax,:myDim_nod2D)
+     cffields(id_t_v_deadmatter)%instantconc = cffields(id_t_v_deadmatter)%instantconc &
+          + tracers%data(tracerlist(trcounter))%values(:nlmax,:myDim_nod2D) * Unode(2,:nlmax,:myDim_nod2D)
+     cffields(id_t_w_deadmatter)%instantconc = cffields(id_t_w_deadmatter)%instantconc &
+          + tracers%data(tracerlist(trcounter))%values(:nlmax,:myDim_nod2D) * wlayers(:nlmax,:myDim_nod2D)
   ENDDO
 
   deallocate(tracerlist)
@@ -1095,8 +1098,6 @@ END SUBROUTINE cfdiags_computetransport
 SUBROUTINE debug_vert(varname,vardata)
    USE parallel_pdaf_mod, &
       ONLY: writepe
-   USE g_comm_auto, &
-      ONLY: gather_nod 
    USE assim_pdaf_mod, &
       ONLY: DAoutput_path
    USE fesom_pdaf, &
@@ -1126,12 +1127,10 @@ END SUBROUTINE debug_vert
 SUBROUTINE debug_hor(varname,vardata)
    USE parallel_pdaf_mod, &
       ONLY: writepe
-   USE g_comm_auto, &
-      ONLY: gather_nod 
    USE assim_pdaf_mod, &
       ONLY: DAoutput_path
    USE fesom_pdaf, &
-        ONLY: nlmax, mesh_fesom, myDim_nod2D
+        ONLY: nlmax, mesh_fesom, myDim_nod2D, gather_nod, partit
       
    implicit none
    
@@ -1140,7 +1139,7 @@ SUBROUTINE debug_hor(varname,vardata)
    integer :: n, fid
    real :: vardata_glob(nlmax,mesh_fesom%nod2D)
    
-   CALL gather_nod(vardata,vardata_glob)
+   CALL gather_nod(vardata,vardata_glob, partit)
    
    if (writepe) then
    

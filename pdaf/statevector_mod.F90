@@ -288,8 +288,8 @@ contains
 !!
   subroutine init_sfields()
 
-    use fesom_pdaf, &
-         only: myDim_nod2D, nlmax
+!     use fesom_pdaf, &
+!          only: myDim_nod2D, nlmax
 
     implicit none
 
@@ -738,15 +738,15 @@ contains
 ! **************************************
 
     ! *** Dimensions ***
-    do i = 1, nfields
-       if (sfields(i)%ndims == 1) then
-          sfields(i)%dim = myDim_nod2D
-       else if (sfields(i)%ndims == 2) then
-          sfields(i)%dim = myDim_nod2D*nlmax
-       else
-          write (*, '(a,i2,a)') 'FESOM-PDAF: cannot handle', sfields(i)%ndims, ' number of dimensions.'
-       end if
-    end do
+!     do i = 1, nfields
+!        if (sfields(i)%ndims == 1) then
+!           sfields(i)%dim = myDim_nod2D
+!        else if (sfields(i)%ndims == 2) then
+!           sfields(i)%dim = myDim_nod2D*nlmax
+!        else
+!           write (*, '(a,i2,a)') 'FESOM-PDAF: cannot handle', sfields(i)%ndims, ' number of dimensions.'
+!        end if
+!     end do
 
 ! *** Specify offset of fields in pe-local state vector ***
 
@@ -1009,8 +1009,8 @@ contains
 
     use assim_pdaf_mod, &
          only: nmlfile
-  use coupled_da_mod, &                 ! Variables for coupled DA
-       only: assimilatePHY, assimilateBGC, cda_phy, cda_bio
+    use coupled_da_mod, &                 ! Variables for coupled DA
+         only: assimilatePHY, assimilateBGC, cda_phy, cda_bio
     use parallel_pdaf_mod, &
          only: mype_world
 

@@ -18,10 +18,11 @@
 !!
 subroutine init_dim_l_pdaf(step, domain_p_all, dim_l)
 
+  use PDAF, only: PDAFlocal_set_indices, PDAFlocal_set_increment_weights
   use assim_pdaf_mod, &
        only: id_lstate_in_pstate, coords_l
   use coupled_da_mod, &
-       only: isweep
+       only: isweep, type_sweep, cda_bio, cda_phy
   use parallel_pdaf_mod, &
        only: abort_parallel
   use fesom_pdaf, &
@@ -40,10 +41,12 @@ subroutine init_dim_l_pdaf(step, domain_p_all, dim_l)
   integer, intent(out) :: dim_l             !< Local state dimension
 
 ! *** Local variables ***
-  integer :: i, b, id_var                   ! Counters
+  integer :: i, ifield                      ! Counters
   integer :: nlay                           ! Number of layers for current domain
   integer :: domain_p                       ! Local analysis domain accounting for multiple sweeps
-  
+  logical :: update_cda                     ! Whether to apply DA update
+  real, allocatable :: weights_l(:)
+
 
 ! ********************************************************
 ! ***  Account for multi sweeps in local analysis loop ***
@@ -75,30 +78,17 @@ subroutine init_dim_l_pdaf(step, domain_p_all, dim_l)
      call abort_parallel()
   endif
   
-  ! Physics:
-  do i = phymin, phymax
+  ! Count local state dimension
+  do ifield = 1, nfields
 
-     if (sfields(i)%updated) then
+     if (sfields(ifield)%updated) then
         ! surface fields:
-        if (sfields(i)%ndims == 1) sfields_l(i)%dim = 1
+        if (sfields(ifield)%ndims == 1) sfields_l(ifield)%dim = 1
         ! 3D fields:
-        if (sfields(i)%ndims == 2) sfields_l(i)%dim = nlay
+        if (sfields(ifield)%ndims == 2) sfields_l(ifield)%dim = nlay
      else
         ! not updated:
-        sfields_l(i)%dim = 0
-     endif
-  enddo
-
-  ! BGC:
-  do i = bgcmin, bgcmax
-     if (sfields(i)%updated) then
-        ! surface fields:
-        if (sfields(i)%ndims == 1) sfields_l(i)%dim = 1
-        ! 3D fields:
-        if (sfields(i)%ndims == 2) sfields_l(i)%dim = nlay
-     else
-        ! not updated:
-        sfields_l(i)%dim = 0
+        sfields_l(ifield)%dim = 0
      endif
   enddo
 
@@ -130,77 +120,83 @@ subroutine init_dim_l_pdaf(step, domain_p_all, dim_l)
 
   ! *** indices for full state vector ***
 
-  ! SSH
-  if (sfields(id%ssh)%updated) then
-     id_lstate_in_pstate (sfields_l(id%ssh)%off+1) &
-          = sfields(id%ssh)%off + domain_p
-  endif
-  
-  ! U
-  id_var = id%u
-  if (sfields(id_var)%updated) then
-     do i = 1, sfields_l(id_var)%dim
-        id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
-            sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
-     end do
-  endif
-  
-  ! V
-  id_var = id%v
-  if (sfields(id_var)%updated) then
-     do i = 1, sfields_l(id_var)%dim
-        id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
-            sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
-     end do
-  endif
-        
-  ! W
-  ! id_lstate_in_pstate (sfields_l(id%w)%off+1 : sfields_l(id%w+1)%off) &
-  !      = sfields(id%w)%off &
-  !      + (domain_p-1)*(nlmax) &
-  !      + (/(i, i=1,sfields_l(id%w)%dim)/)
-  
-  ! Temp
-  id_var = id%temp
-  if (sfields(id_var)%updated) then
-     do i = 1, sfields_l(id_var)%dim
-        id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
-            sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
-     end do
-  endif
-  
-  ! Salt
-  id_var = id%salt
-  if (sfields(id_var)%updated) then
-     do i = 1, sfields_l(id_var)%dim
-        id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
-            sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
-     end do
-  endif
-        
-  ! BGC:
-  do b = bgcmin, bgcmax
+  do ifield = 1, nfields
   
      ! only updated fields:
-     if ((sfields(b)%updated)) then
-        if (sfields(b)%ndims == 1)   then
+     if ((sfields(ifield)%updated)) then
+        if (sfields(ifield)%ndims == 1)   then
 
            ! surface fields:
-           id_lstate_in_pstate (sfields_l(b)%off+1) &
-                = sfields(b)%off + domain_p
+           id_lstate_in_pstate (sfields_l(ifield)%off+1) &
+                = sfields(ifield)%off + domain_p
 
-        elseif (sfields(b)%ndims == 2)   then
+        elseif (sfields(ifield)%ndims == 2)   then
 
            ! 3D fields:
-           id_var = b
-           if (sfields(id_var)%updated) then
-              do i = 1, sfields_l(id_var)%dim
-                 id_lstate_in_pstate (sfields_l(id_var)%off + i) = &
-                      sfields(id_var)%off + (domain_p-1)*(nlmax) + i 
+           if (sfields(ifield)%updated) then
+              do i = 1, sfields_l(ifield)%dim
+                 id_lstate_in_pstate(sfields_l(ifield)%off + i) = &
+                      sfields(ifield)%off + (domain_p-1)*(nlmax) + i 
               end do
            endif
         endif
      endif
   enddo
 
+  call PDAFlocal_set_indices(dim_l, id_lstate_in_pstate)
+
+
+! ****************************************************************************
+! *** Initialize array of increment weights for mapping state_l to state_p ***
+! ****************************************************************************
+
+  ! Allocate array
+  if (allocated(weights_l)) deallocate(weights_l)
+  allocate(weights_l(dim_l))
+  weights_l(:) = 0.0
+
+  do ifield = 1, nfields
+
+     ! Determine whether to apply update according to coupled data assimilation settings
+
+     if ((sfields(ifield)%updated)) then
+        if (.not.(sfields(ifield)%bgc) .and. (trim(type_sweep(isweep))=='phy')) then
+           ! Physics field and physics sweep:
+           update_cda = .true.
+        elseif (sfields(ifield)%bgc .and. (trim(type_sweep(isweep))=='bio')) then
+           ! BGC field and BGC sweep:
+           update_cda = .true.
+        else
+           ! Strongly coupled DA configuration:
+           if (type_sweep(isweep)=='phy' .and. trim(cda_phy)=='strong') then
+              update_cda = .true.
+           elseif (type_sweep(isweep)=='bio' .and. trim(cda_bio)=='strong') then
+              update_cda = .true.
+           else
+              ! Weak coupling and unequal type of field and sweep:
+              update_cda = .false.
+           end if
+        end if
+
+        if (sfields(ifield)%ndims == 1)   then
+
+           ! surface fields:
+           if (update_cda) then
+              weights_l(sfields_l(ifield)%off+1) = 1.0
+           end if
+
+        elseif (sfields(ifield)%ndims == 2)   then
+
+           ! 3D fields:
+           if (update_cda) then
+              do i = 1, sfields_l(ifield)%dim
+                 weights_l(sfields_l(ifield)%off+i) =  1.0
+              end do
+           endif
+        endif
+     end if
+  end do
+
+  call PDAFlocal_set_increment_weights(dim_l, weights_l)
+  
 end subroutine init_dim_l_pdaf

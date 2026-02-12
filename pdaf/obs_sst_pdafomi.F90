@@ -564,12 +564,12 @@ contains
 !! different localization radius and localization functions
 !! for each observation type and  local analysis domain.
 
-  subroutine init_dim_obs_l_sst(domain_p, step, dim_obs, dim_obs_l)
+  subroutine init_dim_obs_l_sst(domain_p_all, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
     use PDAF, only: PDAFomi_init_dim_obs_l
     ! Include routine for adaptive localization radius
-    use adaptive_lradius_pdaf, only: get_adaptive_lradius_pdaf
+!     use adaptive_lradius_pdaf, only: get_adaptive_lradius_pdaf
     ! Number of domains per sweep:
     use fesom_pdaf, only: myDim_nod2D
     ! Include localization radius and local coordinates
@@ -578,18 +578,28 @@ contains
     implicit none
 
 ! *** Arguments ***
-    integer, intent(in)  :: domain_p     !< Index of current local analysis domain
+    integer, intent(in)  :: domain_p_all !< Index of current local analysis domain
     integer, intent(in)  :: step         !< Current time step
     integer, intent(in)  :: dim_obs      !< Full dimension of observation vector
     integer, intent(inout) :: dim_obs_l  !< Local dimension of observation vector
 
+! Local variables ***
+    integer :: domain_p
+
     if (thisobs%doassim == 1) then
 
-       if (loctype == 1) then
-          ! *** Variable localization radius for fixed effective observation dimension ***
-          call get_adaptive_lradius_pdaf(thisobs, modulo(domain_p,myDim_nod2D), lradius_sst, loc_radius_sst)
+       if (domain_p_all<=myDim_nod2d) then
+          domain_p = domain_p_all
+       else
+          domain_p = domain_p_all - myDim_nod2d
        end if
-       lradius_sst = loc_radius_sst(modulo(domain_p,myDim_nod2D))
+
+!        if (loctype == 1) then
+!           ! *** Variable localization radius for fixed effective observation dimension ***
+!           call get_adaptive_lradius_pdaf(thisobs, domain_p, lradius_sst, loc_radius_sst)
+!        end if
+!       lradius_sst = loc_radius_sst(modulo(domain_p_all,myDim_nod2D))
+       lradius_sst = loc_radius_sst(domain_p)
 
 
        ! ************************************************************
@@ -599,12 +609,12 @@ contains
        if (n_sweeps>1) then
        
           ! Physics observations sweep.
-          if (domain_p==1) then
+          if (domain_p_all==1) then
              if (mype_filter==0) &
                   write (*,'(a,4x,a)') 'FESOM-PDAF', &
                    '--- PHY sweep: leave ivar_obs_f for SST as it is'
           ! BGC observations sweep.
-          elseif (domain_p==myDim_nod2D+1) then
+          elseif (domain_p_all==myDim_nod2D+1) then
              if (mype_filter==0) &
                   write (*,'(a,4x,a)') 'FESOM-PDAF', &
                   '--- BIO sweep: set ivar_obs_f for SST to 1.0e-12'

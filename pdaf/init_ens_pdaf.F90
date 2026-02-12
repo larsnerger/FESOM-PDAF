@@ -18,8 +18,8 @@ subroutine init_ens_pdaf(filtertype, dim_p, dim_ens, state_p, Uinv, &
        perturb_DIC, perturb_Alk, perturb_DIN, perturb_O2, &
        ens_p_init
   use fesom_pdaf, &
-       only: mesh_fesom, nlmax, topography_p, edim_nod2d, mydim_nod2d, &
-       daynew, timenew, eta_n, tr_arr, uv, wvel, a_ice, tiny
+       only: mesh_fesom, nlmax, edim_nod2d, mydim_nod2d, &
+       daynew, timenew, tiny, topography_p
   use statevector_pdaf, &
        only: id, sfields
   use parallel_pdaf_mod, &

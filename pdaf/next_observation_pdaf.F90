@@ -20,7 +20,7 @@ SUBROUTINE next_observation_pdaf(stepnow, nsteps, doexit, time)
        ONLY: mype_model, task_id
   USE assim_pdaf_mod, &
        ONLY: delt_obs_ocn, step_null, assim_time, steps_first_fcst
-  USE recom_config, &
+  USE fesom_pdaf, &
        ONLY: secondsperday
 
   IMPLICIT NONE

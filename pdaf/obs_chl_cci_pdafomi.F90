@@ -667,12 +667,12 @@ contains
 !! different localization radius and localization functions
 !! for each observation type and  local analysis domain.
 !!
-  subroutine init_dim_obs_l_chl_cci(domain_p, step, dim_obs, dim_obs_l)
+  subroutine init_dim_obs_l_chl_cci(domain_p_all, step, dim_obs, dim_obs_l)
 
     ! Include PDAFomi function
     use PDAF, only: PDAFomi_init_dim_obs_l
     ! Include routine for adaptive localization radius
-    use adaptive_lradius_pdaf, only: get_adaptive_lradius_pdaf
+!    use adaptive_lradius_pdaf, only: get_adaptive_lradius_pdaf
     ! Include localization radius and local coordinates
     use assim_pdaf_mod, only: coords_l, locweight, loctype
     ! Number of domains per sweep:
@@ -681,18 +681,27 @@ contains
     implicit none
 
 ! *** Arguments ***
-    integer, intent(in)  :: domain_p     !< Index of current local analysis domain
+    integer, intent(in)  :: domain_p_all !< Index of current local analysis domain
     integer, intent(in)  :: step         !< Current time step
     integer, intent(in)  :: dim_obs      !< Full dimension of observation vector
     integer, intent(inout) :: dim_obs_l  !< Local dimension of observation vector
 
+! Local variables ***
+    integer :: domain_p
 
     if (thisobs%doassim == 1) then
-       if (loctype == 1) then
-          ! *** Variable localization radius for fixed effective observation dimension ***
-          call get_adaptive_lradius_pdaf(thisobs, modulo(domain_p,myDim_nod2D), lradius_chl_cci, loc_radius_chl_cci)
+
+       if (domain_p_all<=myDim_nod2d) then
+          domain_p = domain_p_all
+       else
+          domain_p = domain_p_all - myDim_nod2d
        end if
-       lradius_chl_cci = loc_radius_chl_cci(modulo(domain_p,myDim_nod2D))
+
+!        if (loctype == 1) then
+!           ! *** Variable localization radius for fixed effective observation dimension ***
+!           call get_adaptive_lradius_pdaf(thisobs, domain_p, lradius_chl_cci, loc_radius_chl_cci)
+!        end if
+       lradius_chl_cci = loc_radius_chl_cci(domain_p)
 
        
        ! ************************************************************
@@ -703,7 +712,7 @@ contains
        
           ! Physics observations sweep.
           ! Set inverse observation error to small value
-          if (domain_p==1) then
+          if (domain_p_all==1) then
 
              if (mype_filter==0) &
                   write (*,'(a,4x,a)') 'FESOM-PDAF', &
@@ -711,7 +720,7 @@ contains
              thisobs%ivar_obs_f = 1.0e-12
              
           ! BGC observations sweep.
-          elseif (domain_p==myDim_nod2D+1) then
+          elseif (domain_p_all==myDim_nod2D+1) then
              if (mype_filter==0) &
                   write (*,'(a,4x,a)') 'FESOM-PDAF', &
                   '--- BIO sweep: set ivar_obs_f for CHL to original'

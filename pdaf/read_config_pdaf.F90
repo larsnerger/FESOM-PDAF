@@ -122,7 +122,7 @@ subroutine read_config_pdaf()
        cradius, locweight, sradius, &
        use_global_obs, printconfig, &
        type_trans, type_sqrt, dim_lag, &
-       loctype, loc_ratio, do_omi_obsstats, &     
+       loctype, do_omi_obsstats, &     
        dim_obs_max, twin_experiment
 
   namelist /coupledDA/ &
@@ -362,7 +362,7 @@ file_chl_cci_prefix = 'CCI_OC_'//trim(year_string)//'_dist72_'
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'locweight   ',         locweight
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'loctype     ',         loctype
      write (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'sradius     ',         sradius
-     write (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'loc_ratio   ',         loc_ratio
+!     write (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'loc_ratio   ',         loc_ratio
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'use_global_obs',       use_global_obs
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'dim_lag     ',         dim_lag
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'DA_couple_type  ',     DA_couple_type

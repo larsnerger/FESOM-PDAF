@@ -14,7 +14,7 @@ MODULE output_pdaf
        ONLY: DAoutput_path, dim_ens, dim_state, &
        dim_state_p
   USE fesom_pdaf, &
-       ONLY: mesh_fesom, nlmax, topography3D_g, pi, &
+       ONLY: f, mesh_fesom, nlmax, topography3D_g, pi, &
        myDim_nod2D, runid, gather_nod, &
        cyearnew, timeold, dayold, yearold, yearnew, num_day_in_month, fleapyear
   USE statevector_pdaf, &
@@ -96,6 +96,7 @@ END SUBROUTINE check
 SUBROUTINE netCDF_init()
 
 USE assim_pdaf_mod, only: dim_ens
+USE fesom_pdaf, only: partit
 
 INTEGER :: memb                   ! Zero:    Mean state
                                   ! Number:  Ensemble member
@@ -126,8 +127,8 @@ IFA_long(sm)='STD mean'
 
 ! gather GEO coordinates
 allocate(lon(mesh_fesom% nod2D),lat(mesh_fesom% nod2D))
-call gather_nod(mesh_fesom%geo_coord_nod2D(1, 1:myDim_nod2D), lon)
-call gather_nod(mesh_fesom%geo_coord_nod2D(2, 1:myDim_nod2D), lat)
+call gather_nod(mesh_fesom%geo_coord_nod2D(1, 1:myDim_nod2D), lon, partit)
+call gather_nod(mesh_fesom%geo_coord_nod2D(2, 1:myDim_nod2D), lat, partit)
 
 ! initialize file (on main PE)
 IF (writepe) THEN
@@ -427,6 +428,7 @@ SUBROUTINE netCDF_out(writetype, state_p, memb, now_to_write_monthly, stdev_surf
 
 USE g_clock, ONLY: daynew, month, day_in_month, fleapyear
 USE recom_config, ONLY: SecondsPerDay
+USE fesom_pdaf, only: partit
 
 ! ARGUMENTS:
 CHARACTER(len=2), intent(in) :: writetype                 ! Write (i) initial, (a) assimilated, (f) forecast, (m) daily-average fields
@@ -578,7 +580,7 @@ IF (writepe) THEN
          END DO ! n = 1, myDim_nod2D
          ! gather global field
          allocate(data2_g(mesh_fesom% nod2D))
-         CALL gather_nod(myData2, data2_g)
+         CALL gather_nod(myData2, data2_g, partit)
          deallocate(myData2)
          
          IF (writepe) THEN
@@ -615,7 +617,7 @@ IF (writepe) THEN
          END DO
          ! gather global field
          allocate(data3_g(nlmax,mesh_fesom% nod2D))
-         CALL gather_nod(myData3, data3_g)
+         CALL gather_nod(myData3, data3_g, partit)
          WHERE (topography3D_g == 0) data3_g = fill_value
          deallocate(myData3)
          

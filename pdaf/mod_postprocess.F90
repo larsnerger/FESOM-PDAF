@@ -6,7 +6,7 @@ MODULE mod_postprocess
   USE fesom_pdaf, &
        ONLY: nlmax, mesh_fesom, dt, myDim_nod2D, eDim_nod2D, &
        clock, yearnew, daynew, timenew, cyearnew, day_in_month, &
-       month, broadcast_nod
+       month, broadcast_nod, partit
   USE statevector_pdaf, &
        only: id, sfields
   use parallel_pdaf_mod, &
@@ -219,6 +219,7 @@ SUBROUTINE reset_exclusion_limits()
    use obs_n_merged_pdafomi, &
        only: n_merged_excl_absolute, n_merged_excl_relative
        
+   implicit none
    save
 
    ! save original limits
@@ -242,6 +243,9 @@ END SUBROUTINE reset_exclusion_limits
 ! simulation data
 
 SUBROUTINE netCDF_openfile(typ,freq,sim,fid)
+
+   implicit none
+
    ! Arguments
    CHARACTER(len=3), intent (in)  :: typ   ! phy or bgc
    CHARACTER(len=3), intent (in)  :: freq  ! day or mon
@@ -264,6 +268,9 @@ END SUBROUTINE netCDF_openfile
 ! simulation data
 
 SUBROUTINE netCDF_getstate(sim,ReadAtDay)
+
+   implicit none
+
    ! Arguments
    INTEGER,      intent (in)  :: sim                ! FRRN or ASML
    INTEGER,      intent (in)  :: ReadAtDay
@@ -299,7 +306,7 @@ SUBROUTINE netCDF_getstate(sim,ReadAtDay)
                                     count=(/ mesh_fesom%nod2D, nlmax,      1    /) ))
          endif
          ! broadcast state
-         call broadcast_nod(myData3,REAL(TRANSPOSE(data3_g),8))
+         call broadcast_nod(myData3,REAL(TRANSPOSE(data3_g),8), partit)
          ! add to state vector
          do n=1, myDim_nod2D
             do nz=1, nlmax
@@ -319,7 +326,7 @@ SUBROUTINE netCDF_getstate(sim,ReadAtDay)
                                     count=(/ mesh_fesom%nod2D,         1 /) ))
          endif
          ! broadcast state
-         call broadcast_nod(myData2,REAL(data2_g,8))
+         call broadcast_nod(myData2,REAL(data2_g,8), partit)
          ! add to state vector
          do n=1, myDim_nod2D
                state_p(sim, sfields(ifield)%off+n) = myData2(n)
@@ -336,6 +343,9 @@ END SUBROUTINE netCDF_getstate
 ! simulation data
 
 SUBROUTINE netCDF_getforc(sim,ReadAtDay)
+  
+  implicit none
+
    ! Arguments
    INTEGER,      intent (in)  :: sim                ! FRRN or ASML
    INTEGER,      intent (in)  :: ReadAtDay
@@ -384,7 +394,7 @@ SUBROUTINE netCDF_getforc(sim,ReadAtDay)
                                     count=(/ mesh_fesom%nod2D, nlmax,      1    /) ))
          endif
          ! broadcast state
-         call broadcast_nod(myData3,REAL(TRANSPOSE(data3_g),8))
+         call broadcast_nod(myData3,REAL(TRANSPOSE(data3_g),8), partit)
          ! add to state vector
          do n=1, myDim_nod2D
             do nz=1, nlmax
@@ -404,7 +414,7 @@ SUBROUTINE netCDF_getforc(sim,ReadAtDay)
                                     count=(/ mesh_fesom%nod2D,         1 /) ))
          endif
          ! broadcast state
-         call broadcast_nod(myData2,REAL(data2_g,8))
+         call broadcast_nod(myData2,REAL(data2_g,8), partit)
          ! add to state vector
          do n=1, myDim_nod2D
                forc_p(sfields(ifield)%off+n) = myData2(n)
@@ -430,6 +440,8 @@ SUBROUTINE PP_DIC_GLODAP()
    use PDAF, &
        only: PDAFomi_gather_obs_f_flex
        
+   implicit none
+
    ! init observation data
    call init_dim_obs_DIC_glodap(-1, dim_obs_f)
    ! offset
@@ -525,6 +537,8 @@ SUBROUTINE PP_Alk_GLODAP()
    use PDAF, &
        only: PDAFomi_gather_obs_f_flex
        
+   implicit none
+
    ! init observation data
    call init_dim_obs_Alk_glodap(-1, dim_obs_f)
    ! offset
@@ -621,6 +635,8 @@ SUBROUTINE PP_O2_COMFORT()
    use PDAF, &
        only: PDAFomi_gather_obs_f_flex
        
+   implicit none
+
    ! init observation data
    call init_dim_obs_O2_COMF(-1, dim_obs_f)
    ! offset
@@ -720,6 +736,8 @@ SUBROUTINE PP_PCO2_SOCAT()
    use PDAF, &
        only: PDAFomi_gather_obs_f_flex
        
+   implicit none
+
    ! init observation data
    call init_dim_obs_pCO2_SOCAT(-1, dim_obs_f)
    ! offset
@@ -815,6 +833,8 @@ SUBROUTINE PP_DIN_COMFORT()
    use PDAF, &
        only: PDAFomi_gather_obs_f_flex
        
+   implicit none
+
    ! init observation data
    call init_dim_obs_n_comf(-1, dim_obs_f)
    ! offset
@@ -903,6 +923,8 @@ SUBROUTINE PP_DIN_ARGO()
    use PDAF, &
        only: PDAFomi_gather_obs_f_flex
        
+   implicit none
+
    ! init observation data
    call init_dim_obs_n_argo(-1, dim_obs_f)
    ! offset
@@ -992,6 +1014,8 @@ SUBROUTINE PP_O2_ARGO()
    use PDAF, &
        only: PDAFomi_gather_obs_f_flex
        
+   implicit none
+
    ! init observation data
    call init_dim_obs_o2_argo(-1, dim_obs_f)
    ! offset
@@ -1083,6 +1107,7 @@ SUBROUTINE PP_DIN_MERGED()
        only: PDAFomi_gather_obs_f_flex
        
    implicit none
+
    REAL :: excl_relative_upper, excl_relative_lower ! relative upper and lower limits for exclusion
    
    if (n_merged_excl_relativePP > 0.0) then
@@ -1314,6 +1339,8 @@ SUBROUTINE write_ncfile(fid,self_offset_day,self_thisobs,self_thisobsPP, &
    USE PDAF   ,        ONLY: obs_f          ! Type variable for thisobs
    USE assim_pdaf_mod, ONLY: obs_PP         ! Type variable for thisobs_PP
 
+   implicit none
+
    integer, intent(in) :: fid               ! file ID
    integer, intent(in) :: self_offset_day   ! write position for observations
    
@@ -1448,6 +1475,8 @@ SUBROUTINE nowrite_ncfile(fid,self_offset_day)
 
    USE recom_config, ONLY: SecondsPerDay
 
+   implicit none
+
    integer, intent(in) :: fid               ! file ID
    integer, intent(in) :: self_offset_day   ! write position for observations
    
@@ -1477,6 +1506,8 @@ SUBROUTINE create_ncfile(obstype,fid)
    
    use netcdf
    
+   implicit none
+
    character(len=20), intent(in) :: obstype
    integer, intent(out) :: fid
    character(len=200) :: filename

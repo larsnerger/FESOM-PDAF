@@ -4,7 +4,7 @@ SUBROUTINE init_topography(dim_state_p, dim_state)
   use parallel_pdaf_mod, &
        only: MPIerr, mype_world
   Use fesom_pdaf, &
-       ONLY: volo_full_glob, cellvol, topography_p, topography3D_g, topography3D, &
+       ONLY: partit, volo_full_glob, cellvol, topography_p, topography3D_g, topography3D, &
        inv_volo_full_glob, area_surf_glob, inv_area_surf_glob, mesh_fesom, nlmax, zbar_n_srf, zbar_n_bot, &
        myDim_nod2D, myDim_elem2D, MPI_COMM_FESOM, gather_nod
   USE statevector_pdaf, &
@@ -44,7 +44,7 @@ SUBROUTINE init_topography(dim_state_p, dim_state)
     
     ! array dimensions as global model tracer fields
     allocate(topography3D_g(nlmax,mesh_fesom% nod2D))
-    call gather_nod(topography3D,topography3D_g)
+    call gather_nod(topography3D,topography3D_g, partit)
     
     ! array dimensions as pe-local state vector
     allocate(topography_p(dim_state_p))

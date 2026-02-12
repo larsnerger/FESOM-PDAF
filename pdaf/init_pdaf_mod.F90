@@ -10,17 +10,16 @@
 !! * 2022-02 - Frauke B     - Adapted for FESOM2.1
 !! * 2025-12 - Lars Nerger  - Update for PDAF3
 !!
-module init_pdaf_mod
-contains
-
-  subroutine init_pdaf(nsteps, mesh)
+subroutine init_pdaf(nsteps, mesh)
 
     use mpi
     use PDAF, only: &                                                       ! PDAF functions
          PDAF3_init, PDAF_set_iparam, PDAF_init_forecast, &
          PDAFomi_get_domain_limits_unstr, PDAF_reset_forget
     use timer, only: timeit
-    use statevector_pdaf, only: setup_statevector, sfields
+    use statevector_pdaf, &
+         only: setup_statevector, sfields, id, nfields, &
+         phymin, phymax, bgcmin, bgcmax
     use parallel_pdaf_mod, &                                                ! Parallelization variables for assimilation
          only: n_modeltasks, task_id, COMM_filter, COMM_couple, filterpe, &
          mype_world, COMM_model, abort_parallel, MPIerr, &
@@ -39,17 +38,18 @@ contains
     use coupled_da_mod, &
          only: cda_phy, cda_bio, cda_set_sweeps, DA_couple_type, cda_reset_filter_comm
     use fesom_pdaf, &
-         only: mesh_fesom, topography_p, t_mesh, &
-         myDim_nod2D, MPI_COMM_FESOM, myList_edge2D, myDim_edge2D, myDim_elem2D, &
-         timeold, daynew, cyearold, yearnew, yearold
-    use statevector_pdaf, &
-         only: id, nfields, phymin, phymax, bgcmin, bgcmax
+         only: set_fesom_pdaf_vars, mesh_fesom, t_mesh, dynamics, partit, topography_p, &
+         myDim_nod2D, MPI_COMM_FESOM, &
+         daynew, yearnew, yearold
     use adaptive_lradius_pdaf, &
          only: init_adaptive_lradius_pdaf
     use mod_perturbation_pdaf, &                                            ! BGC parameter perturbation
          only: perturb_scale, perturb_params_bio, perturb_params_phy, &
          perturb_lognormal, perturb_scaleD, &
          do_perturb_param_bio, do_perturb_param_phy
+    use obs_sst_pdafomi, &
+         only: assim_o_sst, rms_obs_sst, path_obs_sst, file_sst_prefix, file_sst_suffix, &
+         sst_exclude_ice, sst_exclude_diff, bias_obs_sst, sst_fixed_rmse
     use obs_sss_smos_pdafomi, &
          only: assim_o_sss, rms_obs_sss, path_obs_sss, file_sss_prefix, file_sss_suffix, &
          sss_exclude_ice, sss_exclude_diff, bias_obs_sss, sss_fixed_rmse
@@ -59,9 +59,6 @@ contains
     use obs_ssh_cmems_pdafomi, &
          only: assim_o_ssh, rms_obs_ssh, path_obs_ssh, file_ssh_prefix, file_ssh_suffix, &
          ssh_exclude_ice, ssh_exclude_diff, bias_obs_ssh, ssh_fixed_rmse
-    use obs_sst_pdafomi, &
-         only: assim_o_sst, rms_obs_sst, path_obs_sst, file_sst_prefix, file_sst_suffix, &
-         sst_exclude_ice, sst_exclude_diff, bias_obs_sst, sst_fixed_rmse
     use obs_TSprof_EN4_pdafomi, &
          only: assim_o_en4_s, assim_o_en4_t, &
          rms_obs_S, rms_obs_T, &
@@ -112,6 +109,9 @@ contains
 
     call timeit(3, 'old')
     call timeit(4, 'new')
+
+    ! Initialize regular variables from Fortran types of FESOM2.6
+    call set_fesom_pdaf_vars()
 
     ! Get process-ID in task of model compartment
     call MPI_Comm_Rank(MPI_COMM_FESOM, mype_submodel, MPIerr)
@@ -249,11 +249,11 @@ contains
     call setup_statevector(dim_state, dim_state_p, screen)
 
     ! Set land mask and compute volumes
-    call init_topography(dim_state_p, dim_state)
+   call init_topography(dim_state_p, dim_state)
 
-    ! Set configuration fro file output
-    call configure_output()
-  
+    ! Set configuration from file output
+   call configure_output()
+    
 ! *** Initial Screen output PDAF ***
 
     if (mype_model==0 .and. task_id==1) call init_pdaf_info()
@@ -295,7 +295,7 @@ contains
 ! *** Compute velocaty at nodes ***
 ! *********************************
 
-    call compute_vel_nodes(mesh_fesom)
+   call compute_vel_nodes(dynamics, partit, mesh_fesom)
 
 
 ! ******************************************************
@@ -309,7 +309,7 @@ contains
    
        ! collect model initial fields
        ! note: diagnostic fields, e.g. pCO2, not available: computed at the end model time step
-       call collect_state_pdaf(dim_state_p,state_p_init)
+!       call collect_state_pdaf(dim_state_p,state_p_init)
        state_p_init = topography_p * state_p_init
    
        call MPI_GATHER(state_p_init, dim_state_p, MPI_DOUBLE_PRECISION, &   ! send
@@ -355,7 +355,7 @@ contains
 !~   IF (filterpe) CALL ignore_nod_pdaf() ! Seems to cause problems in FESOM2.0 (SigSegV)
                                           ! Not sure if needed
 
-    call PDAFomi_get_domain_limits_unstr(myDim_nod2d, mesh_fesom%geo_coord_nod2D)
+!    call PDAFomi_get_domain_limits_unstr(myDim_nod2d, mesh_fesom%geo_coord_nod2D)
 
   
 
@@ -442,6 +442,4 @@ contains
     call timeit(4, 'old')
     call timeit(5, 'new')
 
-  end subroutine init_pdaf
-
-end module init_pdaf_mod
+end subroutine init_pdaf

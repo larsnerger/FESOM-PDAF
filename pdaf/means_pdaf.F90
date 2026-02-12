@@ -119,7 +119,7 @@ contains
          only: netCDF_out
     use fesom_pdaf, &
          only: timenew, daynew, yearnew, month, &
-         num_day_in_month, fleapyear, daily_event, monthly_event
+         num_day_in_month, fleapyear
     use assim_pdaf_mod, &           ! Variables for assimilation
          only: dim_state_p, delt_obs_ocn, dim_ens
 

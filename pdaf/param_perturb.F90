@@ -51,7 +51,7 @@ CONTAINS
          ONLY: mype_model, task_id
     USE recom_config, &
          ONLY: alfa, alfa_d, P_cm, P_cm_d, Chl2N_max, Chl2N_max_d, &
-         deg_Chl, deg_Chl_d, graz_max, graz_max2, grazEff, grazEff2, &
+         deg_Chl, deg_Chl_d, graz_max, graz_max2, gfin, grazEff2, &
          VDet, VDet_zoo2, Vdet_a, k_din, k_din_d, res_phy, res_phy_d, &
          rho_N, rho_C1, lossN, lossN_d, lossC, lossC_d, reminN, &
          reminC, calc_prod_ratio, res_het, res_zoo2, &
@@ -71,7 +71,7 @@ CONTAINS
 ! deg_Chl     = 0.1   ! degradation rate constant
 ! deg_Chl_d   = 0.1   ! degradation rate constant
 ! graz_max, graz_max2 ! maximum grazing rates
-! grazEff, grazEff2   ! grazing effeciency of ZooPlankton
+! gfin, grazEff2   ! grazing effeciency of ZooPlankton
 
 ! Selected parameters to disturb dissolved tracers, most importantly DIC:
 ! VDet, VDet_zoo2, Vdet_a   ! Sinking speed detritus
@@ -181,14 +181,14 @@ CONTAINS
     CALL perturb_lognormal(graz_max2, perturb_scale, iseed)
     IF (mype_model==0) WRITE(*,'(a,2x,a16,es14.4,a9,i3)') 'FESOM-PDAF Ppert', 'graz_max2 ', graz_max2, ' on task ', task_id
 
-! grazEff
-    IF (mype_model==0 .and. task_id==1) WRITE(*,'(a,2x,a16,es14.4,a15)') 'FESOM-PDAF Ppert', 'grazEff ', grazEff, ' DEFAULT'
+! gfin
+    IF (mype_model==0 .and. task_id==1) WRITE(*,'(a,2x,a16,es14.4,a15)') 'FESOM-PDAF Ppert', 'gfin ', gfin, ' DEFAULT'
     iseed(1)=2
     iseed(2)=1
     iseed(3)=6+3*task_id
     iseed(4)=13
-    CALL perturb_lognormal(grazEff, perturb_scale, iseed)
-    IF (mype_model==0) WRITE(*,'(a,2x,a16,es14.4,a9,i3)') 'FESOM-PDAF Ppert', 'grazEff ', grazEff, ' on task ', task_id
+    CALL perturb_lognormal(gfin, perturb_scale, iseed)
+    IF (mype_model==0) WRITE(*,'(a,2x,a16,es14.4,a9,i3)') 'FESOM-PDAF Ppert', 'gfin ', gfin, ' on task ', task_id
 
 ! grazEff2
     IF (mype_model==0 .and. task_id==1) WRITE(*,'(a,2x,a16,es14.4,a15)') 'FESOM-PDAF Ppert', 'grazEff2 ', grazEff2, ' DEFAULT'
