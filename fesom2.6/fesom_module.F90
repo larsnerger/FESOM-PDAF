@@ -112,9 +112,6 @@ contains
 #if defined(__MULTIO)
       use iom
 #endif
-#ifdef use_PDAF
-      use init_pdaf_mod, only: init_pdaf
-#endif
       integer, intent(out) :: fesom_total_nsteps
       ! EO parameters
       logical mpi_is_initialized
@@ -608,6 +605,10 @@ contains
         if (flag_debug .and. f%mype==0)  print *, achar(27)//'[34m'//' --> call oce_timestep_ale'//achar(27)//'[0m'
         call oce_timestep_ale(n, f%ice, f%dynamics, f%tracers, f%partit, f%mesh)
 
+#ifdef use_PDAF
+        CALL assimilate_PDAF(mstep) ! mstep: starting at 1 at each model (re)start
+#endif
+
         f%t3 = MPI_Wtime()
         !___compute energy diagnostics..._______________________________________
         if (flag_debug .and. f%mype==0)  print *, achar(27)//'[34m'//' --> call compute_diagnostics(1)'//achar(27)//'[0m'
@@ -747,6 +748,10 @@ contains
     call MPI_AllREDUCE(MPI_IN_PLACE, max_rtime,  14, MPI_REAL, MPI_MAX, f%MPI_COMM_FESOM, f%MPIerr)
     call MPI_AllREDUCE(MPI_IN_PLACE, min_rtime,  14, MPI_REAL, MPI_MIN, f%MPI_COMM_FESOM, f%MPIerr)
     
+#ifdef use_PDAF
+    CALL finalize_pdaf()
+#endif
+
 #if defined (__oifs) 
     ! OpenIFS coupled version has to call oasis_terminate through par_ex
     call par_ex(f%partit%MPI_COMM_FESOM, f%partit%mype)
