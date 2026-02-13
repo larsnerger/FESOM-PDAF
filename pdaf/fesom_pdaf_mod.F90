@@ -7,44 +7,40 @@
 !! separately initialized.
 !!
 !! __Revision history:__
-!! 2025-12 - Lars Nerger - Initial code for PDAF3 revision
+!! * 2025-12 - Lars Nerger - Initial code for PDAF3 revision
+!! * 2026-02 - Lars Nerger  - Adaption for FESOM2.6
 !!
 module fesom_pdaf
 
-  use fesom_main_storage_module
-!   use g_clock, &
-!        only: timenew, timeold, daynew, dayold, yearnew, yearold, &
-!        month, day_in_month, num_day_in_month, cyearnew, cyearold, &
-!        fleapyear, check_fleapyr, dt, clock
-!   use g_config, &
-!        only: runid, step_per_day, ResultPath
+  use fesom_main_storage_module, &
+       only: f, t_mesh, t_partit, t_dyn, t_tracer, t_ice, &
+       timenew, timeold, daynew, dayold, yearnew, yearold, &
+       month, day_in_month, num_day_in_month, cyearnew, cyearold, &
+       fleapyear, check_fleapyr, dt, clock, step_per_day, &
+       gather_nod, exchange_nod, broadcast_nod, exchange_elem, &
+       MLD1, MLD2, rotated_grid, &
+       runid, ResultPath, &
+       r_earth, rad, pi
   use g_rotate_grid, &
        only: r2g                 ! Transform from the mesh (rotated) coordinates to geographical coordinates  
   use g_sbf, &
        only: atmdata, i_xwind, i_ywind, i_humi, &
        i_qsr, i_qlw, i_tair, i_prec, i_mslp, i_snow
-!   use o_arrays, &
-!        only: eta_n, uv, wvel, tr_arr, unode, MLD1, MLD2, sigma0, &
-!        zbar_n_bot, zbar_n_srf, hnode_new, z_n, zbar_n
-!   use o_param, &
-!        only: r_earth, rad, pi
-!   use i_arrays, &
-!        only: a_ice
   use recom_config, &
-        only: tiny, tiny_chl, chl2N_max, chl2N_max_d, NCmax, &      
-        NCmax_d, SiCmax, Redfield, SecondsPerDay
-!   use REcoM_GloVar, &
-!        only: GloPCO2surf, GloCO2flux, Diags3D, PAR3D, export, &
-!        PistonVelocity, alphaCO2
+       only: tiny, tiny_chl, chl2N_max, chl2N_max_d, NCmax, &      
+       NCmax_d, SiCmax, Redfield, SecondsPerDay
+  use REcoM_GloVar, &
+       only: GloPCO2surf, GloCO2flux, PAR3D
+  !, Diags3D, export, PistonVelocity, alphaCO2
 
   implicit none
 
   ! Additional variables related to FESOM mesh
   type(t_mesh), pointer, save :: mesh_fesom
   integer, parameter :: nlmax = 46            ! CORE2 mesh: deepest wet cells at mesh_fesom%nl-2
-  real, allocatable :: topography3D(:,:)      ! topography: 1 for wet nodes and 0 for dry nodes (array shape as in model)
-  real, allocatable :: topography_p(:)        ! """                                             (array shape as state_p)
-  real, allocatable :: topography3D_g(:,:)    ! """                                             (array shape as in model globally)
+  real, allocatable :: topography3D(:,:)      ! topography: 1 for wet, 0 for dry nodes (array shape as in model)
+  real, allocatable :: topography_p(:)        ! """                                    (array shape as state_p)
+  real, allocatable :: topography3D_g(:,:)    ! """                                    (array shape as in model globally)
   real, allocatable :: cellvol(:,:)           ! standard volume of cells, NOT considering time-varying ALE layerwidth
   real :: area_surf_glob(nlmax)               ! ocean area and standard volume to calculate area-/volume weighted means
   real :: inv_area_surf_glob(nlmax)
@@ -76,6 +72,16 @@ module fesom_pdaf
 
 contains
 
+!> Routine to set variables for use in PDAF user routines
+!!
+!! FESOM2.6 puts most variables into different Fortran type
+!! variables and then combines those into the general 
+!! type 'f'. To avoid the need to directly access 'f'
+!! or different of the Fortran types, we here define
+!! regular variables so that most of the user code for
+!! PDAF can remain identical for FESOM2.6 and older
+!! FESOM versions.
+!!
   subroutine set_fesom_pdaf_vars()
 
     implicit none
@@ -84,6 +90,7 @@ contains
     mesh     => f%mesh
     dynamics => f%dynamics
     tracers  => f%tracers
+    ice      => f%ice
 
     MPI_COMM_FESOM = partit%MPI_COMM_FESOM
 
@@ -102,6 +109,7 @@ contains
 
     num_tracers = tracers%num_tracers
 
+    ! Model fields
     eta_n  => dynamics%eta_n(:)
     UV     => dynamics%uv(:,:,:)
     UVnode => dynamics%uvnode(:,:,:)
@@ -109,7 +117,6 @@ contains
     a_ice  => ice%data(1)%values(:)
     u_ice  => ice%uice(:)
     v_ice  => ice%vice(:)
-
 
   end subroutine set_fesom_pdaf_vars
 

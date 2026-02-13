@@ -77,47 +77,10 @@ subroutine init_dim_obs_pdafomi(step, dim_obs)
 ! *** Local variables ***
   integer :: dim_obs_type    ! Full number of observation of one type
 
-!   integer :: dim_obs_sst     ! Full number of SST observations
-!   integer :: dim_obs_sss_cci ! Full number of SSS (CCI) observations
-!   integer :: dim_obs_sss     ! Full number of SSS (SMOS) observations
-!   integer :: dim_obs_ssh     ! Full number of SSH observations
-!   integer :: dim_obs_prof    ! Full number of subsurface profile observations
-!   integer :: dim_obs_en4ana  ! Full number of EN4 analysis profile observations
-!   
-!   integer :: dim_obs_chl_cci ! Full number of biogeochem.-TYPE observations
-!   integer :: dim_obs_DIC_glodap
-!   integer :: dim_obs_Alk_glodap
-!   integer :: dim_obs_pCO2_socat
-!   integer :: dim_obs_O2_comf
-!   integer :: dim_obs_N_comf
-!   integer :: dim_obs_O2_argo
-!   integer :: dim_obs_N_argo
-!   integer :: dim_obs_O2_merged
-!   integer :: dim_obs_n_merged
-
 
 ! *********************************************
 ! *** Initialize full observation dimension ***
 ! *********************************************
-
-!   ! Initialize number of observations
-!   dim_obs_sst = 0
-!   dim_obs_sss = 0
-!   dim_obs_sss_cci = 0
-!   dim_obs_ssh = 0
-!   dim_obs_prof = 0
-!   dim_obs_en4ana = 0
-!   dim_obs_chl_cci = 0
-!   dim_obs_DIC_glodap = 0
-!   dim_obs_Alk_glodap = 0
-!   dim_obs_pCO2_socat = 0
-!   dim_obs_O2_comf = 0
-!   dim_obs_N_comf = 0
-!   dim_obs_O2_argo = 0
-!   dim_obs_N_argo = 0
-!   dim_obs_O2_merged = 0
-!   dim_obs_n_merged = 0
-
 
   ! Call observation specific routines
   ! The routines are independent, so it is not relevant
@@ -185,29 +148,6 @@ subroutine init_dim_obs_pdafomi(step, dim_obs)
      call init_dim_obs_n_merged(step, dim_obs_type)
      dim_obs = dim_obs + dim_obs_type
   end if
-
-!   if (assim_o_sst)     call init_dim_obs_sst(step, dim_obs_sst)
-!   if (assim_o_sss)     call init_dim_obs_sss(step, dim_obs_sss)
-!   if (assim_o_sss_cci) call init_dim_obs_sss_cci(step, dim_obs_sss_cci)
-!   if (assim_o_ssh)     call init_dim_obs_ssh(step, dim_obs_ssh)
-!   if (assim_o_en4_t .or. assim_o_en4_s) call init_dim_obs_prof(step, dim_obs_prof)
-!   
-!   if (assim_o_chl_cci)      call init_dim_obs_chl_cci(step, dim_obs_chl_cci)
-!   if (assim_o_DIC_glodap)   call init_dim_obs_DIC_glodap(step, dim_obs_DIC_glodap)
-!   if (assim_o_Alk_glodap)   call init_dim_obs_Alk_glodap(step, dim_obs_Alk_glodap)
-!   if (assim_o_pCO2_SOCAT)   call init_dim_obs_pCO2_SOCAT(step, dim_obs_pCO2_socat)
-!   if (assim_o_O2_comf)      call init_dim_obs_O2_comf(step, dim_obs_O2_comf)
-!   if (assim_o_N_comf)       call init_dim_obs_N_comf(step, dim_obs_N_comf)
-!   if (assim_o_O2_argo)      call init_dim_obs_O2_argo(step, dim_obs_O2_argo)
-!   if (assim_o_N_argo)       call init_dim_obs_N_argo(step, dim_obs_N_argo)
-!   if (assim_o_O2_merged)    call init_dim_obs_O2_merged(step, dim_obs_O2_merged)
-!   if (assim_o_n_merged)     call init_dim_obs_n_merged(step, dim_obs_n_merged)
-! 
-!   dim_obs =   dim_obs_sst + dim_obs_sss + dim_obs_sss_cci + dim_obs_ssh + dim_obs_prof + dim_obs_en4ana &
-!             + dim_obs_chl_cci + dim_obs_DIC_glodap + dim_obs_Alk_glodap + dim_obs_pCO2_socat &
-!             + dim_obs_O2_comf + dim_obs_N_comf + dim_obs_o2_argo + dim_obs_N_argo &
-!             + dim_obs_O2_merged + dim_obs_n_merged
-
 
   ! *** Generate profile observation files ***
   if (proffiles_o == 1) then

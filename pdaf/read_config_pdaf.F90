@@ -122,7 +122,7 @@ subroutine read_config_pdaf()
        cradius, locweight, sradius, &
        use_global_obs, printconfig, &
        type_trans, type_sqrt, dim_lag, &
-       loctype, do_omi_obsstats, &     
+       loctype, loc_ratio, do_omi_obsstats, &     
        dim_obs_max, twin_experiment
 
   namelist /coupledDA/ &
@@ -315,28 +315,28 @@ subroutine read_config_pdaf()
   call add_slash(path_obs_N_comf)
   
 ! *** Is atmospheric stochasticity used at all?
-if (disturb_humi   .or. &
-    disturb_mslp   .or. &
-    disturb_xwind  .or. &
-    disturb_ywind  .or. &
-    disturb_qlw    .or. &
-    disturb_qsr    .or. &
-    disturb_tair   .or. &
-    disturb_prec   .or. &
-    disturb_snow   ) then
-    
-    atmos_stochasticity_ON = .true.
-else
-    atmos_stochasticity_ON = .false.
-endif
+  if (disturb_humi   .or. &
+       disturb_mslp   .or. &
+       disturb_xwind  .or. &
+       disturb_ywind  .or. &
+       disturb_qlw    .or. &
+       disturb_qsr    .or. &
+       disturb_tair   .or. &
+       disturb_prec   .or. &
+       disturb_snow   ) then
+
+     atmos_stochasticity_ON = .true.
+  else
+     atmos_stochasticity_ON = .false.
+  endif
 
 ! Observation file prefixes:
-write(year_string,'(i4.4)') yearnew
+  write(year_string,'(i4.4)') yearnew
 
-file_sst_prefix = 'OSTIA_SST_'//trim(year_string)//'0101_'//trim(year_string)//'1231_daily_dist72_'
-file_sss_prefix = 'SMOS_SSS_'//trim(year_string)//'_dist72_'
-file_sss_cci_prefix = 'CCI_SSS_'//trim(year_string)//'_dist72_'
-file_chl_cci_prefix = 'CCI_OC_'//trim(year_string)//'_dist72_'
+  file_sst_prefix = 'OSTIA_SST_'//trim(year_string)//'0101_'//trim(year_string)//'1231_daily_dist72_'
+  file_sss_prefix = 'SMOS_SSS_'//trim(year_string)//'_dist72_'
+  file_sss_cci_prefix = 'CCI_SSS_'//trim(year_string)//'_dist72_'
+  file_chl_cci_prefix = 'CCI_OC_'//trim(year_string)//'_dist72_'
 
 ! *** Print configuration variables ***
   showconf: if (printconfig .and. mype_model==0 .and. task_id==1) then
@@ -362,7 +362,7 @@ file_chl_cci_prefix = 'CCI_OC_'//trim(year_string)//'_dist72_'
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'locweight   ',         locweight
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'loctype     ',         loctype
      write (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'sradius     ',         sradius
-!     write (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'loc_ratio   ',         loc_ratio
+     write (*,'(a,5x,a20,1x,es10.2)')'FESOM-PDAF',   'loc_ratio   ',         loc_ratio
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'use_global_obs',       use_global_obs
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'dim_lag     ',         dim_lag
      write (*,'(a,5x,a20,1x,i10)')   'FESOM-PDAF',   'DA_couple_type  ',     DA_couple_type

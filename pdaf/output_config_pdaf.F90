@@ -1,7 +1,5 @@
 module output_config_pdaf
 
-! USES:
-
   implicit none
 
 ! *** Local Variables ***
@@ -53,21 +51,21 @@ contains
          phymin, phymax, bgcmin, bgcmax
     use parallel_pdaf_mod, &
          only: writepe, mype_world
-!     use obs_chl_cci_pdafomi,    only: assim_o_chl_cci
-!     use obs_DIC_glodap_pdafomi, only: assim_o_DIC_glodap
-!     use obs_Alk_glodap_pdafomi, only: assim_o_Alk_glodap
-!     use obs_pCO2_SOCAT_pdafomi, only: assim_o_pCO2_SOCAT
-!     use obs_o2_comf_pdafomi,    only: assim_o_o2_comf
-!     use obs_n_comf_pdafomi,     only: assim_o_n_comf
-!     use obs_o2_argo_pdafomi,    only: assim_o_o2_argo
-!     use obs_n_argo_pdafomi,     only: assim_o_n_argo
-!     use obs_o2_merged_pdafomi,  only: assim_o_o2_merged
-!     use obs_sss_smos_pdafomi,   only: assim_o_sss
-!     use obs_sss_cci_pdafomi,    only: assim_o_sss_cci
-!     use obs_ssh_cmems_pdafomi,  only: assim_o_ssh 
-!     use obs_sst_pdafomi,        only: assim_o_sst 
-!     use obs_TSprof_EN4_pdafomi, only: assim_o_en4_s
-!     use obs_TSprof_EN4_pdafomi, only: assim_o_en4_t
+    use obs_chl_cci_pdafomi,    only: assim_o_chl_cci
+    use obs_DIC_glodap_pdafomi, only: assim_o_DIC_glodap
+    use obs_Alk_glodap_pdafomi, only: assim_o_Alk_glodap
+    use obs_pCO2_SOCAT_pdafomi, only: assim_o_pCO2_SOCAT
+    use obs_o2_comf_pdafomi,    only: assim_o_o2_comf
+    use obs_n_comf_pdafomi,     only: assim_o_n_comf
+    use obs_o2_argo_pdafomi,    only: assim_o_o2_argo
+    use obs_n_argo_pdafomi,     only: assim_o_n_argo
+    use obs_o2_merged_pdafomi,  only: assim_o_o2_merged
+    use obs_sss_smos_pdafomi,   only: assim_o_sss
+    use obs_sss_cci_pdafomi,    only: assim_o_sss_cci
+    use obs_ssh_cmems_pdafomi,  only: assim_o_ssh 
+    use obs_sst_pdafomi,        only: assim_o_sst 
+    use obs_TSprof_EN4_pdafomi, only: assim_o_en4_s
+    use obs_TSprof_EN4_pdafomi, only: assim_o_en4_t
 
     implicit none
 
@@ -160,40 +158,40 @@ contains
 ! *** write daily m-fields of assimilated variables ensemble mean ***
     if (setoutput(8)) then
        ! activate m-field output
-!        if (assim_o_sst)          sfields(id% temp)   % output(mm,oo) = .true.
-!        if (assim_o_sss)          sfields(id% salt)   % output(mm,oo) = .true.
-!        if (assim_o_sss_cci)      sfields(id% salt)   % output(mm,oo) = .true.
-!        if (assim_o_en4_t)        sfields(id% temp)   % output(mm,oo) = .true.
-!        if (assim_o_en4_s)        sfields(id% salt)   % output(mm,oo) = .true.
-!        if (assim_o_ssh)          sfields(id% SSH)    % output(mm,oo) = .true.
-!        if (assim_o_chl_cci)      sfields(id% PhyChl) % output(mm,oo) = .true.
-!        if (assim_o_chl_cci)      sfields(id% DiaChl) % output(mm,oo) = .true.
-!        if (assim_o_DIC_glodap)   sfields(id% DIC)    % output(mm,oo) = .true.
-!        if (assim_o_Alk_glodap)   sfields(id% Alk)    % output(mm,oo) = .true.
-!        if (assim_o_pCO2_SOCAT)   sfields(id% pCO2s)  % output(mm,oo) = .true.
-!        if (assim_o_o2_comf)      sfields(id% O2)     % output(mm,oo) = .true.
-!        if (assim_o_n_comf)       sfields(id% DIN)    % output(mm,oo) = .true.
-!        if (assim_o_o2_argo)      sfields(id% O2)     % output(mm,oo) = .true.
-!        if (assim_o_n_argo)       sfields(id% DIN)    % output(mm,oo) = .true.
-!        if (assim_o_o2_merged)    sfields(id% O2)     % output(mm,oo) = .true.
-! 
-!        ! set to daily
-!        if (assim_o_sst)          sfields(id% temp)   % output(mm,dd) = .true.
-!        if (assim_o_sss)          sfields(id% salt)   % output(mm,dd) = .true.
-!        if (assim_o_sss_cci)      sfields(id% salt)   % output(mm,dd) = .true.
-!        if (assim_o_en4_t)        sfields(id% temp)   % output(mm,dd) = .true.
-!        if (assim_o_en4_s)        sfields(id% salt)   % output(mm,dd) = .true.
-!        if (assim_o_ssh)          sfields(id% SSH)    % output(mm,dd) = .true.
-!        if (assim_o_chl_cci)      sfields(id% PhyChl) % output(mm,dd) = .true.
-!        if (assim_o_chl_cci)      sfields(id% DiaChl) % output(mm,dd) = .true.
-!        if (assim_o_DIC_glodap)   sfields(id% DIC)    % output(mm,dd) = .true.
-!        if (assim_o_Alk_glodap)   sfields(id% Alk)    % output(mm,dd) = .true.
-!        if (assim_o_pCO2_SOCAT)   sfields(id% pCO2s)  % output(mm,dd) = .true.
-!        if (assim_o_o2_comf)      sfields(id% O2)     % output(mm,dd) = .true.
-!        if (assim_o_n_comf)       sfields(id% DIN)    % output(mm,dd) = .true.
-!        if (assim_o_o2_argo)      sfields(id% O2)     % output(mm,dd) = .true.
-!        if (assim_o_n_argo)       sfields(id% DIN)    % output(mm,dd) = .true.
-!        if (assim_o_o2_merged)    sfields(id% O2)     % output(mm,dd) = .true.
+       if (assim_o_sst)          sfields(id% temp)   % output(mm,oo) = .true.
+       if (assim_o_sss)          sfields(id% salt)   % output(mm,oo) = .true.
+       if (assim_o_sss_cci)      sfields(id% salt)   % output(mm,oo) = .true.
+       if (assim_o_en4_t)        sfields(id% temp)   % output(mm,oo) = .true.
+       if (assim_o_en4_s)        sfields(id% salt)   % output(mm,oo) = .true.
+       if (assim_o_ssh)          sfields(id% SSH)    % output(mm,oo) = .true.
+       if (assim_o_chl_cci)      sfields(id% PhyChl) % output(mm,oo) = .true.
+       if (assim_o_chl_cci)      sfields(id% DiaChl) % output(mm,oo) = .true.
+       if (assim_o_DIC_glodap)   sfields(id% DIC)    % output(mm,oo) = .true.
+       if (assim_o_Alk_glodap)   sfields(id% Alk)    % output(mm,oo) = .true.
+       if (assim_o_pCO2_SOCAT)   sfields(id% pCO2s)  % output(mm,oo) = .true.
+       if (assim_o_o2_comf)      sfields(id% O2)     % output(mm,oo) = .true.
+       if (assim_o_n_comf)       sfields(id% DIN)    % output(mm,oo) = .true.
+       if (assim_o_o2_argo)      sfields(id% O2)     % output(mm,oo) = .true.
+       if (assim_o_n_argo)       sfields(id% DIN)    % output(mm,oo) = .true.
+       if (assim_o_o2_merged)    sfields(id% O2)     % output(mm,oo) = .true.
+
+       ! set to daily
+       if (assim_o_sst)          sfields(id% temp)   % output(mm,dd) = .true.
+       if (assim_o_sss)          sfields(id% salt)   % output(mm,dd) = .true.
+       if (assim_o_sss_cci)      sfields(id% salt)   % output(mm,dd) = .true.
+       if (assim_o_en4_t)        sfields(id% temp)   % output(mm,dd) = .true.
+       if (assim_o_en4_s)        sfields(id% salt)   % output(mm,dd) = .true.
+       if (assim_o_ssh)          sfields(id% SSH)    % output(mm,dd) = .true.
+       if (assim_o_chl_cci)      sfields(id% PhyChl) % output(mm,dd) = .true.
+       if (assim_o_chl_cci)      sfields(id% DiaChl) % output(mm,dd) = .true.
+       if (assim_o_DIC_glodap)   sfields(id% DIC)    % output(mm,dd) = .true.
+       if (assim_o_Alk_glodap)   sfields(id% Alk)    % output(mm,dd) = .true.
+       if (assim_o_pCO2_SOCAT)   sfields(id% pCO2s)  % output(mm,dd) = .true.
+       if (assim_o_o2_comf)      sfields(id% O2)     % output(mm,dd) = .true.
+       if (assim_o_n_comf)       sfields(id% DIN)    % output(mm,dd) = .true.
+       if (assim_o_o2_argo)      sfields(id% O2)     % output(mm,dd) = .true.
+       if (assim_o_n_argo)       sfields(id% DIN)    % output(mm,dd) = .true.
+       if (assim_o_o2_merged)    sfields(id% O2)     % output(mm,dd) = .true.
     endif
 
 ! *** write daily m-fields of assimilate-able BGC variables ensemble mean ***

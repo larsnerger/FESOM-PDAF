@@ -1,7 +1,7 @@
-subroutine compute_vel_elems(Unode,UV)
+subroutine compute_vel_elems(UVnode,UV)
 
     use fesom_pdaf, &
-       only: mesh_fesom, myDim_elem2D, eDim_elem2D, &
+       only: partit, mesh_fesom, myDim_elem2D, eDim_elem2D, &
              myDim_nod2D, eDim_nod2D, exchange_nod
 
     implicit none
@@ -12,7 +12,7 @@ subroutine compute_vel_elems(Unode,UV)
                         nle            ! number of levels as element considering bottom topography
                         
     ! *** arguments ***
-    real, intent(inout) :: Unode(2,mesh_fesom%nl-1, myDim_nod2D + eDim_nod2D) ! u and v velocities defined at nodes
+    real, intent(inout) :: UVnode(2,mesh_fesom%nl-1, myDim_nod2D + eDim_nod2D) ! u and v velocities defined at nodes
     real, intent(out)   :: UV(2,mesh_fesom%nl-1,myDim_elem2D + eDim_elem2D)   ! u and v velocities defined at element centroids
     
     ! *** variables imported from modules ***
@@ -20,7 +20,7 @@ subroutine compute_vel_elems(Unode,UV)
     ! nlevels(:)               ! number of levels at elements considering bottom topography
     ! elem2D_nodes(:,e)        ! 3 nodes of element e
     ! UV (2,nz,elem)           ! u and v velocities defined at element centroids
-    ! Unode(2,nz,node)         ! u and v velocities defined at nodes
+    ! UVnode(2,nz,node)         ! u and v velocities defined at nodes
     
     ! #include "associate_mesh.h"
     
@@ -31,7 +31,7 @@ subroutine compute_vel_elems(Unode,UV)
     ! Thus, each of the 3 vertices is associated with an equal area share of the element
     ! and weighted equally for interpolation.
     
-    call exchange_nod(Unode)
+    call exchange_nod(UVnode, partit)
     
     elements: do elem = 1, myDim_elem2D
     
@@ -40,12 +40,12 @@ subroutine compute_vel_elems(Unode,UV)
         
         watercolumn: do nz = ule, nle-1
 
-        UV(1,nz,elem) = (  Unode(1,nz,mesh_fesom% elem2D_nodes(1,elem)) &
-                         + Unode(1,nz,mesh_fesom% elem2D_nodes(2,elem)) &
-                         + Unode(1,nz,mesh_fesom% elem2D_nodes(3,elem)))  /3
-        UV(2,nz,elem) = (  Unode(2,nz,mesh_fesom% elem2D_nodes(1,elem)) &
-                         + Unode(2,nz,mesh_fesom% elem2D_nodes(2,elem)) &
-                         + Unode(2,nz,mesh_fesom% elem2D_nodes(3,elem)))  /3
+        UV(1,nz,elem) = (  UVnode(1,nz,mesh_fesom% elem2D_nodes(1,elem)) &
+                         + UVnode(1,nz,mesh_fesom% elem2D_nodes(2,elem)) &
+                         + UVnode(1,nz,mesh_fesom% elem2D_nodes(3,elem)))  /3
+        UV(2,nz,elem) = (  UVnode(2,nz,mesh_fesom% elem2D_nodes(1,elem)) &
+                         + UVnode(2,nz,mesh_fesom% elem2D_nodes(2,elem)) &
+                         + UVnode(2,nz,mesh_fesom% elem2D_nodes(3,elem)))  /3
         
         end do watercolumn
     end do elements

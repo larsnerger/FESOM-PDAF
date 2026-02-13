@@ -351,8 +351,6 @@ SUBROUTINE cfluxes_diags_output_tmean(mstep)
        gather_nod, partit, tracers, hnode_new
   USE assim_pdaf_mod, &
        ONLY: dim_ens
-  USE fesom_pdaf, &
-       ONLY: nlmax, mesh_fesom
   USE parallel_pdaf_mod, &
        ONLY: mype_world, abort_parallel, task_id, mype_submodel, &
        COMM_COUPLE, filterpe, writepe, mype_model

@@ -2,10 +2,7 @@ SUBROUTINE point_in_triangle_pdaf(el2D,   pt)
 ! 2019-11 - Longjiang Mu - Initial commit for AWI-CM3
 
 !//TODO: needs refinement
-  use g_PARSUP
-  use o_param
-  use g_rotate_grid
-  USE fesom_pdaf, ONLY: mesh_fesom
+  USE fesom_pdaf, ONLY: mesh_fesom, myDim_elem2D, myDim_nod2D, r2g, rotated_grid, pi
   implicit none
 
   INTEGER, INTENT(OUT)                   :: el2D

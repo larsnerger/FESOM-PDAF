@@ -93,7 +93,7 @@ END SUBROUTINE check
 ! It is called from init_PDAF on all PEs.
 ! It is optionally called for the ensemble mean and/or for each ensemble member.
 
-SUBROUTINE netCDF_init()
+SUBROUTINE init_output_pdaf()
 
 USE assim_pdaf_mod, only: dim_ens
 USE fesom_pdaf, only: partit
@@ -167,7 +167,7 @@ IF (writepe) THEN
      
 ENDIF ! writepe
 deallocate(lon,lat)
-END SUBROUTINE netCDF_init
+END SUBROUTINE init_output_pdaf
 
 ! ********************************
 ! ***   netCDF_deffile         ***

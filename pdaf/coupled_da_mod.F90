@@ -48,7 +48,7 @@ contains
     character(len=6) :: cdaval   ! Flag whether strongly-coupled DA is done
 
     ! Set flags for assimilating physics and BGC observations
-!    call check_coupled_da_pdafomi(assimilatePHY, assimilateBGC)
+    call check_coupled_da_pdafomi(assimilatePHY, assimilateBGC)
 
     if (assimilateBGC .and. assimilatePHY) then
        ! Observations of both physics and BGC are assimilated

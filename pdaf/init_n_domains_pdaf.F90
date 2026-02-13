@@ -15,8 +15,8 @@
 !!
 subroutine init_n_domains_pdaf(step, n_domains_p)
 
-  use g_parsup, &
-      only: myDim_nod2D, myDim_elem2D
+  use fesom_pdaf, &
+      only: myDim_nod2D
   use parallel_pdaf_mod, &
       only: mype_filter
   use coupled_da_mod, &

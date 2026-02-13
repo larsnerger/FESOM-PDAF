@@ -21,7 +21,7 @@ subroutine init_dim_obs_f_proffile_pdaf(startyr, endyr)
   use fesom_pdaf, &
        only: mesh_fesom, &
        num_day_in_month, myDim_nod2D, MPI_COMM_FESOM, rad, &
-       fleapyear, check_fleapyr, z_n, zbar_n
+       fleapyear, check_fleapyr !, z_n, zbar_n
             ! mesh_fesom % coord_nod2D        ! vertex coordinates in radian measure
             ! mesh_fesom % nlevels            ! number of levels at (below) elem     considering bottom topography
             ! mesh_fesom % nlevels_nod2D      ! number of levels at (below) vertices considering bottom topography
@@ -730,8 +730,8 @@ subroutine init_dim_obs_f_proffile_pdaf(startyr, endyr)
                                    sum_temp = sum_temp + temp_day(index_pro_day_p(iprof_day_p),nn)
                                    
                                    if (debugging) write(*,*) 'proffile-debug ', 'depth_day(index_pro_day_p(iprof_day_p),nn)', depth_day(index_pro_day_p(iprof_day_p),nn)
-                                   if (debugging) write(*,*) 'proffile-debug ', 'zbar_n(ilayer  )', zbar_n(ilayer  )
-                                   if (debugging) write(*,*) 'proffile-debug ', 'zbar_n(ilayer+1)', zbar_n(ilayer+1)
+!                                    if (debugging) write(*,*) 'proffile-debug ', 'zbar_n(ilayer  )', zbar_n(ilayer  )
+!                                    if (debugging) write(*,*) 'proffile-debug ', 'zbar_n(ilayer+1)', zbar_n(ilayer+1)
                                    
                                 end if
                              end if

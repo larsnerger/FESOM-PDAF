@@ -569,7 +569,7 @@ contains
     ! Include PDAFomi function
     use PDAF, only: PDAFomi_init_dim_obs_l
     ! Include routine for adaptive localization radius
-!     use adaptive_lradius_pdaf, only: get_adaptive_lradius_pdaf
+    use adaptive_lradius_pdaf, only: get_adaptive_lradius_pdaf
     ! Number of domains per sweep:
     use fesom_pdaf, only: myDim_nod2D
     ! Include localization radius and local coordinates
@@ -594,10 +594,10 @@ contains
           domain_p = domain_p_all - myDim_nod2d
        end if
 
-!        if (loctype == 1) then
-!           ! *** Variable localization radius for fixed effective observation dimension ***
-!           call get_adaptive_lradius_pdaf(thisobs, domain_p, lradius_sst, loc_radius_sst)
-!        end if
+       if (loctype == 1) then
+          ! *** Variable localization radius for fixed effective observation dimension ***
+          call get_adaptive_lradius_pdaf(thisobs, domain_p, lradius_sst, loc_radius_sst)
+       end if
 !       lradius_sst = loc_radius_sst(modulo(domain_p_all,myDim_nod2D))
        lradius_sst = loc_radius_sst(domain_p)
 
