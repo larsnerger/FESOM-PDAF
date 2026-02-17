@@ -65,17 +65,17 @@ subroutine assimilate_pdaf(istep)
                                     ! istep_asml:  starting at 1 at beginning of each year
 
   ! Call universal assimilate routine
-  call PDAF3_assimilate(collect_state_pdaf, distribute_state_pdaf, &
-       init_dim_obs_pdafomi, obs_op_pdafomi, &
-       init_n_domains_pdaf, init_dim_l_pdaf, init_dim_obs_l_pdafomi, &
-       prepoststep_pdaf, next_observation_pdaf, status_pdaf)
-
-! ! Alternative call using g2l_state_pdaf and l2g_state_pdaf
-!   call PDAF3_assimilate_local(collect_state_pdaf, distribute_state_pdaf, &
+!   call PDAF3_assimilate(collect_state_pdaf, distribute_state_pdaf, &
 !        init_dim_obs_pdafomi, obs_op_pdafomi, &
 !        init_n_domains_pdaf, init_dim_l_pdaf, init_dim_obs_l_pdafomi, &
-!        g2l_state_pdaf, l2g_state_pdaf, &
 !        prepoststep_pdaf, next_observation_pdaf, status_pdaf)
+
+! Alternative call using g2l_state_pdaf and l2g_state_pdaf
+  call PDAF3_assimilate_local(collect_state_pdaf, distribute_state_pdaf, &
+       init_dim_obs_pdafomi, obs_op_pdafomi, &
+       init_n_domains_pdaf, init_dim_l_pdaf, init_dim_obs_l_pdafomi, &
+       g2l_state_pdaf, l2g_state_pdaf, &
+       prepoststep_pdaf, next_observation_pdaf, status_pdaf)
 
 
   ! Check for errors during execution of PDAF
